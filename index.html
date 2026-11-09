@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#10191c">
+  <meta name="description" content="Danwell's 30th birthday adventure: a personal RuneScape 3-inspired game.">
+  <title>Danwell's 30th Birthday · RuneScape Adventure</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%94%EF%B8%8F%3C/text%3E%3C/svg%3E">
+</head>
+<body class="rs3-client-body">
+  <div class="client-shell">
+    <header class="client-topbar">
+      <div class="client-brand" aria-label="Danwell's birthday adventure">
+        <span class="client-brand__crest" aria-hidden="true">⚔</span>
+        <span class="client-brand__copy">
+          <strong>GIELINOR</strong>
+          <small>Birthday edition</small>
+        </span>
+      </div>
+      <div class="client-profile" aria-label="Character Danwell, level 30">
+        <span class="client-status-dot" aria-hidden="true"></span>
+        <span><strong>Danwell</strong><small>COMBAT LVL 30 · 30TH BIRTHDAY</small></span>
+      </div>
+      <div class="client-topbar__right">
+        <span class="client-quest-status"><span class="client-status-dot" aria-hidden="true"></span><span id="questProgressText">In progress · 0/5</span></span>
+        <button type="button" data-action="toggle-rivalry" class="rs3-btn client-icon-button" aria-label="Open football rivalry">⚽</button>
+      </div>
+    </header>
+
+    <main class="game-client-layout">
+      <aside class="client-sidebar client-sidebar--left">
+        <section class="client-panel quest-panel" aria-labelledby="questPanelTitle">
+          <div class="client-panel__title">
+            <h2 id="questPanelTitle"><span aria-hidden="true">☷</span> QUEST JOURNAL</h2>
+            <span class="client-panel__count"><span id="heroProgressText">0 of 5</span></span>
+          </div>
+          <p class="client-panel__intro">Danwell's 30th birthday adventures</p>
+          <nav class="quest-list" aria-label="Birthday quest chapters">
+            <button id="qbtn-1" type="button" data-level="1" class="quest-row">
+              <span class="quest-row__icon" aria-hidden="true">⌖</span>
+              <span class="quest-row__copy"><strong>Annabelle Escape</strong><small>Kettering · Warding runes</small></span>
+              <span id="qstatus-1" class="quest-row__status">Available</span>
+            </button>
+            <button id="qbtn-2" type="button" data-level="2" class="quest-row">
+              <span class="quest-row__icon" aria-hidden="true">◉</span>
+              <span class="quest-row__copy"><strong>Lucky Chucks</strong><small>Pool hall · Trick shot</small></span>
+              <span id="qstatus-2" class="quest-row__status">Locked</span>
+            </button>
+            <button id="qbtn-3" type="button" data-level="3" class="quest-row">
+              <span class="quest-row__icon" aria-hidden="true">↗</span>
+              <span class="quest-row__copy"><strong>Thirteen</strong><small>Alton Towers · Coaster drop</small></span>
+              <span id="qstatus-3" class="quest-row__status">Locked</span>
+            </button>
+            <button id="qbtn-4" type="button" data-level="4" class="quest-row">
+              <span class="quest-row__icon" aria-hidden="true">♧</span>
+              <span class="quest-row__copy"><strong>GoApe After Dark</strong><small>Canopy · Zip-line</small></span>
+              <span id="qstatus-4" class="quest-row__status">Locked</span>
+            </button>
+            <button id="qbtn-5" type="button" data-level="5" class="quest-row">
+              <span class="quest-row__icon" aria-hidden="true">✦</span>
+              <span class="quest-row__copy"><strong>Fright Night</strong><small>Earls Barton · Corn maze</small></span>
+              <span id="qstatus-5" class="quest-row__status">Locked</span>
+            </button>
+          </nav>
+          <div class="client-chat" aria-label="Quest log message">
+            <span class="client-chat__label"><span aria-hidden="true">✧</span> QUEST GUIDE</span>
+            <p id="dialogueText">Welcome, Danwell. Your level 30 birthday adventure awaits.</p>
+          </div>
+        </section>
+      </aside>
+
+      <section class="client-panel client-world-panel" id="gameStageWindow" aria-labelledby="stageTitle">
+        <div class="world-titlebar">
+          <div class="world-titlebar__location"><span class="world-location-dot" aria-hidden="true"></span><span id="worldLocation">KETTERING · ANNABELLE'S ROOM</span></div>
+          <span id="stageBadge" class="world-stage-badge">In progress</span>
+          <h1 id="stageTitle">Level 1: Annabelle Escape (Kettering)</h1>
+        </div>
+
+        <div id="worldViewport" class="world-viewport" data-chapter="1" aria-label="Danwell's game world">
+          <div class="world-sky" aria-hidden="true"></div>
+          <div class="world-sun" aria-hidden="true"></div>
+          <div class="world-cloud world-cloud--one" aria-hidden="true"></div>
+          <div class="world-cloud world-cloud--two" aria-hidden="true"></div>
+          <div class="world-mountains" aria-hidden="true"></div>
+          <div class="world-castle" aria-hidden="true"><span>♜</span><span>♜</span><span>⌂</span><span>♜</span></div>
+          <div class="world-forest" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="world-ground" aria-hidden="true"></div>
+          <div class="world-path" aria-hidden="true"></div>
+          <div class="world-landmark" aria-hidden="true"><span id="worldLandmark">🏚️</span></div>
+          <div class="world-location-card"><span>LOCATION</span><strong id="worldSceneName">The old escape room</strong></div>
+          <div class="danwell-avatar" role="img" aria-label="Danwell, the level 30 birthday adventurer">
+            <svg viewBox="0 0 64 92" aria-hidden="true" focusable="false">
+              <ellipse cx="32" cy="87" rx="22" ry="4" fill="rgba(13,20,19,.35)" />
+              <path d="M22 52 15 83h12l6-20 7 20h12l-8-31z" fill="#302b3e" stroke="#181923" stroke-width="2" />
+              <path d="m18 80-4 8h16l-2-8m13 0-2 8h16l-5-8" fill="#4a3328" stroke="#201c1a" stroke-width="2" />
+              <path d="m19 34-8 12 9 20 12 8 13-8 8-20-8-12z" fill="#3c685c" stroke="#d3b86e" stroke-width="2" />
+              <path d="m22 38 10 8 10-8-3 15-7 7-7-7z" fill="#a78b59" />
+              <path d="M21 19c0-10 5-15 12-15s13 6 13 16v8c0 11-6 17-13 17s-12-7-12-17z" fill="#e9bd91" stroke="#3b2c25" stroke-width="2" />
+              <path d="M20 22C18 9 25 2 34 3c8 1 13 7 12 19l-5-7-2 5-4-7-4 6-5-4z" fill="#56352c" />
+              <path d="M21 27h5m12 0h5" stroke="#30231e" stroke-width="2" stroke-linecap="round" />
+              <path d="M27 37q5 4 10 0" fill="none" stroke="#9e6257" stroke-width="2" stroke-linecap="round" />
+              <path d="m17 39-8 7 7 15 6-4-3-9m35-9 7 8-7 15-6-4 3-9" fill="#e9bd91" stroke="#3b2c25" stroke-width="2" />
+              <path d="m51 37 8 39" stroke="#d9c18a" stroke-width="3" stroke-linecap="round" />
+              <path d="m56 70 7 5-6 2" fill="#d9c18a" />
+              <path d="m20 37 12 9 12-9" fill="none" stroke="#f1d98c" stroke-width="2" />
+            </svg>
+            <span class="danwell-avatar__name">DANWELL <b>30</b></span>
+          </div>
+          <div class="world-view-caption"><span class="world-view-caption__dot"></span> SOLO ADVENTURE · BIRTHDAY MODE</div>
+        </div>
+
+        <div id="gameCanvasContainer" class="game-canvas client-game-canvas" aria-label="Chapter gameplay">
+          <!-- The active chapter's mini-game is mounted here. -->
+        </div>
+      </section>
+
+      <aside class="client-sidebar client-sidebar--right">
+        <section class="client-panel minimap-panel" aria-labelledby="minimapTitle">
+          <div class="client-panel__title">
+            <h2 id="minimapTitle"><span aria-hidden="true">◎</span> WORLD MAP</h2>
+            <span class="minimap-compass" aria-hidden="true">N</span>
+          </div>
+          <div id="chapterMapContainer"></div>
+        </section>
+
+        <section class="client-panel birthday-panel" aria-labelledby="birthdayPanelTitle">
+          <div class="client-panel__title"><h2 id="birthdayPanelTitle"><span aria-hidden="true">✧</span> BIRTHDAY XP</h2><span class="birthday-level">LV 30</span></div>
+          <div class="birthday-xp-label"><span>Quest memories</span><strong><span id="itemCount">0</span> / 5</strong></div>
+          <div id="questProgressBar" class="progress-track" role="progressbar" aria-label="Birthday quest progress" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><div id="progressFill" class="progress-fill"></div></div>
+          <p class="birthday-xp-copy" id="birthdayXpCopy">5 more memories to collect</p>
+        </section>
+
+        <section class="client-panel inventory-panel" aria-labelledby="inventoryTitle">
+          <div class="client-panel__title"><h2 id="inventoryTitle"><span aria-hidden="true">▦</span> KEEPSAKES</h2><span class="client-panel__count">5 slots</span></div>
+          <div class="inventory-grid" id="inventoryGrid"></div>
+          <p class="inventory-hint">Collected quest memories</p>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="client-actionbar" aria-label="Game controls">
+      <span class="actionbar-label">DANWELL'S ADVENTURE</span>
+      <div class="actionbar-shortcuts" aria-hidden="true">
+        <span title="Quest journal">☷</span><span title="World map">◎</span><span title="Keepsakes">▦</span><span title="Birthday level">30</span>
+      </div>
+      <button id="toggleAudioBtn" type="button" data-action="toggle-audio" aria-pressed="false" class="rs3-btn actionbar-audio">
+        <span id="audioIcon" aria-hidden="true">♫</span><span id="audioText">Birthday music off</span>
+      </button>
+    </footer>
+  </div>
+
+  <!-- MODAL: CHELSEA VS ARSENAL BANTER -->
+  <div id="rivalryModal" data-modal-backdrop class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="rs3-panel modal-panel max-w-md w-full p-5 rounded-xl border border-yellow-400/70 relative" role="dialog" aria-modal="true" aria-labelledby="rivalryTitle">
+      <button type="button" aria-label="Close football rivalry" data-action="toggle-rivalry" class="absolute top-2 right-2 text-amber-400 hover:text-white text-lg font-bold">✕</button>
+      
+      <div class="text-center mb-4">
+        <h3 id="rivalryTitle" class="rune-font text-sm text-yellow-400 mb-1">⚽ THE GREAT HOUSE RIVALRY ⚽</h3>
+        <p class="text-xs text-amber-300">London is... Blue or Red?</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-blue-950/80 border border-blue-500 p-3 rounded text-center">
+          <div class="text-3xl mb-1">🦁</div>
+          <div class="font-bold text-blue-300">CHELSEA FC</div>
+          <div class="text-xs text-blue-200/80 mt-1">Her Team (The Boss)</div>
+        </div>
+        <div class="bg-red-950/80 border border-red-500 p-3 rounded text-center">
+          <div class="text-3xl mb-1">🔴</div>
+          <div class="font-bold text-red-300">ARSENAL FC</div>
+          <div class="text-xs text-red-200/80 mt-1">His Team (The Rookie)</div>
+        </div>
+      </div>
+
+      <div class="rs3-dialogue p-3 rounded text-xs text-amber-200 mb-4 text-center">
+        "We play for the same team in real life, but match days are always legendary! Even though he supports Arsenal, she still gets the birthday victory!"
+      </div>
+
+      <button type="button" data-action="toggle-rivalry" class="w-full rs3-btn py-2 text-sm rounded-lg">Back to Quest</button>
+    </div>
+  </div>
+
+  <!-- MODAL: ITEM DETAIL POPUP -->
+  <div id="itemModal" data-modal-backdrop class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="rs3-panel modal-panel max-w-md w-full p-5 rounded-xl border border-yellow-400/70 relative" role="dialog" aria-modal="true" aria-labelledby="itemModalTitle">
+      <button type="button" aria-label="Close keepsake details" data-action="close-item" class="absolute top-2 right-2 text-amber-400 hover:text-white text-lg font-bold">✕</button>
+      <div class="flex items-center gap-3 mb-3">
+        <div id="itemModalIcon" class="text-4xl bg-black/50 p-2 rounded border border-amber-700">🎒</div>
+        <div>
+          <h3 id="itemModalTitle" class="rune-font text-xs text-yellow-400">Item Name</h3>
+          <p class="text-xs text-green-400">Quest Memory Item</p>
+        </div>
+      </div>
+      <div class="rs3-dialogue p-3 rounded text-sm text-amber-100 mb-4" id="itemModalDesc">
+        Memory description goes here...
+      </div>
+      <button type="button" data-action="close-item" class="w-full rs3-btn py-2 text-sm rounded-lg">Close keepsake</button>
+    </div>
+  </div>
+
+  <!-- MODAL: FINAL LEVEL UP 99 BIRTHDAY REWARD -->
+  <div id="victoryModal" data-modal-backdrop class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="rs3-panel modal-panel max-w-lg w-full p-6 rounded-xl border-2 border-yellow-400 text-center relative level-up-glow" role="dialog" aria-modal="true" aria-labelledby="victoryTitle">
+      
+      <!-- Sparkles / Confetti Icon -->
+      <div class="text-5xl mb-2 animate-bounce">🎉 ⚔️ 👑</div>
+      
+      <!-- Birthday level-up banner -->
+      <div class="bg-gradient-to-r from-amber-900 via-yellow-700 to-amber-900 border-y-2 border-yellow-300 py-2 px-4 mb-4 shadow-lg">
+        <p class="rune-font text-xs text-yellow-200">CONGRATULATIONS!</p>
+        <h2 id="victoryTitle" class="rune-font text-base sm:text-lg text-yellow-300 tracking-wide mt-1">YOU JUST LEVELED UP!</h2>
+      </div>
+
+      <div class="space-y-3 mb-6">
+        <p class="text-2xl text-pink-300 font-bold">Level 30 Birthday Legend Achieved! 💖</p>
+        <p class="text-sm text-amber-200 leading-relaxed px-2">
+          Danwell's level 30 adventure is complete! From escaping Annabelle in Kettering to our terrible pool games at Lucky Chucks, getting tricked on Thirteen, glowing GoApe trees and spooky Fright Nights — every adventure is better with you. Thank you for being my favourite teammate, flatpack master, and person to watch one more documentary with.
+        </p>
+      </div>
+
+      <!-- Surprise Gift Voucher Box -->
+      <div class="bg-black/60 border-2 border-dashed border-yellow-400 p-4 rounded-lg mb-6">
+        <span class="rune-font text-xs text-yellow-400 block mb-1">🎁 SPECIAL BIRTHDAY REWARD UNLOCKED</span>
+        <p class="text-lg font-bold text-green-300">1× cozy movie night, dinner & a RuneScape carry!</p>
+        <p class="text-xs text-amber-300/80 mt-1">Redeem any time with your favourite Arsenal fan.</p>
+      </div>
+
+      <div class="flex gap-3">
+        <button type="button" data-action="restart-quest" class="flex-1 rs3-btn py-2 text-xs rounded-lg">Replay Quest</button>
+        <button type="button" data-action="close-victory" class="flex-1 rs3-btn py-2 text-xs rounded-lg">View Quest Log</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
