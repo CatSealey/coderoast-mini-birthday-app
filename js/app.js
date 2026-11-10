@@ -1,14 +1,16 @@
 import { createAudioController } from './audio.js';
-import { renderChapterMap } from './chapter-maps.js';
-import { mountRuneGame } from './games/runes.js';
+import { mountAbigailWorld } from './games/abigail-world.js';
 import { mountPoolGame } from './games/pool.js';
 import { mountCoasterGame } from './games/coaster.js';
 import { mountCanopyGame } from './games/canopy.js';
-import { mountMazeGame } from './games/maze.js';
+import { mountMazeGame, restoreMazeState } from './games/maze.js';
+import { restoreHouseState } from './games/abigail-house.js';
+import { questItems } from './quest-items.js';
 import { mountOverworld } from './world/overworld.js';
 import { QUEST_LOCATIONS } from './world/world-data.js';
 import { areAllQuestsComplete, isQuestAvailable } from './world/world-logic.js';
 import { birthdayProgress, XP_PER_QUEST } from './progression.js';
+import { normalizeQuestProgress, questGuideSpeech, removeQuestProgress } from './quest-progress.js';
 
 export function startGame(characterName) {
 const STORAGE_KEY = 'rs3-birthday-adventure-progress';
@@ -40,13 +42,20 @@ const memories = [
     description: 'For making it through Earls Barton Fright Nights side by side. The best part of every spooky adventure is having you with me.'
   }
 ];
+const keepsakeImages = [
+  new URL('../assets/keepsakes/abigail.svg', import.meta.url).href,
+  new URL('../assets/keepsakes/chucks.svg', import.meta.url).href,
+  new URL('../assets/keepsakes/thirteen.svg', import.meta.url).href,
+  new URL('../assets/keepsakes/goape.svg', import.meta.url).href,
+  new URL('../assets/keepsakes/frights.svg', import.meta.url).href
+];
 
 const chapters = [
   {
     title: 'Abigail Escape',
     location: "KETTERING · ABIGAIL'S ROOM",
-    description: 'Watch the warding rune sequence, then repeat it to open the escape-room door.',
-    objective: 'Remember the warding runes and repeat each sequence to break the room’s spell.'
+    description: 'Explore Abigail’s rooms, uncover clues and unlock the escape door.',
+    objective: 'Search for a key and clues, break the ward and find the escape token.'
   },
   {
     title: 'Lucky Chucks Pool Night',
@@ -75,7 +84,7 @@ const chapters = [
 ];
 
 const gameMounts = [
-  mountRuneGame,
+  null,
   mountPoolGame,
   mountCoasterGame,
   mountCanopyGame,
@@ -87,15 +96,29 @@ function readProgress() {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     if (saved && Array.isArray(saved.completed) && saved.completed.length === chapters.length
       && saved.completed.every((value) => typeof value === 'boolean')) {
-      return saved.completed;
+      const state = normalizeQuestProgress(saved, chapters.length);
+      const gameSaves = Array.isArray(saved.gameSaves) && saved.gameSaves.length === chapters.length
+        ? saved.gameSaves.map((entry, index) => state.accepted[index] && entry && typeof entry === 'object' && !Array.isArray(entry) ? entry : null)
+        : Array(chapters.length).fill(null);
+      if (gameSaves[0]) gameSaves[0] = restoreHouseState(gameSaves[0]);
+      if (gameSaves[4]) gameSaves[4] = restoreMazeState(gameSaves[4]);
+      gameSaves.forEach((entry, index) => {
+        if (entry?.complete === true) state.completed[index] = true;
+      });
+      return { ...state, gameSaves };
     }
   } catch (error) {
     console.error('Could not restore birthday quest progress.', error);
   }
-  return Array(chapters.length).fill(false);
+  return { ...normalizeQuestProgress(null, chapters.length), gameSaves: Array(chapters.length).fill(null) };
 }
 
-let completed = readProgress();
+const progress = readProgress();
+let completed = progress.completed;
+let accepted = progress.accepted;
+let gameSaves = progress.gameSaves;
+let suppressGameSaves = false;
+let inventorySignature = null;
 let activeChapter = 0;
 let disposeGame = () => { };
 const audio = createAudioController(document.querySelector('#toggleAudioBtn'));
@@ -104,19 +127,32 @@ const stageTitle = document.querySelector('#stageTitle');
 const stageBadge = document.querySelector('#stageBadge');
 const dialogue = document.querySelector('#dialogueText');
 const questDialog = document.querySelector('#questDialog');
-const questBriefing = document.querySelector('#questBriefing');
+const removeQuestDialog = document.querySelector('#removeQuestDialog');
 const questActivity = document.querySelector('#questActivity');
 const gameRoot = document.querySelector('#questGameRoot');
+const abigailRoot = document.querySelector('#abigailWorldRoot');
+const obscuredWorldControls = [
+  document.querySelector('#worldCanvas'),
+  document.querySelector('#worldMapCanvas'),
+  document.querySelector('.world-move-pad'),
+  document.querySelector('#worldInteract')
+];
+let inAbigail = false;
+let questToRemove = null;
 
 document.querySelector('#characterName').textContent = characterName;
 document.querySelector('#characterAdventure').textContent = `${characterName.toUpperCase()}'S ADVENTURE`;
 
-function saveProgress() {
+function saveProgress(progressToSave = { completed, accepted, gameSaves }) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ completed }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(progressToSave));
+    document.querySelector('#saveNotice').hidden = true;
+    return true;
   } catch (error) {
     console.error('Could not save birthday quest progress.', error);
+    document.querySelector('#saveNotice').hidden = false;
     dialogue.textContent = 'Your browser could not save quest progress. Keep this tab open to continue.';
+    return false;
   }
 }
 
@@ -128,7 +164,12 @@ function renderInventory() {
     const slot = document.createElement('button');
     slot.type = 'button';
     slot.className = `inventory-slot ${completed[index] ? 'inventory-slot--collected' : 'inventory-slot--locked'}`;
-    slot.textContent = String(index + 1);
+    if (completed[index]) {
+      const image = document.createElement('img');
+      image.src = keepsakeImages[index];
+      image.alt = '';
+      slot.append(image);
+    } else slot.textContent = String(index + 1);
     slot.disabled = !completed[index];
     slot.setAttribute('aria-label', completed[index]
       ? `Open keepsake ${index + 1}: ${memory.title}`
@@ -136,6 +177,7 @@ function renderInventory() {
     if (completed[index]) slot.dataset.memory = String(index);
     grid.append(slot);
   });
+  renderQuestItems();
 
   const { questsCompleted: count, xp, targetXp, level } = birthdayProgress(completed);
   document.querySelector('#characterProfile').setAttribute('aria-label', `Character ${characterName}, level ${level}`);
@@ -157,17 +199,65 @@ function renderInventory() {
   document.querySelector('#progressFill').style.width = `${xp / targetXp * 100}%`;
 }
 
+function renderQuestItems() {
+  const items = questItems(gameSaves);
+  const signature = JSON.stringify(items);
+  if (signature === inventorySignature) return;
+  inventorySignature = signature;
+  for (const id of ['questInventory', 'activityInventory']) {
+    const container = document.querySelector(`#${id}`);
+    container.replaceChildren();
+    items.forEach((item) => {
+      const entry = document.createElement('button');
+      entry.type = 'button';
+      entry.className = 'inventory-slot inventory-slot--collected quest-item';
+      entry.title = item.name;
+      entry.dataset.tooltip = item.name;
+      entry.setAttribute('aria-label', `${item.name}, ${item.quest}`);
+      const icon = document.createElement('img');
+      icon.src = item.image;
+      icon.alt = '';
+      entry.append(icon);
+      container.append(entry);
+    });
+    const emptyCount = Math.max(0, 5 - items.length);
+    for (let index = 0; index < emptyCount; index += 1) {
+      const empty = document.createElement('div');
+      empty.className = 'inventory-slot inventory-slot--locked';
+      empty.setAttribute('aria-hidden', 'true');
+      container.append(empty);
+    }
+    container.setAttribute('aria-label', items.length
+      ? `${items.length} quest ${items.length === 1 ? 'item' : 'items'}`
+      : 'No quest items collected yet');
+    document.querySelector(`#${id}Hint`).textContent = items.length
+      ? 'Hover, focus or tap an item to see its name.'
+      : 'No quest items collected yet.';
+  }
+}
+
+function updateQuestProgress(index, state) {
+  if (suppressGameSaves) return;
+  gameSaves[index] = structuredClone(state);
+  saveProgress();
+  renderQuestItems();
+}
+
 function renderChapterNavigation() {
   chapters.forEach((chapter, index) => {
     const button = document.querySelector(`#qbtn-${index + 1}`);
     const status = document.querySelector(`#qstatus-${index + 1}`);
+    document.querySelector(`#qentry-${index + 1}`).hidden = !accepted[index] && !completed[index];
     button.disabled = false;
     button.classList.remove('opacity-60');
     if (index === activeChapter) button.setAttribute('aria-current', 'step');
     else button.removeAttribute('aria-current');
-    status.textContent = completed[index] ? 'Completed ✓' : 'Available';
+    status.textContent = completed[index] ? 'Completed ✓' : 'Accepted';
     status.className = `quest-row__status ${completed[index] ? 'quest-row__status--complete' : 'quest-row__status--available'}`;
   });
+  document.querySelector('#questJournalHint').textContent = accepted.some(Boolean)
+    ? 'Select an accepted quest to travel to its entrance.'
+    : 'Your journal is empty. Find quest givers marked on the world map.';
 }
 
 function setStageStatus(text, className = '') {
@@ -175,7 +265,20 @@ function setStageStatus(text, className = '') {
   stageBadge.className = `world-stage-badge ${className}`.trim();
 }
 
-function renderCompletedChapter(index, replayComplete = false) {
+function renderCompletedChapter(index) {
+  if (index === 0 && inAbigail) {
+    abigailRoot.innerHTML = `
+      <div class="abigail-world__complete">
+        <p class="eyebrow">QUEST COMPLETE</p>
+        <h2>Escaped Abigail’s room!</h2>
+        <p>Keepsake 1 collected · 20 XP earned.</p>
+        <button type="button" class="rs3-btn game-control" data-action="abigail-leave">Return to the world</button>
+        ${areAllQuestsComplete(completed) ? '<button type="button" class="rs3-btn game-control" data-action="show-victory">Claim birthday reward</button>' : ''}
+      </div>
+    `;
+    abigailRoot.querySelector('[data-action="abigail-leave"]').focus();
+    return;
+  }
   const memory = memories[index];
   const rewardAction = areAllQuestsComplete(completed)
     ? '<button type="button" class="rs3-btn game-control game-action" data-action="show-victory">Claim Danwell’s level 30 birthday reward 🎉</button>'
@@ -183,10 +286,9 @@ function renderCompletedChapter(index, replayComplete = false) {
   gameRoot.innerHTML = `
     <section class="mini-game game-complete">
       <div class="game-complete__icon" aria-hidden="true">${index + 1}</div>
-      <p class="eyebrow">${replayComplete ? 'Replay complete' : `Keepsake ${index + 1} collected`}</p>
+      <p class="eyebrow">Keepsake ${index + 1} collected</p>
       <h3>${memory.icon} ${memory.title}</h3>
       <p>${memory.description}</p>
-      <button type="button" class="rs3-btn game-control game-action" data-action="replay-chapter">Replay this activity ↻</button>
       <button type="button" class="rs3-btn game-control game-action" data-action="close-quest">Return to the world</button>
       ${rewardAction}
     </section>
@@ -194,26 +296,21 @@ function renderCompletedChapter(index, replayComplete = false) {
 }
 
 function completeChapter(index) {
-  if (index !== activeChapter) return;
+  if (index !== activeChapter || completed[index]) return;
   disposeGame();
   disposeGame = () => { };
-  const replayComplete = completed[index];
-  if (!replayComplete) {
-    completed[index] = true;
-    saveProgress();
-    renderInventory();
-    renderChapterNavigation();
-    world.setQuestStates(completed);
-  }
+  if (gameSaves[index]) gameSaves[index].complete = true;
+  renderQuestItems();
+  completed[index] = true;
+  saveProgress();
+  renderInventory();
+  renderChapterNavigation();
+  world.setQuestStates(completed, accepted);
   setStageStatus('Chapter complete', 'world-stage-badge--complete');
-  dialogue.textContent = replayComplete
-    ? `${memories[index].title} replayed. Your keepsake, XP and quest progress remain unchanged.`
-    : `Keepsake ${index + 1} collected. You earned ${XP_PER_QUEST} XP${areAllQuestsComplete(completed) ? ' and reached level 30!' : '.'}`;
+  dialogue.textContent = `Keepsake ${index + 1} collected. You earned ${XP_PER_QUEST} XP${areAllQuestsComplete(completed) ? ' and reached level 30!' : '.'}`;
   audio.playSound('levelUp');
-  renderCompletedChapter(index, replayComplete);
-  document.querySelector('#questDialogHint').textContent = replayComplete
-    ? 'Your keepsake is safe. Return to the world whenever you are ready.'
-    : `Quest complete. You earned ${XP_PER_QUEST} XP${areAllQuestsComplete(completed) ? ' and reached level 30!' : '.'}`;
+  renderCompletedChapter(index);
+  document.querySelector('#questDialogHint').textContent = `Quest complete. You earned ${XP_PER_QUEST} XP${areAllQuestsComplete(completed) ? ' and reached level 30!' : '.'}`;
 }
 
 function mountActiveChapter() {
@@ -222,55 +319,96 @@ function mountActiveChapter() {
   disposeGame = gameMounts[chapterIndex](
     gameRoot,
     () => completeChapter(chapterIndex),
-    (effect) => audio.playSound(effect)
+    (effect) => audio.playSound(effect),
+    { savedState: gameSaves[chapterIndex], onProgress: (state) => updateQuestProgress(chapterIndex, state) }
   );
 }
 
-function beginQuestActivity() {
-  if (!questDialog.open || !isQuestAvailable(activeChapter, completed)) return;
-  questBriefing.hidden = true;
-  questActivity.hidden = false;
-  document.querySelector('#questObjective').textContent = chapters[activeChapter].objective;
-  document.querySelector('#questDialogHint').textContent = 'Complete the objective to earn this chapter’s keepsake.';
-  document.querySelector('#beginQuestButton').hidden = true;
-  setStageStatus(completed[activeChapter] ? 'Replay in progress' : 'Quest in progress', 'world-stage-badge--active');
-  mountActiveChapter();
-}
-
-function showQuestBriefing(index, replay = false) {
+function speakToQuestGuide(index) {
   if (!isQuestAvailable(index, completed)) return;
   activeChapter = index;
   const quest = QUEST_LOCATIONS[index];
-  const chapter = chapters[index];
   stageTitle.textContent = `Journey to ${quest.name}`;
   worldLocation.textContent = quest.region;
-  dialogue.textContent = replay
-    ? `You’re back at ${quest.name}. Interact with the guide to replay this chapter.`
-    : `You found ${quest.name}. Speak with ${quest.guide} to begin the chapter.`;
   renderChapterNavigation();
+  const speech = questGuideSpeech(quest, chapters[index].title, accepted[index], completed[index]);
+  setStageStatus(completed[index] ? 'Quest complete' : 'Quest available', '');
+  world.showGuideSpeech(index, speech.text, speech.offer);
+}
 
-  document.querySelector('#questDialogTitle').textContent = chapter.title;
-  document.querySelector('#questFieldMap').innerHTML = renderChapterMap(index);
-  document.querySelector('#questGuideName').textContent = quest.guide;
-  document.querySelector('#questGuideIcon').textContent = quest.icon;
-  document.querySelector('#questIntroduction').textContent = replay && completed[index]
-    ? `You’ve been here before. ${quest.introduction} Replay it whenever you like; your keepsake stays collected.`
-    : quest.introduction;
-  document.querySelector('#questDialogHint').textContent = completed[index]
-    ? 'This chapter is complete and can be replayed at any time.'
-    : 'Talk to the guide to begin this chapter.';
-  document.querySelector('#beginQuestButton').textContent = completed[index]
-    ? 'Replay quest activity ↻'
-    : 'Begin quest activity →';
-  document.querySelector('#beginQuestButton').hidden = false;
-  questBriefing.hidden = false;
-  questActivity.hidden = true;
+function acceptQuest(index) {
+  if (!isQuestAvailable(index, completed) || accepted[index]) return;
+  activeChapter = index;
+  accepted[index] = true;
+  saveProgress();
+  renderChapterNavigation();
+  world.setQuestStates(completed, accepted);
+  world.selectQuest(index, true);
+}
+
+function enterQuest(index) {
+  if (completed[index]) {
+    dialogue.textContent = `${chapters[index].title} is complete. Remove it from your journal to start again.`;
+    document.querySelector('#worldMessage').textContent = dialogue.textContent;
+    return true;
+  }
+  if (!accepted[index] && !completed[index]) {
+    dialogue.textContent = `Speak to ${QUEST_LOCATIONS[index].guide} to accept the quest first.`;
+    return false;
+  }
+  activeChapter = index;
+  renderChapterNavigation();
+  if (index === 0) startAbigail();
+  else {
+    document.querySelector('#questDialogTitle').textContent = chapters[index].title;
+    questActivity.hidden = false;
+    document.querySelector('#questObjective').textContent = chapters[index].objective;
+    document.querySelector('#questDialogHint').textContent = 'Complete the objective to earn this chapter’s keepsake.';
+    world.setPaused(true);
+    if (!questDialog.open) questDialog.showModal();
+    setStageStatus('Quest in progress', 'world-stage-badge--active');
+    mountActiveChapter();
+  }
+  return true;
+}
+function startAbigail() {
   disposeGame();
   disposeGame = () => { };
-  gameRoot.replaceChildren();
-  setStageStatus(completed[index] ? 'Replay available' : 'Quest available', '');
+  activeChapter = 0;
+  inAbigail = true;
+  abigailRoot.hidden = false;
+  obscuredWorldControls.forEach((element) => { element.inert = true; });
+  document.querySelector('.world-map-hint').textContent = 'The world map shows your location outside the room.';
+  stageTitle.textContent = 'Abigail Escape · The Wardkeeper’s Escape';
+  setStageStatus('Quest in progress', 'world-stage-badge--active');
   world.setPaused(true);
-  if (!questDialog.open) questDialog.showModal();
+  disposeGame = mountAbigailWorld(abigailRoot, {
+    characterName,
+    savedState: gameSaves[0],
+    onProgress: (state) => updateQuestProgress(0, state),
+    onComplete: () => completeChapter(0),
+    onLeave: leaveAbigail,
+    onMessage: (message) => {
+      dialogue.textContent = message;
+      document.querySelector('#worldMessage').textContent = message;
+    },
+    playSound: (effect) => audio.playSound(effect)
+  });
+}
+
+function leaveAbigail() {
+  if (!inAbigail) return;
+  disposeGame();
+  disposeGame = () => { };
+  abigailRoot.replaceChildren();
+  abigailRoot.hidden = true;
+  inAbigail = false;
+  obscuredWorldControls.forEach((element) => { element.inert = false; });
+  document.querySelector('.world-map-hint').textContent = 'Tap a marker to travel. The house marks Lumbridge Castle.';
+  world.setPaused(false);
+  stageTitle.textContent = `Journey to ${QUEST_LOCATIONS[activeChapter].name}`;
+  setStageStatus('Exploring', '');
+  document.querySelector('#worldCanvas').focus();
 }
 
 function closeQuestDialog() {
@@ -285,13 +423,14 @@ function closeQuestDialog() {
 function selectChapter(level, walk = true) {
   const index = level - 1;
   if (!Number.isInteger(level) || index < 0 || index >= chapters.length) return;
+  leaveAbigail();
   activeChapter = index;
   stageTitle.textContent = `Journey to ${QUEST_LOCATIONS[index].name}`;
   worldLocation.textContent = QUEST_LOCATIONS[index].region;
-  setStageStatus(completed[index] ? 'Replay available' : 'Destination set', '');
-  dialogue.textContent = `Walking to ${QUEST_LOCATIONS[index].name}. Interact with ${QUEST_LOCATIONS[index].guide} when you arrive.`;
+  setStageStatus(completed[index] ? 'Quest complete' : 'Destination set', '');
+  dialogue.textContent = `Walking to ${QUEST_LOCATIONS[index].entrance.name}. Interact with the entrance when you arrive.`;
   renderChapterNavigation();
-  world.setQuestStates(completed);
+  world.setQuestStates(completed, accepted);
   world.selectQuest(index, walk);
 }
 
@@ -306,21 +445,63 @@ function closeModal(id) {
 function showMemory(index) {
   const memory = memories[index];
   if (!memory || !completed[index]) return;
-  document.querySelector('#itemModalIcon').textContent = String(index + 1);
+  const image = document.createElement('img');
+  image.src = keepsakeImages[index];
+  image.alt = '';
+  document.querySelector('#itemModalIcon').replaceChildren(image);
   document.querySelector('#itemModalTitle').textContent = `Keepsake ${index + 1}: ${memory.icon} ${memory.title}`;
   document.querySelector('#itemModalDesc').textContent = memory.description;
   showModal('itemModal');
 }
 
-function restartQuest() {
-  completed = Array(chapters.length).fill(false);
-  saveProgress();
+function promptRemoveQuest(index) {
+  if (!isQuestAvailable(index, completed) || (!accepted[index] && !completed[index])) return;
+  questToRemove = index;
+  document.querySelector('#removeQuestTitle').textContent = `Remove ${chapters[index].title}?`;
+  document.querySelector('#removeQuestDescription').textContent = completed[index]
+    ? `This removes its completion, keepsake and ${XP_PER_QUEST} XP. Your level and birthday reward eligibility may change. You can accept and complete it again by speaking to ${QUEST_LOCATIONS[index].guide}.`
+    : `This removes the quest and its unfinished progress. You can accept it again by speaking to ${QUEST_LOCATIONS[index].guide}.`;
+  if (!inAbigail) world.setPaused(true);
+  removeQuestDialog.showModal();
+}
+
+function closeRemoveQuestDialog() {
+  questToRemove = null;
+  removeQuestDialog.close();
+  if (!inAbigail) world.setPaused(false);
+}
+
+function confirmRemoveQuest() {
+  const index = questToRemove;
+  if (index === null || (!accepted[index] && !completed[index])) return;
+  const updated = { ...removeQuestProgress({ completed, accepted }, index), gameSaves: [...gameSaves] };
+  updated.gameSaves[index] = null;
+  if (!saveProgress(updated)) {
+    document.querySelector('#removeQuestDescription').textContent = 'The quest could not be removed because your browser could not save progress. Your quest is unchanged; please try again.';
+    return;
+  }
+  const wasActive = activeChapter === index;
+  closeRemoveQuestDialog();
+  if (inAbigail && index === 0) {
+    suppressGameSaves = true;
+    leaveAbigail();
+    suppressGameSaves = false;
+  }
+  completed = updated.completed;
+  accepted = updated.accepted;
+  gameSaves = updated.gameSaves;
+  world.clearQuestSelection(index);
+  if (wasActive && !inAbigail) {
+    activeChapter = null;
+    stageTitle.textContent = "Danwell's level 30 birthday adventure";
+    setStageStatus('Exploring', '');
+  }
   renderInventory();
   renderChapterNavigation();
-  world.setQuestStates(completed);
-  closeModal('victoryModal');
-  closeQuestDialog();
-  selectChapter(1);
+  world.setQuestStates(completed, accepted);
+  dialogue.textContent = `${chapters[index].title} removed. Speak to ${QUEST_LOCATIONS[index].guide} to start again.`;
+  document.querySelector('#worldMessage').textContent = dialogue.textContent;
+  document.querySelector('#questPanelTitle').focus();
 }
 
 const world = mountOverworld({
@@ -331,12 +512,14 @@ const world = mountOverworld({
   messageElement: document.querySelector('#worldMessage'),
   locationElement: worldLocation,
   targetElement: document.querySelector('#worldTarget'),
-  onInteract: showQuestBriefing,
+  onGuide: speakToQuestGuide,
+  onAcceptQuest: acceptQuest,
+  onEntrance: enterQuest,
   onMessage: (message) => { dialogue.textContent = message; },
   onQuestSelected: (index) => {
     activeChapter = index;
     stageTitle.textContent = `Journey to ${QUEST_LOCATIONS[index].name}`;
-    setStageStatus(completed[index] ? 'Replay available' : 'Destination set', '');
+    setStageStatus(completed[index] ? 'Quest complete' : 'Destination set', '');
     renderChapterNavigation();
   }
 });
@@ -344,7 +527,17 @@ const world = mountOverworld({
 document.addEventListener('click', (event) => {
   const button = event.target.closest('button');
   if (!button) return;
-  if (button.dataset.level) {
+  if (button.classList.contains('quest-item')) {
+    const show = !button.classList.contains('quest-item--show-name');
+    document.querySelectorAll('.quest-item--show-name').forEach((item) => item.classList.remove('quest-item--show-name'));
+    button.classList.toggle('quest-item--show-name', show);
+  } else if (button.dataset.removeQuest !== undefined) {
+    promptRemoveQuest(Number(button.dataset.removeQuest));
+  } else if (button.dataset.action === 'cancel-remove-quest') {
+    closeRemoveQuestDialog();
+  } else if (button.dataset.action === 'confirm-remove-quest') {
+    confirmRemoveQuest();
+  } else if (button.dataset.level) {
     if (questDialog.open) closeQuestDialog();
     selectChapter(Number(button.dataset.level));
   } else if (button.dataset.memory !== undefined) {
@@ -354,25 +547,22 @@ document.addEventListener('click', (event) => {
       console.error('Birthday music could not be started.', error);
       document.querySelector('#audioText').textContent = 'Audio could not start';
     });
+  } else if (button.dataset.action === 'abigail-leave') {
+    leaveAbigail();
   } else if (button.dataset.action === 'toggle-rivalry') {
     document.querySelector('#rivalryModal').classList.toggle('hidden');
   } else if (button.dataset.action === 'close-item') {
     closeModal('itemModal');
   } else if (button.dataset.action === 'close-victory') {
     closeModal('victoryModal');
-  } else if (button.dataset.action === 'restart-quest') {
-    restartQuest();
   } else if (button.dataset.action === 'close-quest') {
     closeQuestDialog();
-  } else if (button.dataset.action === 'begin-quest') {
-    beginQuestActivity();
-  } else if (button.dataset.action === 'replay-chapter') {
-    beginQuestActivity();
   } else if (button.dataset.action === 'show-victory') {
     if (!areAllQuestsComplete(completed)) {
       dialogue.textContent = 'Complete all five quests to claim the birthday reward.';
       return;
     }
+    leaveAbigail();
     closeQuestDialog();
     showModal('victoryModal');
     audio.playSound('levelUp');
@@ -389,6 +579,11 @@ questDialog.addEventListener('cancel', (event) => {
   closeQuestDialog();
 });
 
+removeQuestDialog.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closeRemoveQuestDialog();
+});
+
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
   ['victoryModal', 'itemModal', 'rivalryModal'].forEach((id) => closeModal(id));
@@ -402,6 +597,5 @@ window.addEventListener('pagehide', () => {
 
 renderInventory();
 renderChapterNavigation();
-world.setQuestStates(completed);
-selectChapter(1, false);
+world.setQuestStates(completed, accepted);
 }

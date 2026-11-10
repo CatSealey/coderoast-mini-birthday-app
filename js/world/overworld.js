@@ -44,7 +44,7 @@ function label(ctx, text, y, color = '#f2e3b1') {
   ctx.fillStyle = color; ctx.fillText(text, 0, y);
 }
 
-export function mountOverworld({ characterName, worldCanvas, mapCanvas, interactButton, messageElement, locationElement, targetElement, onInteract, onMessage, onQuestSelected }) {
+export function mountOverworld({ characterName, worldCanvas, mapCanvas, interactButton, messageElement, locationElement, targetElement, onGuide, onAcceptQuest, onEntrance, onMessage, onQuestSelected }) {
   const mapContext = mapCanvas.getContext('2d');
   if (!mapContext) throw new Error('The browser could not initialize the game world map.');
   const art = createWorldArt();
@@ -59,10 +59,13 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   const speechBubble = document.querySelector('#worldSpeechBubble');
   const speechName = document.querySelector('#worldSpeechName');
   const speechText = document.querySelector('#worldSpeechText');
+  const speechChoices = document.querySelector('#worldSpeechChoices');
+  const acceptOfferButton = document.querySelector('#acceptQuestOffer');
+  const declineOfferButton = document.querySelector('#declineQuestOffer');
   const state = {
-    player: { ...WORLD_SPAWN }, target: null, questIndex: 0,
-    completed: Array(QUEST_LOCATIONS.length).fill(false), paused: false,
-    npcIndex: null, npcDialogue: Array(WORLD_NPCS.length).fill(0), speakingNpc: null,
+    player: { ...WORLD_SPAWN }, target: null, questIndex: null, destinationKind: 'guide', pendingEntrance: null,
+    completed: Array(QUEST_LOCATIONS.length).fill(false), accepted: Array(QUEST_LOCATIONS.length).fill(false), paused: false,
+    npcIndex: null, npcDialogue: Array(WORLD_NPCS.length).fill(0), speaker: null,
     frame: 0, lastFrame: 0, keys: new Set(), heldDirections: new Set(), disposed: false
   };
   let canvasWidth = 0;
@@ -77,20 +80,25 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   }
 
   function clearSpeech() {
-    state.speakingNpc = null;
+    if (speechBubble.contains(document.activeElement)) worldCanvas.focus();
+    state.speaker = null;
     speechBubble.hidden = true;
+    speechBubble.setAttribute('aria-hidden', 'true');
+    speechChoices.hidden = true;
   }
 
   function updateSpeechBubble() {
-    if (state.speakingNpc === null || state.paused) return;
-    const npc = WORLD_NPCS[state.speakingNpc];
+    if (state.speaker === null || state.paused) return;
+    const { kind, index } = state.speaker;
+    const npc = kind === 'guide' ? QUEST_LOCATIONS[index] : WORLD_NPCS[index];
     if (!isNearQuest(state.player, npc)) {
       clearSpeech();
       return;
     }
     const groundPoint = world3d ? null : projectWorld(npc, camera, zoom);
-    const anchor = world3d ? world3d.npcSpeechAnchor(state.speakingNpc)
-      : { x: groundPoint.x, y: groundPoint.y - 95 * zoom };
+    const anchor = world3d
+      ? kind === 'guide' ? world3d.guideSpeechAnchor(index) : world3d.npcSpeechAnchor(index)
+      : { x: groundPoint.x, y: groundPoint.y - (kind === 'guide' ? 120 : 95) * zoom };
     if (!anchor || anchor.x < 0 || anchor.x > canvasWidth || anchor.y < 0 || anchor.y > canvasHeight) {
       speechBubble.hidden = true;
       return;
@@ -103,13 +111,50 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     speechBubble.style.setProperty('--speech-tail-x', `${tailX}px`);
   }
 
+  function showGuideSpeech(index, words, offer) {
+    clearSpeech();
+    state.speaker = { kind: 'guide', index };
+    speechName.textContent = QUEST_LOCATIONS[index].guide;
+    speechText.textContent = words;
+    speechChoices.hidden = !offer;
+    speechBubble.setAttribute('aria-hidden', offer ? 'false' : 'true');
+    say(`${QUEST_LOCATIONS[index].guide}: ${words}`);
+    drawWorld();
+    if (offer && !speechBubble.hidden) acceptOfferButton.focus();
+  }
+
+  function acceptOffer() {
+    if (state.speaker?.kind !== 'guide' || speechChoices.hidden) return;
+    const index = state.speaker.index;
+    clearSpeech();
+    onAcceptQuest(index);
+  }
+
+  function declineOffer() {
+    if (state.speaker?.kind !== 'guide' || speechChoices.hidden) return;
+    const guide = QUEST_LOCATIONS[state.speaker.index].guide;
+    clearSpeech();
+    say(`You can speak to ${guide} again whenever you're ready.`);
+  }
+
   function questIsAvailable(index) {
     return isQuestAvailable(index, state.completed);
   }
 
+  function nearbyQuest() {
+    let best = null, distance = INTERACTION_RANGE;
+    QUEST_LOCATIONS.forEach((quest, index) => {
+      for (const [kind, point] of [['guide', quest], ['entrance', quest.entrance]]) {
+        const candidate = distanceBetween(state.player, point);
+        if (candidate < distance) { distance = candidate; best = { index, kind }; }
+      }
+    });
+    return best;
+  }
+
   function updateInteraction() {
-    const quest = QUEST_LOCATIONS[state.questIndex];
-    const nearby = isNearQuest(state.player, quest);
+    const nearby = nearbyQuest();
+    const quest = nearby ? QUEST_LOCATIONS[nearby.index] : QUEST_LOCATIONS[state.questIndex];
     const nearbyNpc = nearestNpcIndex(state.player, WORLD_NPCS);
     const npcIndex = state.npcIndex ?? (!nearby && nearbyNpc !== -1 ? nearbyNpc : null);
     const npc = npcIndex === null ? null : WORLD_NPCS[npcIndex];
@@ -119,17 +164,15 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     interactButton.disabled = false;
     const buttonText = npc
       ? `${nearNpc ? 'Speak to' : 'Walk to'} ${npc.name}`
-      : nearby
-      ? `${state.completed[state.questIndex] ? 'Replay' : 'Speak to'} ${quest.guide}`
-      : `Walk to ${quest.name}`;
+      : nearby ? nearby.kind === 'guide' ? `Speak to ${quest.guide}` : `Enter ${quest.entrance.name}`
+        : quest ? `Walk to ${state.destinationKind === 'entrance' ? quest.entrance.name : quest.guide}` : 'Explore to find a quest giver';
     if (interactButton.textContent !== buttonText) interactButton.textContent = buttonText;
-    const buttonLabel = npc ? buttonText : nearby
-      ? `${state.completed[state.questIndex] ? 'Replay' : 'Speak to'} ${quest.guide} at ${quest.name}`
-      : `Walk to ${quest.name}`;
+    const buttonLabel = buttonText;
     if (interactButton.getAttribute('aria-label') !== buttonLabel) interactButton.setAttribute('aria-label', buttonLabel);
     interactButton.classList.toggle('world-interact--ready', Boolean(npc ? nearNpc : nearby));
     const target = npc && state.npcIndex !== null ? `SPEAK TO · ${npc.name.toUpperCase()}`
-      : nearby ? 'QUEST LOCATION · READY' : `DESTINATION · ${quest.name.toUpperCase()}`;
+      : nearby ? `${nearby.kind === 'guide' ? 'QUEST GUIDE' : 'ENTRANCE'} · READY`
+        : quest ? `DESTINATION · ${quest.name.toUpperCase()}` : 'EXPLORE · FIND QUEST GIVERS';
     if (targetElement.textContent !== target) targetElement.textContent = target;
   }
 
@@ -185,6 +228,14 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
         if (selected) label(ctx, quest.guide, -101);
       }
     }));
+    QUEST_LOCATIONS.forEach((quest) => actors.push({
+      ...quest.entrance,
+      draw(ctx) {
+        ctx.strokeStyle = '#e6bf63'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.ellipse(0, 0, 21, 9, 0, 0, Math.PI * 2); ctx.stroke();
+        label(ctx, `ENTER · ${quest.entrance.name}`, -35);
+      }
+    }));
     WORLD_NPCS.forEach((npc) => actors.push({
       x: npc.x, y: npc.y,
       draw(ctx) {
@@ -220,10 +271,13 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     const px = (x) => x / WORLD_SIZE.width * width;
     const py = (y) => y / WORLD_SIZE.height * height;
     const active = QUEST_LOCATIONS[state.questIndex];
-    mapContext.beginPath(); mapContext.moveTo(px(state.player.x), py(state.player.y));
-    mapContext.lineTo(px(active.x), py(active.y)); mapContext.setLineDash([4, 4]);
-    mapContext.strokeStyle = 'rgba(255, 237, 177, .85)'; mapContext.lineWidth = 1.5; mapContext.stroke();
-    mapContext.setLineDash([]);
+    if (active) {
+      const target = state.destinationKind === 'entrance' ? active.entrance : active;
+      mapContext.beginPath(); mapContext.moveTo(px(state.player.x), py(state.player.y));
+      mapContext.lineTo(px(target.x), py(target.y)); mapContext.setLineDash([4, 4]);
+      mapContext.strokeStyle = 'rgba(255, 237, 177, .85)'; mapContext.lineWidth = 1.5; mapContext.stroke();
+      mapContext.setLineDash([]);
+    }
     const homeX = px(WORLD_SPAWN.x);
     const homeY = py(WORLD_SPAWN.y);
     mapContext.fillStyle = '#e6d3a1'; mapContext.strokeStyle = '#273c33'; mapContext.lineWidth = 1.5;
@@ -239,29 +293,32 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     mapContext.fillStyle = '#fff8e4'; mapContext.fill(); mapContext.strokeStyle = '#273c33'; mapContext.stroke();
   }
 
-  function chooseQuest(index, walk = true) {
+  function chooseQuest(index, walk = true, destinationKind = state.accepted[index] ? 'entrance' : 'guide') {
     if (!questIsAvailable(index)) {
       say('That quest destination does not exist.');
       return false;
     }
     state.questIndex = index;
+    state.destinationKind = destinationKind;
+    state.pendingEntrance = null;
     clearSpeech();
     state.npcIndex = null;
     const quest = QUEST_LOCATIONS[index];
-    state.target = walk ? { x: quest.x, y: quest.y } : null;
+    const destination = destinationKind === 'entrance' ? quest.entrance : quest;
+    state.target = walk ? { x: destination.x, y: destination.y } : null;
     onQuestSelected?.(index);
     say(walk
-      ? `Walking to ${quest.name}. Use the arrows or WASD to move, or click a place in the world.`
-      : `Welcome to Lumbridge Castle, ${characterName}. Choose a quest or explore the world.`);
+      ? `Walking to ${destinationKind === 'entrance' ? quest.entrance.name : quest.guide}.`
+      : `Welcome to Lumbridge Castle, ${characterName}. Find quest givers marked on the map.`);
     updateInteraction();
     return true;
   }
 
   function interact() {
     if (state.paused) return;
-    const quest = QUEST_LOCATIONS[state.questIndex];
+    const nearby = nearbyQuest();
     const nearbyNpc = nearestNpcIndex(state.player, WORLD_NPCS);
-    const npcIndex = state.npcIndex ?? (!isNearQuest(state.player, quest) && nearbyNpc !== -1 ? nearbyNpc : null);
+    const npcIndex = state.npcIndex ?? (!nearby && nearbyNpc !== -1 ? nearbyNpc : null);
     if (npcIndex !== null) {
       const npc = WORLD_NPCS[npcIndex];
       if (!isNearQuest(state.player, npc)) {
@@ -274,21 +331,29 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
         const words = npc.dialogue[line].replaceAll('{player}', characterName);
         speechName.textContent = npc.name;
         speechText.textContent = words;
-        state.speakingNpc = npcIndex;
+        speechChoices.hidden = true;
+        state.speaker = { kind: 'npc', index: npcIndex };
         say(`${npc.name}: ${words}`);
         state.npcDialogue[npcIndex] += 1;
         drawWorld();
       }
       return;
     }
-    if (!isNearQuest(state.player, quest)) {
+    if (nearby) {
+      state.target = null; state.pendingEntrance = null; clearSpeech();
+      state.questIndex = nearby.index;
+      state.destinationKind = nearby.kind;
+      onQuestSelected?.(nearby.index);
+      if (nearby.kind === 'guide') onGuide(nearby.index);
+      else if (!onEntrance(nearby.index)) say(`Speak to ${QUEST_LOCATIONS[nearby.index].guide} to accept the quest first.`);
+    } else if (state.questIndex !== null) {
+      const quest = QUEST_LOCATIONS[state.questIndex];
+      const target = state.destinationKind === 'entrance' ? quest.entrance : quest;
       clearSpeech();
-      state.target = { x: quest.x, y: quest.y };
-      say(`Keep walking to ${quest.name} to meet ${quest.guide}.`);
+      state.target = { x: target.x, y: target.y };
+      say(`Keep walking to ${state.destinationKind === 'entrance' ? quest.entrance.name : quest.guide}.`);
     } else {
-      state.target = null;
-      clearSpeech();
-      onInteract(state.questIndex, state.completed[state.questIndex]);
+      say('Find a quest giver marked on the world map.');
     }
   }
 
@@ -304,16 +369,35 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     if (state.paused) return;
     worldCanvas.focus();
     const screen = { x: event.clientX - worldCanvas.getBoundingClientRect().left, y: event.clientY - worldCanvas.getBoundingClientRect().top };
+    const entranceIndex = world3d ? world3d.entranceAt(screen) : QUEST_LOCATIONS.findIndex((quest) => {
+      const position = projectWorld(quest.entrance, camera, zoom);
+      return Math.abs(screen.x - position.x) <= 80 * zoom && Math.abs(screen.y - (position.y - 35 * zoom)) <= 16 * zoom;
+    });
+    if (entranceIndex !== -1) {
+      const quest = QUEST_LOCATIONS[entranceIndex];
+      state.questIndex = entranceIndex; state.destinationKind = 'entrance'; state.npcIndex = null;
+      state.target = null; state.pendingEntrance = null; clearSpeech();
+      onQuestSelected?.(entranceIndex);
+      if (!state.accepted[entranceIndex]) {
+        say(`Speak to ${quest.guide} to accept the quest first.`);
+      } else {
+        state.target = { x: quest.entrance.x, y: quest.entrance.y };
+        state.pendingEntrance = entranceIndex;
+        say(`Walking to ${quest.entrance.name}.`);
+      }
+      return;
+    }
     const markerIndex = world3d ? world3d.markerAt(screen) : QUEST_LOCATIONS.findIndex((quest) => {
       const position = projectWorld(quest, camera, zoom);
       return Math.hypot(screen.x - position.x, screen.y - (position.y - 65 * zoom)) <= 25 * zoom;
     });
-    if (markerIndex !== -1) return void chooseQuest(markerIndex);
+    if (markerIndex !== -1) return void chooseQuest(markerIndex, true, 'guide');
     const npcIndex = world3d ? world3d.npcAt(screen) : WORLD_NPCS.findIndex((npc) => {
       const position = projectWorld(npc, camera, zoom);
       return Math.hypot(screen.x - position.x, screen.y - (position.y - 36 * zoom)) <= 25 * zoom;
     });
     if (npcIndex !== -1) {
+      state.pendingEntrance = null;
       state.npcIndex = npcIndex;
       interact();
       updateInteraction();
@@ -325,6 +409,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       return;
     }
     state.target = constrainToWorld(position, PLAYER_RADIUS);
+    state.pendingEntrance = null;
     clearSpeech();
     state.npcIndex = null;
     say(`Destination set. ${characterName} is on the move.`);
@@ -337,24 +422,32 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     const markerIndex = QUEST_LOCATIONS.findIndex((quest) => Math.hypot(
       (point.x - quest.x) / WORLD_SIZE.width * rect.width, (point.y - quest.y) / WORLD_SIZE.height * rect.height
     ) <= 10);
-    if (markerIndex !== -1) return void chooseQuest(markerIndex);
+    if (markerIndex !== -1) return void chooseQuest(markerIndex, true, 'guide');
     state.target = constrainToWorld(point, PLAYER_RADIUS);
+    state.pendingEntrance = null;
     clearSpeech();
     state.npcIndex = null;
     say('Destination set from the world map.');
   }
 
   function handleKeyDown(event) {
-    if (state.paused || event.altKey || event.ctrlKey || event.metaKey || event.key === 'Escape') return;
+    if (state.paused || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key === 'Escape') {
+      if (state.speaker) { event.preventDefault(); clearSpeech(); }
+      return;
+    }
+    const direction = DIRECTIONS[event.key] ?? DIRECTIONS[event.key.toLowerCase()];
+    if (direction && state.speaker?.kind === 'guide' && !speechChoices.hidden) clearSpeech();
     if (event.target instanceof Element && (
       event.target.closest('input, select, textarea, [contenteditable="true"]')
+      || (event.target.closest('#worldSpeechChoices') && !direction)
       || (event.key === ' ' && event.target.closest('button'))
     )) return;
-    const direction = DIRECTIONS[event.key] ?? DIRECTIONS[event.key.toLowerCase()];
     if (direction) {
       event.preventDefault();
       state.keys.add(event.key.length === 1 ? event.key.toLowerCase() : event.key);
       state.target = null;
+      state.pendingEntrance = null;
       state.npcIndex = null;
     } else if (event.key === 'e' || event.key === 'E' || event.key === ' ') {
       event.preventDefault(); interact();
@@ -373,6 +466,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     button.setPointerCapture?.(event.pointerId);
     state.heldDirections.add(button.dataset.worldDirection);
     state.target = null;
+    state.pendingEntrance = null;
     state.npcIndex = null;
   }
 
@@ -403,7 +497,11 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
           y: state.player.y + dy / magnitude * WALK_SPEED * delta }, PLAYER_RADIUS);
       } else if (state.target) {
         state.player = moveToward(state.player, state.target, WALK_SPEED * delta);
-        if (distanceBetween(state.player, state.target) <= 1) state.target = null;
+        if (state.pendingEntrance !== null && isNearQuest(state.player, QUEST_LOCATIONS[state.pendingEntrance].entrance)) {
+          const index = state.pendingEntrance;
+          state.pendingEntrance = null; state.target = null;
+          onEntrance(index);
+        } else if (distanceBetween(state.player, state.target) <= 1) state.target = null;
       }
     }
     updateInteraction(); drawWorld(); drawMinimap();
@@ -417,6 +515,8 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   document.addEventListener('keydown', handleKeyDown);
   document.addEventListener('keyup', handleKeyUp);
   interactButton.addEventListener('click', interact);
+  acceptOfferButton.addEventListener('click', acceptOffer);
+  declineOfferButton.addEventListener('click', declineOffer);
   worldCanvas.parentElement.addEventListener('pointerdown', handleTouchStart);
   worldCanvas.parentElement.addEventListener('pointerup', handleTouchEnd);
   worldCanvas.parentElement.addEventListener('pointercancel', handleTouchEnd);
@@ -426,12 +526,19 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   animationFrame = window.requestAnimationFrame(tick);
 
   return {
-    setQuestStates(completed) {
+    setQuestStates(completed, accepted) {
       state.completed = [...completed];
+      state.accepted = [...accepted];
       world3d?.setPlayerLevel(birthdayProgress(state.completed).level);
       updateInteraction(); drawWorld(); drawMinimap();
     },
     selectQuest: chooseQuest,
+    showGuideSpeech,
+    clearQuestSelection(index = null) {
+      if (index !== null && state.questIndex !== index) return;
+      state.questIndex = null; state.target = null; state.pendingEntrance = null; state.npcIndex = null;
+      clearSpeech(); updateInteraction(); drawWorld(); drawMinimap();
+    },
     setPaused(paused) {
       state.paused = paused;
       if (paused) { clearMovement(); clearSpeech(); }
@@ -443,6 +550,8 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       worldCanvas.removeEventListener('click', handleWorldClick); mapCanvas.removeEventListener('click', handleMapClick);
       document.removeEventListener('keydown', handleKeyDown); document.removeEventListener('keyup', handleKeyUp);
       interactButton.removeEventListener('click', interact);
+      acceptOfferButton.removeEventListener('click', acceptOffer);
+      declineOfferButton.removeEventListener('click', declineOffer);
       worldCanvas.parentElement.removeEventListener('pointerdown', handleTouchStart);
       worldCanvas.parentElement.removeEventListener('pointerup', handleTouchEnd);
       worldCanvas.parentElement.removeEventListener('pointercancel', handleTouchEnd);

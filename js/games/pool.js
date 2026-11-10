@@ -5,14 +5,23 @@ const CUE = { x: 150, y: 165 };
 const OBJECT = { x: 510, y: 165 };
 const POCKET = { x: 738, y: 165 };
 
-export function mountPoolGame(root, onComplete, playSound) {
-  let angle = 0;
-  let power = 58;
+export function restorePoolState(saved) {
+  const valid = saved && Number.isInteger(saved.angle) && saved.angle >= -18 && saved.angle <= 18
+    && Number.isInteger(saved.power) && saved.power >= 20 && saved.power <= 100
+    && Number.isSafeInteger(saved.attempts) && saved.attempts >= 0;
+  if (saved && !valid) console.warn('Invalid saved Lucky Chucks progress; starting the quest again.');
+  return valid ? { angle: saved.angle, power: saved.power, attempts: saved.attempts } : { angle: 0, power: 58, attempts: 0 };
+}
+
+export function mountPoolGame(root, onComplete, playSound, { savedState, onProgress } = {}) {
+  const saved = restorePoolState(savedState);
+  let angle = saved.angle;
+  let power = saved.power;
   let animationFrame = 0;
   let disposed = false;
   let moving = false;
   let shot = null;
-  let attempts = 0;
+  let attempts = saved.attempts;
 
   root.innerHTML = `
     <section class="mini-game pool-game">
@@ -49,6 +58,8 @@ export function mountPoolGame(root, onComplete, playSound) {
   const shootButton = root.querySelector('#shootButton');
   const aimReadout = root.querySelector('#aimReadout');
   const powerReadout = root.querySelector('#powerReadout');
+  aimSlider.value = String(angle);
+  powerSlider.value = String(power);
 
   function fitCanvas() {
     const rect = canvas.getBoundingClientRect();
@@ -161,12 +172,14 @@ export function mountPoolGame(root, onComplete, playSound) {
     power = Number(powerSlider.value);
     aimReadout.value = `${angle}°`;
     powerReadout.value = `${power}%`;
+    onProgress?.({ angle, power, attempts });
     if (!moving) draw();
   }
 
   function takeShot() {
     if (moving || disposed) return;
     attempts += 1;
+    onProgress?.({ angle, power, attempts });
     playSound('click');
     shootButton.disabled = true;
     const result = evaluatePoolShot(angle, power);
@@ -208,6 +221,7 @@ export function mountPoolGame(root, onComplete, playSound) {
   const observer = new ResizeObserver(fitCanvas);
   observer.observe(canvas);
   fitCanvas();
+  updateControls();
 
   return () => {
     disposed = true;

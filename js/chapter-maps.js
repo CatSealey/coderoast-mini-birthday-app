@@ -6,7 +6,7 @@ const MAP_HEIGHT = 250;
 const CHAPTER_MAPS = [
   {
     title: 'Abigail Escape · Kettering',
-    description: 'A floor plan of the escape room, with the rune chamber between the entrance and the exit.',
+    description: 'A floor plan showing the vestibule, warding chamber, and escape door.',
     scene: `
       <path class="map-route" d="M75 132 H218 V74 H368 V132 H520" />
       <rect class="map-room" x="30" y="65" width="160" height="135" rx="8" />
@@ -15,7 +15,7 @@ const CHAPTER_MAPS = [
       <path class="map-wall" d="M190 132h28M368 132h28M95 65v36M520 65v36" />
       <text class="map-label" x="110" y="115">THE VESTIBULE</text>
       <text class="map-label" x="293" y="91">WARDING RUNES</text>
-      <text class="map-label" x="293" y="111">✦  ☾  ◇  ✧</text>
+      <text class="map-label" x="293" y="111">FIND THE CLUE</text>
       <text class="map-label" x="482" y="115">THE EXIT</text>
       <circle class="map-landmark" cx="70" cy="145" r="13" />
       <text class="map-icon" x="70" y="150">S</text>

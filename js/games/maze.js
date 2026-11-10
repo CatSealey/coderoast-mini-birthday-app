@@ -31,12 +31,25 @@ const GHOST_ROUTE = [
   { x: 6, y: 5 }
 ];
 
-export function mountMazeGame(root, onComplete, playSound) {
-  let player = { ...START };
+export function restoreMazeState(saved) {
+  if (!saved) return { player: { ...START }, hasKey: false, moves: 0 };
+  const { player, hasKey, moves } = saved;
+  if (!player || !Number.isInteger(player.x) || !Number.isInteger(player.y)
+    || !MAZE[player.y]?.[player.x] || MAZE[player.y][player.x] === '#'
+    || typeof hasKey !== 'boolean' || !Number.isSafeInteger(moves) || moves < 0) {
+    console.warn('Invalid saved Fright Nights progress; starting the quest again.');
+    return { player: { ...START }, hasKey: false, moves: 0 };
+  }
+  return { player: { ...player }, hasKey, moves, complete: saved.complete === true };
+}
+
+export function mountMazeGame(root, onComplete, playSound, { savedState, onProgress } = {}) {
+  const saved = restoreMazeState(savedState);
+  let player = saved.player;
   let ghostIndex = 0;
   let ghost = GHOST_ROUTE[ghostIndex];
-  let hasKey = false;
-  let moves = 0;
+  let hasKey = saved.hasKey;
+  let moves = saved.moves;
   let disposed = false;
   let ghostTimer = 0;
 
@@ -120,6 +133,7 @@ export function mountMazeGame(root, onComplete, playSound) {
     if (metGhost && !hasKey) {
       sendBackToCheckpoint();
       message.textContent = 'The ghost caught you! Your key is safe — try the passage again.';
+      onProgress?.({ player, hasKey, moves });
       renderMaze();
       return;
     }
@@ -136,6 +150,7 @@ export function mountMazeGame(root, onComplete, playSound) {
         message.textContent = 'The gate is locked. Find the lantern key first.';
       } else {
         message.textContent = `You found the way out in ${moves} steps. Happy Fright Nights!`;
+        onProgress?.({ player, hasKey, moves, complete: true });
         playSound('success');
         renderMaze();
         onComplete();
@@ -144,6 +159,7 @@ export function mountMazeGame(root, onComplete, playSound) {
     } else if (!metGhost) {
       message.textContent = hasKey ? 'Key in hand — find the exit!' : 'Keep exploring. Look for a glimmer in the corn.';
     }
+    onProgress?.({ player, hasKey, moves });
     renderMaze();
   }
 
@@ -164,6 +180,7 @@ export function mountMazeGame(root, onComplete, playSound) {
         sendBackToCheckpoint();
         message.textContent = 'The ghost swept through the passage! Try another run.';
       }
+      onProgress?.({ player, hasKey, moves });
     }
     renderMaze();
   }

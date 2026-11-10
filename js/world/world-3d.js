@@ -254,7 +254,7 @@ export function createWorld3D(canvas, ground, characterName) {
   playerLabel.position.y = 95; player.add(playerLabel);
   const guides = QUEST_LOCATIONS.map((quest) => {
     const guide = character('#876c51');
-    guide.position.set(quest.x + 30, 0, quest.y);
+    guide.position.set(quest.x, 0, quest.y);
     const marker = mesh(new THREE.OctahedronGeometry(12), '#e6bf63', guide, 0, 93, 0);
     const label = textSprite(quest.guide.toUpperCase(), 'rgba(37, 39, 28, .9)', 384);
     label.position.y = 122;
@@ -268,6 +268,15 @@ export function createWorld3D(canvas, ground, characterName) {
     label.position.y = 95;
     person.add(label);
     return person;
+  });
+  const entrances = QUEST_LOCATIONS.map((quest) => {
+    const marker = groupAt(quest.entrance.x, quest.entrance.y);
+    const ring = mesh(new THREE.TorusGeometry(21, 3, 6, 24), '#e6bf63', marker, 0, 3, 0);
+    ring.rotation.x = Math.PI / 2;
+    const label = textSprite(`ENTER · ${quest.entrance.name.toUpperCase()}`, 'rgba(38, 48, 34, .94)', 512);
+    label.position.y = 48;
+    marker.add(label);
+    return label;
   });
 
   castle(WORLD_SPAWN.x + 50, WORLD_SPAWN.y - 250);
@@ -333,6 +342,7 @@ export function createWorld3D(canvas, ground, characterName) {
   stall(park.x + 350, park.y + 300, '#a56e50');
   gate(park.x - 180, park.y - 60, 'THIRTEEN', '#79594e');
   gate(harvest.x - 175, harvest.y - 175, 'Fright Nights', '#674e36');
+  gate(forest.entrance.x, forest.entrance.y, 'GOAPE', '#4b6348');
 
   placeQuestDecorations(escape, 'escape', 22, 560, 12).forEach(({ x, y, variant, scale, rotation }) => {
     const grave = groupAt(x, y);
@@ -760,6 +770,11 @@ export function createWorld3D(canvas, ground, characterName) {
       if (projected.z < -1 || projected.z > 1) return null;
       return { x: (projected.x + 1) * width / 2, y: (1 - projected.y) * height / 2 };
     },
+    guideSpeechAnchor(index) {
+      const projected = guides[index].guide.localToWorld(new THREE.Vector3(0, 145, 0)).project(camera);
+      if (projected.z < -1 || projected.z > 1) return null;
+      return { x: (projected.x + 1) * width / 2, y: (1 - projected.y) * height / 2 };
+    },
     npcAt(point) {
       return townsfolk.findIndex((person) => {
         const projected = person.localToWorld(new THREE.Vector3(0, 40, 0)).project(camera);
@@ -774,6 +789,14 @@ export function createWorld3D(canvas, ground, characterName) {
         const x = (projected.x + 1) * width / 2;
         const y = (1 - projected.y) * height / 2;
         return projected.z >= -1 && projected.z <= 1 && Math.hypot(point.x - x, point.y - y) <= 25;
+      });
+    },
+    entranceAt(point) {
+      return entrances.findIndex((label) => {
+        const projected = label.getWorldPosition(new THREE.Vector3()).project(camera);
+        const x = (projected.x + 1) * width / 2;
+        const y = (1 - projected.y) * height / 2;
+        return projected.z >= -1 && projected.z <= 1 && Math.abs(point.x - x) <= 65 && Math.abs(point.y - y) <= 18;
       });
     },
     dispose() {

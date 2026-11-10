@@ -1,14 +1,21 @@
 const ROUNDS_TO_WIN = 3;
 const WINDOW_MS = 1100;
 
-export function mountCoasterGame(root, onComplete, playSound) {
-  let round = 0;
+export function restoreCoasterState(saved) {
+  const valid = saved && Array.isArray(saved.reactions) && saved.reactions.length <= ROUNDS_TO_WIN
+    && saved.reactions.every((value) => Number.isInteger(value) && value >= 0 && value <= WINDOW_MS);
+  if (saved && !valid) console.warn('Invalid saved Thirteen progress; starting the quest again.');
+  return { reactions: valid ? [...saved.reactions] : [] };
+}
+
+export function mountCoasterGame(root, onComplete, playSound, { savedState, onProgress } = {}) {
+  const reactions = restoreCoasterState(savedState).reactions;
+  let round = reactions.length;
   let phase = 'ready';
   let startTime = 0;
   let timeout = 0;
   let frame = 0;
   let disposed = false;
-  const reactions = [];
 
   root.innerHTML = `
     <section class="mini-game coaster-game">
@@ -42,6 +49,8 @@ export function mountCoasterGame(root, onComplete, playSound) {
   const bestLabel = root.querySelector('#coasterBest');
   const status = root.querySelector('#coasterStatus');
   const button = root.querySelector('#dropButton');
+  roundLabel.textContent = `Drop ${round + 1} of ${ROUNDS_TO_WIN}`;
+  if (round) bestLabel.textContent = `Best reaction: ${Math.min(...reactions)} ms`;
 
   function startRound() {
     if (disposed) return;
@@ -100,6 +109,7 @@ export function mountCoasterGame(root, onComplete, playSound) {
 
     reactions.push(Math.round(reaction));
     round += 1;
+    onProgress?.({ reactions: [...reactions], ...(round === ROUNDS_TO_WIN ? { complete: true } : {}) });
     playSound('success');
     if (round === ROUNDS_TO_WIN) {
       status.textContent = `Three drops caught! Your quickest reaction was ${Math.min(...reactions)} ms.`;

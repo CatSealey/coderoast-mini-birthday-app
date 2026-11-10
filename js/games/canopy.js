@@ -7,9 +7,17 @@ const PLATFORMS = [
   { x: 710, y: 296, width: 90, color: '#d3b970' }
 ];
 
-export function mountCanopyGame(root, onComplete, playSound) {
-  let player = { x: 48, y: 268, vx: 0, vy: 0, grounded: true };
-  let checkpoint = { x: 48, y: 268 };
+export function restoreCanopyState(saved) {
+  const point = saved?.checkpoint;
+  const valid = point && Number.isFinite(point.x) && Number.isFinite(point.y) && PLATFORMS.some((platform) =>
+    point.y === platform.y - 28 && point.x > platform.x - 22 && point.x < platform.x + platform.width - 4);
+  if (saved && !valid) console.warn('Invalid saved GoApe progress; starting the quest again.');
+  return { checkpoint: valid ? { x: point.x, y: point.y } : { x: 48, y: 268 } };
+}
+
+export function mountCanopyGame(root, onComplete, playSound, { savedState, onProgress } = {}) {
+  let checkpoint = restoreCanopyState(savedState).checkpoint;
+  let player = { ...checkpoint, vx: 0, vy: 0, grounded: true };
   let previousY = player.y;
   let frame = 0;
   let previousTime = 0;
@@ -131,7 +139,10 @@ export function mountCanopyGame(root, onComplete, playSound) {
           player.vy = 0;
           player.grounded = true;
           if (!wasGrounded) {
-            if (platformIndex > 0) checkpoint = { x: player.x, y: platform.y - 28 };
+            if (platformIndex > 0) {
+              checkpoint = { x: player.x, y: platform.y - 28 };
+              onProgress?.({ checkpoint });
+            }
             status.textContent = 'Nice landing! Checkpoint reached — keep moving toward the zip-line.';
           }
           if (platform === PLATFORMS[PLATFORMS.length - 1] && player.x > 730) {

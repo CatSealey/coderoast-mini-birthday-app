@@ -56,37 +56,51 @@
       <aside class="client-sidebar client-sidebar--left">
         <section class="client-panel quest-panel" aria-labelledby="questPanelTitle">
           <div class="client-panel__title">
-            <h2 id="questPanelTitle"><span aria-hidden="true">☷</span> QUEST JOURNAL</h2>
+            <h2 id="questPanelTitle" tabindex="-1"><span aria-hidden="true">☷</span> QUEST JOURNAL</h2>
             <span class="client-panel__count"><span id="heroProgressText">0 of 5</span></span>
           </div>
-          <p class="client-panel__intro">Choose a destination. Walk there and interact to begin.</p>
+          <p class="client-panel__intro" id="questJournalHint">Your journal is empty. Find quest givers marked on the world map.</p>
           <nav class="quest-list" aria-label="Birthday quest chapters">
-            <button id="qbtn-1" type="button" data-level="1" class="quest-row">
-              <span class="quest-row__icon" aria-hidden="true">⌖</span>
-              <span class="quest-row__copy"><strong>Abigail Escape</strong><small>Kettering · Warding
-                  runes</small></span>
-              <span id="qstatus-1" class="quest-row__status">Available</span>
-            </button>
-            <button id="qbtn-2" type="button" data-level="2" class="quest-row">
-              <span class="quest-row__icon" aria-hidden="true">◉</span>
-              <span class="quest-row__copy"><strong>Lucky Chucks</strong><small>Pool hall · Trick shot</small></span>
-              <span id="qstatus-2" class="quest-row__status">Locked</span>
-            </button>
-            <button id="qbtn-3" type="button" data-level="3" class="quest-row">
-              <span class="quest-row__icon" aria-hidden="true">↗</span>
-              <span class="quest-row__copy"><strong>Thirteen</strong><small>Alton Towers · Coaster drop</small></span>
-              <span id="qstatus-3" class="quest-row__status">Locked</span>
-            </button>
-            <button id="qbtn-4" type="button" data-level="4" class="quest-row">
-              <span class="quest-row__icon" aria-hidden="true">♧</span>
-              <span class="quest-row__copy"><strong>GoApe After Dark</strong><small>Canopy · Zip-line</small></span>
-              <span id="qstatus-4" class="quest-row__status">Locked</span>
-            </button>
-            <button id="qbtn-5" type="button" data-level="5" class="quest-row">
-              <span class="quest-row__icon" aria-hidden="true">✦</span>
-              <span class="quest-row__copy"><strong>Fright Nights</strong><small>Earls Barton · Corn maze</small></span>
-              <span id="qstatus-5" class="quest-row__status">Locked</span>
-            </button>
+            <div class="quest-entry" id="qentry-1" hidden>
+              <button id="qbtn-1" type="button" data-level="1" class="quest-row">
+                <span class="quest-row__icon" aria-hidden="true">⌖</span>
+                <span class="quest-row__copy"><strong>Abigail Escape</strong><small>Kettering · Escape room</small></span>
+                <span id="qstatus-1" class="quest-row__status">Available</span>
+              </button>
+              <button type="button" class="quest-entry__remove" data-remove-quest="0" aria-label="Remove Abigail Escape from journal">✕</button>
+            </div>
+            <div class="quest-entry" id="qentry-2" hidden>
+              <button id="qbtn-2" type="button" data-level="2" class="quest-row">
+                <span class="quest-row__icon" aria-hidden="true">◉</span>
+                <span class="quest-row__copy"><strong>Lucky Chucks</strong><small>Pool hall · Trick shot</small></span>
+                <span id="qstatus-2" class="quest-row__status">Locked</span>
+              </button>
+              <button type="button" class="quest-entry__remove" data-remove-quest="1" aria-label="Remove Lucky Chucks from journal">✕</button>
+            </div>
+            <div class="quest-entry" id="qentry-3" hidden>
+              <button id="qbtn-3" type="button" data-level="3" class="quest-row">
+                <span class="quest-row__icon" aria-hidden="true">↗</span>
+                <span class="quest-row__copy"><strong>Thirteen</strong><small>Alton Towers · Coaster drop</small></span>
+                <span id="qstatus-3" class="quest-row__status">Locked</span>
+              </button>
+              <button type="button" class="quest-entry__remove" data-remove-quest="2" aria-label="Remove Thirteen from journal">✕</button>
+            </div>
+            <div class="quest-entry" id="qentry-4" hidden>
+              <button id="qbtn-4" type="button" data-level="4" class="quest-row">
+                <span class="quest-row__icon" aria-hidden="true">♧</span>
+                <span class="quest-row__copy"><strong>GoApe After Dark</strong><small>Canopy · Zip-line</small></span>
+                <span id="qstatus-4" class="quest-row__status">Locked</span>
+              </button>
+              <button type="button" class="quest-entry__remove" data-remove-quest="3" aria-label="Remove GoApe After Dark from journal">✕</button>
+            </div>
+            <div class="quest-entry" id="qentry-5" hidden>
+              <button id="qbtn-5" type="button" data-level="5" class="quest-row">
+                <span class="quest-row__icon" aria-hidden="true">✦</span>
+                <span class="quest-row__copy"><strong>Fright Nights</strong><small>Earls Barton · Corn maze</small></span>
+                <span id="qstatus-5" class="quest-row__status">Locked</span>
+              </button>
+              <button type="button" class="quest-entry__remove" data-remove-quest="4" aria-label="Remove Fright Nights from journal">✕</button>
+            </div>
           </nav>
           <div class="client-chat" aria-label="Quest log message">
             <span class="client-chat__label"><span aria-hidden="true">✧</span> QUEST GUIDE</span>
@@ -104,13 +118,19 @@
         </div>
 
         <p id="worldRenderNotice" hidden>3D is unavailable in this browser. Showing the illustrated world instead.</p>
+        <p id="saveNotice" role="status" hidden>Your browser could not save progress. Your latest changes may be lost if you leave or reload.</p>
         <div id="worldViewport" class="world-viewport">
           <canvas id="worldCanvas" role="img"
             aria-label="World view of your character exploring Gielinor. Click a quest marker, a character, or the ground to travel."
             tabindex="0"></canvas>
-          <div id="worldSpeechBubble" class="world-speech-bubble" aria-hidden="true" hidden>
+          <div id="abigailWorldRoot" class="abigail-world-root" hidden></div>
+          <div id="worldSpeechBubble" class="world-speech-bubble" aria-label="Conversation" aria-hidden="true" hidden>
             <strong id="worldSpeechName"></strong>
             <span id="worldSpeechText"></span>
+            <div id="worldSpeechChoices" class="world-speech-bubble__choices" role="group" aria-label="Quest offer" hidden>
+              <button type="button" class="rs3-btn" id="acceptQuestOffer">Accept quest</button>
+              <button type="button" class="rs3-btn" id="declineQuestOffer">Not now</button>
+            </div>
           </div>
           <div class="world-hud" aria-hidden="true"><span>GIELINOR · BIRTHDAY EDITION</span><span
               id="worldTarget">DESTINATION · ABIGAIL ESCAPE</span></div>
@@ -158,8 +178,15 @@
             <h2 id="inventoryTitle"><span aria-hidden="true">▦</span> KEEPSAKES</h2><span class="client-panel__count">5
               slots</span>
           </div>
-          <div class="inventory-grid" id="inventoryGrid"></div>
+          <div class="inventory-grid keepsake-grid" id="inventoryGrid"></div>
           <p class="inventory-hint">Keepsakes 1–5 match their quests, in journal order.</p>
+        </section>
+        <section class="client-panel quest-inventory-panel" aria-labelledby="questInventoryTitle">
+          <div class="client-panel__title">
+            <h2 id="questInventoryTitle"><span aria-hidden="true">▦</span> QUEST INVENTORY</h2>
+          </div>
+          <div id="questInventory" class="quest-items" aria-live="polite"></div>
+          <p id="questInventoryHint" class="inventory-hint">No quest items collected yet.</p>
         </section>
       </aside>
     </main>
@@ -177,6 +204,15 @@
     </footer>
   </div>
 
+  <dialog id="removeQuestDialog" class="quest-dialog quest-remove-dialog" aria-labelledby="removeQuestTitle" aria-describedby="removeQuestDescription">
+    <h2 id="removeQuestTitle">Remove quest?</h2>
+    <p id="removeQuestDescription"></p>
+    <div class="quest-remove-dialog__actions">
+      <button type="button" class="rs3-btn game-control" data-action="cancel-remove-quest" autofocus>Keep quest</button>
+      <button type="button" class="rs3-btn game-control" data-action="confirm-remove-quest">Remove quest</button>
+    </div>
+  </dialog>
+
   <dialog id="questDialog" class="quest-dialog" aria-labelledby="questDialogTitle">
     <section class="quest-window">
       <header class="quest-window__header">
@@ -188,26 +224,21 @@
           aria-label="Return to the world">✕</button>
       </header>
       <div class="quest-window__body">
-        <aside class="quest-briefing" id="questBriefing">
-          <div id="questFieldMap"></div>
-          <div class="quest-npc-card">
-            <span class="quest-npc-card__portrait" id="questGuideIcon" aria-hidden="true">🧙</span>
-            <div><span class="eyebrow">QUEST GUIDE</span><strong id="questGuideName"></strong></div>
-          </div>
-          <p class="rs3-dialogue quest-introduction" id="questIntroduction"></p>
-        </aside>
         <section class="quest-activity" id="questActivity" hidden>
           <div class="quest-objective">
             <span class="eyebrow">CURRENT OBJECTIVE</span>
             <p id="questObjective"></p>
           </div>
           <div id="questGameRoot" class="quest-game-root"></div>
+          <section class="quest-activity-inventory" aria-labelledby="activityInventoryTitle">
+            <h3 id="activityInventoryTitle">Quest inventory</h3>
+            <div id="activityInventory" class="quest-items" aria-live="polite"></div>
+            <p id="activityInventoryHint" class="inventory-hint">No quest items collected yet.</p>
+          </section>
         </section>
       </div>
       <footer class="quest-window__footer" id="questDialogFooter">
         <span id="questDialogHint">Talk to the guide to begin this chapter.</span>
-        <button type="button" class="rs3-btn game-control" id="beginQuestButton" data-action="begin-quest">Begin quest
-          activity →</button>
       </footer>
     </section>
   </dialog>
@@ -306,8 +337,6 @@
       </div>
 
       <div class="flex gap-3">
-        <button type="button" data-action="restart-quest" class="flex-1 rs3-btn py-2 text-xs rounded-lg">Replay
-          Quest</button>
         <button type="button" data-action="close-victory" class="flex-1 rs3-btn py-2 text-xs rounded-lg">View Quest
           Log</button>
       </div>

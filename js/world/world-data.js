@@ -21,8 +21,9 @@ export const QUEST_LOCATIONS = Object.freeze([
     icon: '🗝',
     x: 470 * WORLD_SCALE,
     y: 450 * WORLD_SCALE,
+    entrance: Object.freeze({ x: 470 * WORLD_SCALE - 70, y: 450 * WORLD_SCALE - 115, name: 'Escape room entrance' }),
     guide: 'Mara the Wardkeeper',
-    introduction: 'A strange doll has unsettled the old escape room. Speak with Mara, learn the warding pattern, and find a way out together.'
+    introduction: 'A strange doll has unsettled the old escape room. Explore its rooms, uncover the wardkeeper’s clues, and find a way out together.'
   }),
   Object.freeze({
     name: 'Lucky Chucks',
@@ -30,6 +31,7 @@ export const QUEST_LOCATIONS = Object.freeze([
     icon: '🎱',
     x: 1020 * WORLD_SCALE,
     y: 920 * WORLD_SCALE,
+    entrance: Object.freeze({ x: 1020 * WORLD_SCALE - 85, y: 920 * WORLD_SCALE - 95, name: 'Lucky Chucks entrance' }),
     guide: 'Chuck the Innkeeper',
     introduction: 'The regulars have set up a birthday challenge at the pool table. A careful aim and a little luck should settle the match.'
   }),
@@ -39,6 +41,7 @@ export const QUEST_LOCATIONS = Object.freeze([
     icon: '🎢',
     x: 1510 * WORLD_SCALE,
     y: 330 * WORLD_SCALE,
+    entrance: Object.freeze({ x: 1510 * WORLD_SCALE - 180, y: 330 * WORLD_SCALE - 60, name: 'Thirteen entrance' }),
     guide: 'Pippa the Ride Keeper',
     introduction: 'A mysterious lift hill leads to a sudden drop. Keep your nerve and react when the signal appears.'
   }),
@@ -48,6 +51,7 @@ export const QUEST_LOCATIONS = Object.freeze([
     icon: '🌙',
     x: 1540 * WORLD_SCALE,
     y: 900 * WORLD_SCALE,
+    entrance: Object.freeze({ x: 1540 * WORLD_SCALE - 35, y: 900 * WORLD_SCALE - 120, name: 'GoApe entrance' }),
     guide: 'Ash the Tree Guide',
     introduction: 'The forest platforms glow beneath the evening sky. Cross the canopy and reach the waiting zip-line.'
   }),
@@ -57,6 +61,7 @@ export const QUEST_LOCATIONS = Object.freeze([
     icon: '🎃',
     x: 390 * WORLD_SCALE,
     y: 900 * WORLD_SCALE,
+    entrance: Object.freeze({ x: 390 * WORLD_SCALE - 175, y: 900 * WORLD_SCALE - 175, name: 'Fright Nights entrance' }),
     guide: 'Dr. Fright',
     introduction: 'The corn maze is full of wrong turns and one restless ghost. Find the lantern key before heading for the exit.'
   })
