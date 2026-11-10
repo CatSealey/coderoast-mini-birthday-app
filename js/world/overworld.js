@@ -1,6 +1,7 @@
 import { INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
 import { cameraFor, createWorldArt, projectWorld, unprojectWorld } from './world-art.js';
 import { constrainToWorld, distanceBetween, isNearQuest, isQuestAvailable, moveToward } from './world-logic.js';
+import { regionBlendAt } from './world-regions.js';
 
 const WALK_SPEED = 220;
 const PLAYER_RADIUS = 12;
@@ -67,9 +68,7 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
   function updateInteraction() {
     const quest = QUEST_LOCATIONS[state.questIndex];
     const nearby = isNearQuest(state.player, quest);
-    const nearest = QUEST_LOCATIONS.map((item) => ({ item, distance: distanceBetween(state.player, item) }))
-      .sort((a, b) => a.distance - b.distance)[0];
-    const location = nearest.distance < 420 ? nearest.item.region : 'GIELINOR · THE OPEN ROAD';
+    const location = regionBlendAt(state.player).region.name;
     if (locationElement.textContent !== location) locationElement.textContent = location;
     interactButton.disabled = false;
     const buttonText = nearby
@@ -159,6 +158,12 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
     mapContext.lineTo(px(active.x), py(active.y)); mapContext.setLineDash([4, 4]);
     mapContext.strokeStyle = 'rgba(255, 237, 177, .85)'; mapContext.lineWidth = 1.5; mapContext.stroke();
     mapContext.setLineDash([]);
+    const homeX = px(WORLD_SPAWN.x);
+    const homeY = py(WORLD_SPAWN.y);
+    mapContext.fillStyle = '#e6d3a1'; mapContext.strokeStyle = '#273c33'; mapContext.lineWidth = 1.5;
+    mapContext.beginPath(); mapContext.moveTo(homeX, homeY - 7); mapContext.lineTo(homeX + 6, homeY - 2);
+    mapContext.lineTo(homeX + 5, homeY + 5); mapContext.lineTo(homeX - 5, homeY + 5);
+    mapContext.lineTo(homeX - 6, homeY - 2); mapContext.closePath(); mapContext.fill(); mapContext.stroke();
     QUEST_LOCATIONS.forEach((quest, index) => {
       mapContext.beginPath(); mapContext.arc(px(quest.x), py(quest.y), state.questIndex === index ? 7 : 5, 0, Math.PI * 2);
       mapContext.fillStyle = state.completed[index] ? '#9bcc86' : questIsAvailable(index) ? '#edcf82' : '#829093';
@@ -168,16 +173,18 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
     mapContext.fillStyle = '#fff8e4'; mapContext.fill(); mapContext.strokeStyle = '#273c33'; mapContext.stroke();
   }
 
-  function chooseQuest(index) {
+  function chooseQuest(index, walk = true) {
     if (!questIsAvailable(index)) {
       say('That quest is still locked. Complete the previous chapter first.');
       return false;
     }
     state.questIndex = index;
     const quest = QUEST_LOCATIONS[index];
-    state.target = { x: quest.x, y: quest.y };
+    state.target = walk ? { x: quest.x, y: quest.y } : null;
     onQuestSelected?.(index);
-    say(`Walking to ${quest.name}. Use the arrows or WASD to move, or click a place in the world.`);
+    say(walk
+      ? `Walking to ${quest.name}. Use the arrows or WASD to move, or click a place in the world.`
+      : 'Welcome home, Danwell. Choose a quest or explore the world.');
     updateInteraction();
     return true;
   }

@@ -8,7 +8,7 @@ export const WORLD_SPAWN = Object.freeze({ x: 2500, y: 2000 });
 export const INTERACTION_RANGE = 74;
 export const WORLD_ROUTES = Object.freeze([
   Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [760, 570], [650, 500], [470, 450]]),
-  Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [920, 680], [800, 690]]),
+  Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [920, 720], [1020, 800], [1020, 920]]),
   Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [1100, 530], [1270, 400], [1510, 330]]),
   Object.freeze([[1510, 330], [1610, 500], [1650, 690], [1540, 900]]),
   Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [760, 780], [570, 850], [390, 900]])
@@ -26,10 +26,10 @@ export const QUEST_LOCATIONS = Object.freeze([
   }),
   Object.freeze({
     name: 'Lucky Chucks',
-    region: 'KETTERING · THE MARKET CROSS',
+    region: 'KETTERING · LUCKY CHUCKS',
     icon: '🎱',
-    x: 800 * WORLD_SCALE,
-    y: 690 * WORLD_SCALE,
+    x: 1020 * WORLD_SCALE,
+    y: 920 * WORLD_SCALE,
     guide: 'Chuck the Innkeeper',
     introduction: 'The regulars have set up a birthday challenge at the pool table. A careful aim and a little luck should settle the match.'
   }),
@@ -44,7 +44,7 @@ export const QUEST_LOCATIONS = Object.freeze([
   }),
   Object.freeze({
     name: 'GoApe After Dark',
-    region: 'THE NIGHT CANOPY ·SALCEY FOREST',
+    region: 'THE NIGHT CANOPY · SALCEY FOREST',
     icon: '🌙',
     x: 1540 * WORLD_SCALE,
     y: 900 * WORLD_SCALE,

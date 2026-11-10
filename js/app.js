@@ -272,7 +272,7 @@ function closeQuestDialog() {
   setStageStatus('Exploring', '');
 }
 
-function selectChapter(level) {
+function selectChapter(level, walk = true) {
   const index = level - 1;
   if (!Number.isInteger(level) || index < 0 || index >= chapters.length) return;
   if (!isQuestAvailable(index, completed)) {
@@ -286,7 +286,7 @@ function selectChapter(level) {
   dialogue.textContent = `Walking to ${QUEST_LOCATIONS[index].name}. Interact with ${QUEST_LOCATIONS[index].guide} when you arrive.`;
   renderChapterNavigation();
   world.setQuestStates(completed);
-  world.selectQuest(index);
+  world.selectQuest(index, walk);
 }
 
 function showModal(id) {
@@ -392,4 +392,4 @@ window.addEventListener('pagehide', () => {
 renderInventory();
 renderChapterNavigation();
 world.setQuestStates(completed);
-selectChapter(1);
+selectChapter(1, false);

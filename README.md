@@ -61,6 +61,8 @@ The production-ready static site is written to `dist/`. Tailwind CSS is compiled
 
 The desktop interface follows an RPG client layout: quest journal and chat on the left, Danwell's angled, illustrated world view in the center, and a live world map, birthday progress, and keepsakes on the right. The original 2.5D scenery includes roads, forests, and distinct quest landmarks; the locations are separated by long journeys. Quest activities open in a framed quest window over the world. On smaller screens these panels stack and expose touch movement controls.
 
+Danwell starts at the castle home. Borderless cobbled roads lead through adjoining regions: a haunted escape room, the Lucky Chucks town and archery range, an Alton Towers-inspired park with several rollercoasters, a night-time fir canopy lit by coloured lanterns, and Halloween corn mazes. Their terrain and vegetation transition across the world rather than ending at circular district edges. Outdoor rides, targets, platforms and maze walls are scenery, not physical obstacles or separate activities; quest activities are started by speaking to their guides.
+
 ## Personalize
 
 - Update birthday messages, chapter copy, and reward text in `index.html`.

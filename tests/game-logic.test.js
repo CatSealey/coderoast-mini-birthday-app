@@ -6,6 +6,9 @@ import { MAZE } from '../js/games/maze.js';
 import { QUEST_LOCATIONS, WORLD_ROUTES, WORLD_SCALE, WORLD_SIZE, WORLD_SPAWN } from '../js/world/world-data.js';
 import { constrainToWorld, distanceBetween, isNearQuest, isQuestAvailable, moveToward } from '../js/world/world-logic.js';
 import { cameraFor, projectWorld, unprojectWorld } from '../js/world/world-art.js';
+import { createMazeWalls } from '../js/world/maze-scenery.js';
+import { regionBlendAt, WORLD_REGIONS } from '../js/world/world-regions.js';
+import { PARK_RIDES } from '../js/world/park-scenery.js';
 
 test('rune sequence generation returns valid rune indexes and validates length', () => {
   assert.deepEqual(createRuneSequence(4, () => 0.6), [2, 2, 2, 2]);
@@ -76,6 +79,7 @@ test('quest destinations are far enough apart for meaningful travel', () => {
   assert.equal(WORLD_SIZE.height, 3600);
   assert.equal(WORLD_SCALE, 3);
   assert.ok(distanceBetween(WORLD_SPAWN, QUEST_LOCATIONS[0]) > 1200);
+  assert.ok(distanceBetween(WORLD_SPAWN, QUEST_LOCATIONS[1]) > 900, 'the town is separate from the castle home');
   assert.equal(WORLD_ROUTES.length, QUEST_LOCATIONS.length);
   WORLD_ROUTES.forEach((route, index) => {
     const [x, y] = route.at(-1);
@@ -119,4 +123,62 @@ test('camera stays within the world or centers a viewport larger than the world'
   const wide = cameraFor(WORLD_SPAWN, 6000, 3000, 1);
   assert.equal(wide.x, -300);
   assert.ok(Math.abs(wide.y - (WORLD_SIZE.height - 3000 / 0.68) / 2) < 1e-9);
+});
+
+test('adjoining regions cover the whole world and retain their quest landmarks', () => {
+  assert.equal(regionBlendAt(WORLD_SPAWN).region.id, 'home');
+  const expected = ['escape', 'town', 'park', 'forest', 'harvest'];
+  QUEST_LOCATIONS.forEach((quest, index) => {
+    assert.equal(regionBlendAt(quest).region.id, expected[index]);
+  });
+  const seen = new Set();
+  let transitions = 0;
+  for (let y = 0; y <= WORLD_SIZE.height; y += 100) {
+    for (let x = 0; x <= WORLD_SIZE.width; x += 100) {
+      const { region, neighbor, blend } = regionBlendAt({ x, y });
+      assert.ok(WORLD_REGIONS.includes(region));
+      assert.ok(WORLD_REGIONS.includes(neighbor));
+      assert.ok(blend >= 0 && blend <= 0.5);
+      seen.add(region.id);
+      if (blend > 0) transitions += 1;
+    }
+  }
+  assert.equal(seen.size, WORLD_REGIONS.length);
+  assert.ok(transitions > 0);
+});
+
+test('additional park rides are distributed within the park and clear of the quest guide', () => {
+  const park = QUEST_LOCATIONS[2];
+  assert.ok(PARK_RIDES.filter((ride) => ride.type.includes('Coaster')).length >= 3);
+  for (const ride of PARK_RIDES) {
+    assert.equal(regionBlendAt(ride).region.id, 'park');
+    assert.ok(ride.x > 250 && ride.x < WORLD_SIZE.width - 250);
+    assert.ok(ride.y > 250 && ride.y < WORLD_SIZE.height - 250);
+    assert.ok(distanceBetween(ride, park) > 500);
+  }
+});
+
+test('Halloween scenery maze has connected cells and deterministic walls', () => {
+  const width = 8;
+  const height = 8;
+  const walls = createMazeWalls(width, height);
+  assert.deepEqual(walls, createMazeWalls(width, height));
+  assert.throws(() => createMazeWalls(0, height), RangeError);
+  const wallKeys = new Set(walls.map(({ x, y, vertical }) => `${x},${y},${vertical}`));
+  const visited = new Set(['0,0']);
+  const queue = [[0, 0]];
+  while (queue.length) {
+    const [x, y] = queue.shift();
+    const options = [
+      [x - 1, y, `${x},${y},true`], [x + 1, y, `${x + 1},${y},true`],
+      [x, y - 1, `${x},${y},false`], [x, y + 1, `${x},${y + 1},false`]
+    ];
+    for (const [nextX, nextY, wall] of options) {
+      const key = `${nextX},${nextY}`;
+      if (nextX < 0 || nextY < 0 || nextX >= width || nextY >= height || wallKeys.has(wall) || visited.has(key)) continue;
+      visited.add(key);
+      queue.push([nextX, nextY]);
+    }
+  }
+  assert.equal(visited.size, width * height);
 });
