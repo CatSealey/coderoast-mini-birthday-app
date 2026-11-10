@@ -43,7 +43,7 @@ export function mountMazeGame(root, onComplete, playSound) {
   root.innerHTML = `
     <section class="mini-game maze-game">
       <header class="mini-game__header">
-        <p class="eyebrow">Earls Barton · Fright Night</p>
+        <p class="eyebrow">Earls Barton · Fright Nights</p>
         <h3>Find your way through the dark</h3>
         <p>Find the lantern key, then reach the exit. A restless ghost patrols the far passage.</p>
       </header>
@@ -51,7 +51,7 @@ export function mountMazeGame(root, onComplete, playSound) {
         <span id="mazeKeyStatus">🗝️ Lantern key: missing</span>
         <span id="mazeMoveCount">Steps: 0</span>
       </div>
-      <div class="maze-grid" id="mazeGrid" role="grid" aria-label="Fright Night maze"></div>
+      <div class="maze-grid" id="mazeGrid" role="grid" aria-label="Fright Nights maze"></div>
       <div class="maze-pad" role="group" aria-label="Maze movement controls">
         ${DIRECTIONS.map(([direction, glyph, label]) => `
           <button type="button" class="rs3-btn game-control" data-move="${direction}" aria-label="${label}">${glyph}</button>
@@ -135,7 +135,7 @@ export function mountMazeGame(root, onComplete, playSound) {
       if (!hasKey) {
         message.textContent = 'The gate is locked. Find the lantern key first.';
       } else {
-        message.textContent = `You found the way out in ${moves} steps. Happy Fright Night!`;
+        message.textContent = `You found the way out in ${moves} steps. Happy Fright Nights!`;
         playSound('success');
         renderMaze();
         onComplete();

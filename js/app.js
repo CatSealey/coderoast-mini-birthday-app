@@ -1,4 +1,3 @@
-import '../css/styles.css';
 import { createAudioController } from './audio.js';
 import { renderChapterMap } from './chapter-maps.js';
 import { mountRuneGame } from './games/runes.js';
@@ -8,8 +7,10 @@ import { mountCanopyGame } from './games/canopy.js';
 import { mountMazeGame } from './games/maze.js';
 import { mountOverworld } from './world/overworld.js';
 import { QUEST_LOCATIONS } from './world/world-data.js';
-import { isQuestAvailable } from './world/world-logic.js';
+import { areAllQuestsComplete, isQuestAvailable } from './world/world-logic.js';
+import { birthdayProgress, XP_PER_QUEST } from './progression.js';
 
+export function startGame(characterName) {
 const STORAGE_KEY = 'rs3-birthday-adventure-progress';
 
 const memories = [
@@ -34,9 +35,9 @@ const memories = [
     description: 'A little reminder of the glowing GoApe canopy, the nighttime adventure, and reaching that zip-line together.'
   },
   {
-    title: 'Fright Night Lucky Charm',
+    title: 'Fright Nights Lucky Charm',
     icon: '🎃',
-    description: 'For making it through Earls Barton Fright Night side by side. The best part of every spooky adventure is having you with me.'
+    description: 'For making it through Earls Barton Fright Nights side by side. The best part of every spooky adventure is having you with me.'
   }
 ];
 
@@ -66,8 +67,8 @@ const chapters = [
     objective: 'Cross the treetop platforms and reach the glowing zip-line.'
   },
   {
-    title: 'Earls Barton Fright Night',
-    location: 'EARLS BARTON · FRIGHT NIGHT',
+    title: 'Earls Barton Fright Nights',
+    location: 'EARLS BARTON · Fright Nights',
     description: 'Explore the corn maze, find the lantern key, and reach the locked exit.',
     objective: 'Find the lantern key, avoid the ghost, and unlock the maze exit.'
   }
@@ -107,6 +108,9 @@ const questBriefing = document.querySelector('#questBriefing');
 const questActivity = document.querySelector('#questActivity');
 const gameRoot = document.querySelector('#questGameRoot');
 
+document.querySelector('#characterName').textContent = characterName;
+document.querySelector('#characterAdventure').textContent = `${characterName.toUpperCase()}'S ADVENTURE`;
+
 function saveProgress() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ completed }));
@@ -124,38 +128,45 @@ function renderInventory() {
     const slot = document.createElement('button');
     slot.type = 'button';
     slot.className = `inventory-slot ${completed[index] ? 'inventory-slot--collected' : 'inventory-slot--locked'}`;
-    slot.textContent = completed[index] ? memory.icon : '🔒';
+    slot.textContent = String(index + 1);
     slot.disabled = !completed[index];
-    slot.setAttribute('aria-label', completed[index] ? `Open ${memory.title} keepsake` : 'Locked keepsake');
+    slot.setAttribute('aria-label', completed[index]
+      ? `Open keepsake ${index + 1}: ${memory.title}`
+      : `Keepsake ${index + 1} not yet collected`);
     if (completed[index]) slot.dataset.memory = String(index);
     grid.append(slot);
   });
 
-  const count = completed.filter(Boolean).length;
+  const { questsCompleted: count, xp, targetXp, level } = birthdayProgress(completed);
+  document.querySelector('#characterProfile').setAttribute('aria-label', `Character ${characterName}, level ${level}`);
+  document.querySelector('#characterLevel').textContent = `COMBAT LVL ${level}`;
+  document.querySelector('#birthdayLevel').textContent = `LV ${level}`;
+  document.querySelector('#actionbarLevel').textContent = String(level);
+  document.querySelector('#birthdayXp').textContent = `${xp} / ${targetXp} XP`;
   document.querySelector('#itemCount').textContent = String(count);
-  document.querySelector('#birthdayXpCopy').textContent = count === memories.length
-    ? 'All birthday memories collected!'
-    : `${memories.length - count} more ${memories.length - count === 1 ? 'memory' : 'memories'} to collect`;
+  document.querySelector('#birthdayXpCopy').textContent = level === 30
+    ? 'Level 30 reached! All birthday memories collected.'
+    : `${targetXp - xp} XP to level 30 · ${XP_PER_QUEST} XP per quest`;
   document.querySelector('#questProgressText').textContent = count === memories.length
     ? `Complete · ${count}/5`
     : `In progress · ${count}/5`;
   document.querySelector('#heroProgressText').textContent = `${count} of 5`;
-  document.querySelector('#questProgressBar').setAttribute('aria-valuenow', String(count));
-  document.querySelector('#progressFill').style.width = `${count / memories.length * 100}%`;
+  document.querySelector('#questProgressBar').setAttribute('aria-valuemax', String(targetXp));
+  document.querySelector('#questProgressBar').setAttribute('aria-valuenow', String(xp));
+  document.querySelector('#questProgressBar').setAttribute('aria-valuetext', `${xp} of ${targetXp} XP`);
+  document.querySelector('#progressFill').style.width = `${xp / targetXp * 100}%`;
 }
 
 function renderChapterNavigation() {
   chapters.forEach((chapter, index) => {
     const button = document.querySelector(`#qbtn-${index + 1}`);
     const status = document.querySelector(`#qstatus-${index + 1}`);
-    const available = isQuestAvailable(index, completed);
-    button.disabled = !available;
-    button.classList.toggle('opacity-60', !available);
+    button.disabled = false;
+    button.classList.remove('opacity-60');
     if (index === activeChapter) button.setAttribute('aria-current', 'step');
     else button.removeAttribute('aria-current');
-    status.textContent = completed[index] ? 'Completed ✓' : available ? 'Available' : 'Locked';
-    status.className = `quest-row__status ${completed[index] ? 'quest-row__status--complete' : available ? 'quest-row__status--available' : 'quest-row__status--locked'
-      }`;
+    status.textContent = completed[index] ? 'Completed ✓' : 'Available';
+    status.className = `quest-row__status ${completed[index] ? 'quest-row__status--complete' : 'quest-row__status--available'}`;
   });
 }
 
@@ -166,19 +177,18 @@ function setStageStatus(text, className = '') {
 
 function renderCompletedChapter(index, replayComplete = false) {
   const memory = memories[index];
-  const nextIndex = index + 1;
-  const nextAction = nextIndex < chapters.length
-    ? `<button type="button" class="rs3-btn game-control game-action" data-level="${nextIndex + 1}">Travel to the next chapter →</button>`
-    : '<button type="button" class="rs3-btn game-control game-action" data-action="show-victory">Claim Danwell’s level 30 birthday reward 🎉</button>';
+  const rewardAction = areAllQuestsComplete(completed)
+    ? '<button type="button" class="rs3-btn game-control game-action" data-action="show-victory">Claim Danwell’s level 30 birthday reward 🎉</button>'
+    : '';
   gameRoot.innerHTML = `
     <section class="mini-game game-complete">
-      <div class="game-complete__icon" aria-hidden="true">${memory.icon}</div>
-      <p class="eyebrow">${replayComplete ? 'Replay complete' : 'Keepsake collected'}</p>
-      <h3>${memory.title}</h3>
+      <div class="game-complete__icon" aria-hidden="true">${index + 1}</div>
+      <p class="eyebrow">${replayComplete ? 'Replay complete' : `Keepsake ${index + 1} collected`}</p>
+      <h3>${memory.icon} ${memory.title}</h3>
       <p>${memory.description}</p>
       <button type="button" class="rs3-btn game-control game-action" data-action="replay-chapter">Replay this activity ↻</button>
       <button type="button" class="rs3-btn game-control game-action" data-action="close-quest">Return to the world</button>
-      ${nextIndex < chapters.length && completed[nextIndex - 1] ? nextAction : nextIndex === chapters.length ? nextAction : ''}
+      ${rewardAction}
     </section>
   `;
 }
@@ -197,13 +207,13 @@ function completeChapter(index) {
   }
   setStageStatus('Chapter complete', 'world-stage-badge--complete');
   dialogue.textContent = replayComplete
-    ? `${memories[index].title} replayed. Your keepsake and quest progress remain unchanged.`
-    : `${memories[index].title} collected. The next chapter is now marked on your world map.`;
+    ? `${memories[index].title} replayed. Your keepsake, XP and quest progress remain unchanged.`
+    : `Keepsake ${index + 1} collected. You earned ${XP_PER_QUEST} XP${areAllQuestsComplete(completed) ? ' and reached level 30!' : '.'}`;
   audio.playSound('levelUp');
   renderCompletedChapter(index, replayComplete);
   document.querySelector('#questDialogHint').textContent = replayComplete
     ? 'Your keepsake is safe. Return to the world whenever you are ready.'
-    : 'Quest complete. Danwell’s keepsake has been added to the inventory.';
+    : `Quest complete. You earned ${XP_PER_QUEST} XP${areAllQuestsComplete(completed) ? ' and reached level 30!' : '.'}`;
 }
 
 function mountActiveChapter() {
@@ -275,10 +285,6 @@ function closeQuestDialog() {
 function selectChapter(level, walk = true) {
   const index = level - 1;
   if (!Number.isInteger(level) || index < 0 || index >= chapters.length) return;
-  if (!isQuestAvailable(index, completed)) {
-    dialogue.textContent = 'Complete the previous chapter to unlock this destination.';
-    return;
-  }
   activeChapter = index;
   stageTitle.textContent = `Journey to ${QUEST_LOCATIONS[index].name}`;
   worldLocation.textContent = QUEST_LOCATIONS[index].region;
@@ -300,8 +306,8 @@ function closeModal(id) {
 function showMemory(index) {
   const memory = memories[index];
   if (!memory || !completed[index]) return;
-  document.querySelector('#itemModalIcon').textContent = memory.icon;
-  document.querySelector('#itemModalTitle').textContent = memory.title;
+  document.querySelector('#itemModalIcon').textContent = String(index + 1);
+  document.querySelector('#itemModalTitle').textContent = `Keepsake ${index + 1}: ${memory.icon} ${memory.title}`;
   document.querySelector('#itemModalDesc').textContent = memory.description;
   showModal('itemModal');
 }
@@ -318,6 +324,7 @@ function restartQuest() {
 }
 
 const world = mountOverworld({
+  characterName,
   worldCanvas: document.querySelector('#worldCanvas'),
   mapCanvas: document.querySelector('#worldMapCanvas'),
   interactButton: document.querySelector('#worldInteract'),
@@ -362,6 +369,10 @@ document.addEventListener('click', (event) => {
   } else if (button.dataset.action === 'replay-chapter') {
     beginQuestActivity();
   } else if (button.dataset.action === 'show-victory') {
+    if (!areAllQuestsComplete(completed)) {
+      dialogue.textContent = 'Complete all five quests to claim the birthday reward.';
+      return;
+    }
     closeQuestDialog();
     showModal('victoryModal');
     audio.playSound('levelUp');
@@ -393,3 +404,4 @@ renderInventory();
 renderChapterNavigation();
 world.setQuestStates(completed);
 selectChapter(1, false);
+}

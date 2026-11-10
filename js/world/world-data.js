@@ -52,12 +52,12 @@ export const QUEST_LOCATIONS = Object.freeze([
     introduction: 'The forest platforms glow beneath the evening sky. Cross the canopy and reach the waiting zip-line.'
   }),
   Object.freeze({
-    name: 'Fright Night',
+    name: 'Fright Nights',
     region: 'EARLS BARTON · THE HARVEST FIELDS',
     icon: '🎃',
     x: 390 * WORLD_SCALE,
     y: 900 * WORLD_SCALE,
-    guide: 'The Lantern Keeper',
+    guide: 'Dr. Fright',
     introduction: 'The corn maze is full of wrong turns and one restless ghost. Find the lantern key before heading for the exit.'
   })
 ]);

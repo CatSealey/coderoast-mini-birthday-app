@@ -1,7 +1,11 @@
 import { INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
 import { cameraFor, createWorldArt, projectWorld, unprojectWorld } from './world-art.js';
-import { constrainToWorld, distanceBetween, isNearQuest, isQuestAvailable, moveToward } from './world-logic.js';
+import { constrainToWorld, distanceBetween, isNearQuest, isQuestAvailable, moveToward, nearestNpcIndex } from './world-logic.js';
 import { regionBlendAt } from './world-regions.js';
+import { createWorld3D } from './world-3d.js';
+import { WORLD_NPCS } from './world-npcs.js';
+import { birthdayProgress } from '../progression.js';
+import { speechBubblePosition } from './speech-bubble.js';
 
 const WALK_SPEED = 220;
 const PLAYER_RADIUS = 12;
@@ -40,14 +44,25 @@ function label(ctx, text, y, color = '#f2e3b1') {
   ctx.fillStyle = color; ctx.fillText(text, 0, y);
 }
 
-export function mountOverworld({ worldCanvas, mapCanvas, interactButton, messageElement, locationElement, targetElement, onInteract, onMessage, onQuestSelected }) {
-  const context = worldCanvas.getContext('2d');
+export function mountOverworld({ characterName, worldCanvas, mapCanvas, interactButton, messageElement, locationElement, targetElement, onInteract, onMessage, onQuestSelected }) {
   const mapContext = mapCanvas.getContext('2d');
-  if (!context || !mapContext) throw new Error('The browser could not initialize the game world canvas.');
+  if (!mapContext) throw new Error('The browser could not initialize the game world map.');
   const art = createWorldArt();
+  const probe = document.createElement('canvas').getContext('webgl2');
+  const hasWebGL = Boolean(probe);
+  probe?.getExtension('WEBGL_lose_context')?.loseContext();
+  const world3d = hasWebGL ? createWorld3D(worldCanvas, art.ground, characterName) : null;
+  const renderNotice = document.querySelector('#worldRenderNotice');
+  if (!world3d && renderNotice) renderNotice.hidden = false;
+  const context = world3d ? null : worldCanvas.getContext('2d');
+  if (!world3d && !context) throw new Error('The browser could not initialize the game world canvas.');
+  const speechBubble = document.querySelector('#worldSpeechBubble');
+  const speechName = document.querySelector('#worldSpeechName');
+  const speechText = document.querySelector('#worldSpeechText');
   const state = {
     player: { ...WORLD_SPAWN }, target: null, questIndex: 0,
     completed: Array(QUEST_LOCATIONS.length).fill(false), paused: false,
+    npcIndex: null, npcDialogue: Array(WORLD_NPCS.length).fill(0), speakingNpc: null,
     frame: 0, lastFrame: 0, keys: new Set(), heldDirections: new Set(), disposed: false
   };
   let canvasWidth = 0;
@@ -61,6 +76,33 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
     onMessage?.(message);
   }
 
+  function clearSpeech() {
+    state.speakingNpc = null;
+    speechBubble.hidden = true;
+  }
+
+  function updateSpeechBubble() {
+    if (state.speakingNpc === null || state.paused) return;
+    const npc = WORLD_NPCS[state.speakingNpc];
+    if (!isNearQuest(state.player, npc)) {
+      clearSpeech();
+      return;
+    }
+    const groundPoint = world3d ? null : projectWorld(npc, camera, zoom);
+    const anchor = world3d ? world3d.npcSpeechAnchor(state.speakingNpc)
+      : { x: groundPoint.x, y: groundPoint.y - 95 * zoom };
+    if (!anchor || anchor.x < 0 || anchor.x > canvasWidth || anchor.y < 0 || anchor.y > canvasHeight) {
+      speechBubble.hidden = true;
+      return;
+    }
+    speechBubble.hidden = false;
+    const { x, y, tailX } = speechBubblePosition(anchor,
+      { width: canvasWidth, height: canvasHeight },
+      { width: speechBubble.offsetWidth, height: speechBubble.offsetHeight });
+    speechBubble.style.transform = `translate(${x}px, ${y}px)`;
+    speechBubble.style.setProperty('--speech-tail-x', `${tailX}px`);
+  }
+
   function questIsAvailable(index) {
     return isQuestAvailable(index, state.completed);
   }
@@ -68,19 +110,26 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
   function updateInteraction() {
     const quest = QUEST_LOCATIONS[state.questIndex];
     const nearby = isNearQuest(state.player, quest);
+    const nearbyNpc = nearestNpcIndex(state.player, WORLD_NPCS);
+    const npcIndex = state.npcIndex ?? (!nearby && nearbyNpc !== -1 ? nearbyNpc : null);
+    const npc = npcIndex === null ? null : WORLD_NPCS[npcIndex];
+    const nearNpc = npc && isNearQuest(state.player, npc);
     const location = regionBlendAt(state.player).region.name;
     if (locationElement.textContent !== location) locationElement.textContent = location;
     interactButton.disabled = false;
-    const buttonText = nearby
+    const buttonText = npc
+      ? `${nearNpc ? 'Speak to' : 'Walk to'} ${npc.name}`
+      : nearby
       ? `${state.completed[state.questIndex] ? 'Replay' : 'Speak to'} ${quest.guide}`
       : `Walk to ${quest.name}`;
     if (interactButton.textContent !== buttonText) interactButton.textContent = buttonText;
-    const buttonLabel = nearby
+    const buttonLabel = npc ? buttonText : nearby
       ? `${state.completed[state.questIndex] ? 'Replay' : 'Speak to'} ${quest.guide} at ${quest.name}`
       : `Walk to ${quest.name}`;
     if (interactButton.getAttribute('aria-label') !== buttonLabel) interactButton.setAttribute('aria-label', buttonLabel);
-    interactButton.classList.toggle('world-interact--ready', nearby);
-    const target = nearby ? 'QUEST LOCATION · READY' : `DESTINATION · ${quest.name.toUpperCase()}`;
+    interactButton.classList.toggle('world-interact--ready', Boolean(npc ? nearNpc : nearby));
+    const target = npc && state.npcIndex !== null ? `SPEAK TO · ${npc.name.toUpperCase()}`
+      : nearby ? 'QUEST LOCATION · READY' : `DESTINATION · ${quest.name.toUpperCase()}`;
     if (targetElement.textContent !== target) targetElement.textContent = target;
   }
 
@@ -95,11 +144,14 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
   }
 
   function resize() {
-    resizeCanvas(worldCanvas, context, (width, height) => {
-      canvasWidth = width;
-      canvasHeight = height;
-      zoom = Math.max(0.65, Math.min(1, width / 820));
-    });
+    const rect = worldCanvas.getBoundingClientRect();
+    if (rect.width && rect.height) {
+      canvasWidth = rect.width;
+      canvasHeight = rect.height;
+      zoom = Math.max(0.65, Math.min(1, canvasWidth / 820));
+      if (world3d) world3d.resize(canvasWidth, canvasHeight, zoom);
+      else resizeCanvas(worldCanvas, context, () => {});
+    }
     resizeCanvas(mapCanvas, mapContext, () => {});
     drawWorld();
     drawMinimap();
@@ -107,6 +159,12 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
 
   function drawWorld() {
     if (state.disposed || !canvasWidth || !canvasHeight) return;
+    if (world3d) {
+      world3d.draw(state.player, state.questIndex, state.completed,
+        Boolean(state.target || state.keys.size || state.heldDirections.size), state.frame);
+      updateSpeechBubble();
+      return;
+    }
     camera = cameraFor(state.player, canvasWidth, canvasHeight, zoom);
     const actors = QUEST_LOCATIONS.map((quest, index) => ({
       x: quest.x, y: quest.y,
@@ -124,14 +182,21 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
         ctx.beginPath(); ctx.arc(0, -80, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         ctx.fillStyle = '#233329'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(state.completed[index] ? '✓' : '!', 0, -74);
-        if (selected) label(ctx, quest.name, -101);
+        if (selected) label(ctx, quest.guide, -101);
+      }
+    }));
+    WORLD_NPCS.forEach((npc) => actors.push({
+      x: npc.x, y: npc.y,
+      draw(ctx) {
+        drawPerson(ctx, npc.color, false, state.frame);
+        label(ctx, npc.name, -78);
       }
     }));
     actors.push({
       ...state.player,
       draw(ctx) {
         drawPerson(ctx, '#315a49', Boolean(state.target || state.keys.size || state.heldDirections.size), state.frame);
-        label(ctx, 'DANWELL · 30', -70);
+        label(ctx, `${characterName.toUpperCase()} · ${birthdayProgress(state.completed).level}`, -70);
       }
     });
     art.draw(context, camera, zoom, canvasWidth, canvasHeight, actors);
@@ -143,6 +208,7 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
     vignette.addColorStop(1, 'rgba(11, 18, 19, .32)');
     context.fillStyle = vignette;
     context.fillRect(0, 0, canvasWidth, canvasHeight);
+    updateSpeechBubble();
   }
 
   function drawMinimap() {
@@ -175,29 +241,53 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
 
   function chooseQuest(index, walk = true) {
     if (!questIsAvailable(index)) {
-      say('That quest is still locked. Complete the previous chapter first.');
+      say('That quest destination does not exist.');
       return false;
     }
     state.questIndex = index;
+    clearSpeech();
+    state.npcIndex = null;
     const quest = QUEST_LOCATIONS[index];
     state.target = walk ? { x: quest.x, y: quest.y } : null;
     onQuestSelected?.(index);
     say(walk
       ? `Walking to ${quest.name}. Use the arrows or WASD to move, or click a place in the world.`
-      : 'Welcome home, Danwell. Choose a quest or explore the world.');
+      : `Welcome to Lumbridge Castle, ${characterName}. Choose a quest or explore the world.`);
     updateInteraction();
     return true;
   }
 
   function interact() {
+    if (state.paused) return;
     const quest = QUEST_LOCATIONS[state.questIndex];
-    if (!questIsAvailable(state.questIndex)) {
-      say('That quest is still locked. Complete the previous chapter first.');
-    } else if (!isNearQuest(state.player, quest)) {
+    const nearbyNpc = nearestNpcIndex(state.player, WORLD_NPCS);
+    const npcIndex = state.npcIndex ?? (!isNearQuest(state.player, quest) && nearbyNpc !== -1 ? nearbyNpc : null);
+    if (npcIndex !== null) {
+      const npc = WORLD_NPCS[npcIndex];
+      if (!isNearQuest(state.player, npc)) {
+        clearSpeech();
+        state.target = moveToward(npc, state.player, 45);
+        say(`Walking to ${npc.name}. Speak to them when you arrive.`);
+      } else {
+        state.target = null;
+        const line = state.npcDialogue[npcIndex] % npc.dialogue.length;
+        const words = npc.dialogue[line].replaceAll('{player}', characterName);
+        speechName.textContent = npc.name;
+        speechText.textContent = words;
+        state.speakingNpc = npcIndex;
+        say(`${npc.name}: ${words}`);
+        state.npcDialogue[npcIndex] += 1;
+        drawWorld();
+      }
+      return;
+    }
+    if (!isNearQuest(state.player, quest)) {
+      clearSpeech();
       state.target = { x: quest.x, y: quest.y };
       say(`Keep walking to ${quest.name} to meet ${quest.guide}.`);
     } else {
       state.target = null;
+      clearSpeech();
       onInteract(state.questIndex, state.completed[state.questIndex]);
     }
   }
@@ -207,22 +297,41 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
     const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
     return canvas === mapCanvas
       ? { x: point.x / rect.width * WORLD_SIZE.width, y: point.y / rect.height * WORLD_SIZE.height }
-      : unprojectWorld(point, camera, zoom);
+      : world3d ? world3d.screenToWorld(point) : unprojectWorld(point, camera, zoom);
   }
 
   function handleWorldClick(event) {
+    if (state.paused) return;
     worldCanvas.focus();
     const screen = { x: event.clientX - worldCanvas.getBoundingClientRect().left, y: event.clientY - worldCanvas.getBoundingClientRect().top };
-    const markerIndex = QUEST_LOCATIONS.findIndex((quest) => {
+    const markerIndex = world3d ? world3d.markerAt(screen) : QUEST_LOCATIONS.findIndex((quest) => {
       const position = projectWorld(quest, camera, zoom);
       return Math.hypot(screen.x - position.x, screen.y - (position.y - 65 * zoom)) <= 25 * zoom;
     });
     if (markerIndex !== -1) return void chooseQuest(markerIndex);
-    state.target = constrainToWorld(pointerWorldPosition(event, worldCanvas), PLAYER_RADIUS);
-    say('Destination set. Danwell is on the move.');
+    const npcIndex = world3d ? world3d.npcAt(screen) : WORLD_NPCS.findIndex((npc) => {
+      const position = projectWorld(npc, camera, zoom);
+      return Math.hypot(screen.x - position.x, screen.y - (position.y - 36 * zoom)) <= 25 * zoom;
+    });
+    if (npcIndex !== -1) {
+      state.npcIndex = npcIndex;
+      interact();
+      updateInteraction();
+      return;
+    }
+    const position = pointerWorldPosition(event, worldCanvas);
+    if (!position) {
+      say('Click the ground to set a destination.');
+      return;
+    }
+    state.target = constrainToWorld(position, PLAYER_RADIUS);
+    clearSpeech();
+    state.npcIndex = null;
+    say(`Destination set. ${characterName} is on the move.`);
   }
 
   function handleMapClick(event) {
+    if (state.paused) return;
     const rect = mapCanvas.getBoundingClientRect();
     const point = pointerWorldPosition(event, mapCanvas);
     const markerIndex = QUEST_LOCATIONS.findIndex((quest) => Math.hypot(
@@ -230,6 +339,8 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
     ) <= 10);
     if (markerIndex !== -1) return void chooseQuest(markerIndex);
     state.target = constrainToWorld(point, PLAYER_RADIUS);
+    clearSpeech();
+    state.npcIndex = null;
     say('Destination set from the world map.');
   }
 
@@ -244,6 +355,7 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
       event.preventDefault();
       state.keys.add(event.key.length === 1 ? event.key.toLowerCase() : event.key);
       state.target = null;
+      state.npcIndex = null;
     } else if (event.key === 'e' || event.key === 'E' || event.key === ' ') {
       event.preventDefault(); interact();
     }
@@ -261,6 +373,7 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
     button.setPointerCapture?.(event.pointerId);
     state.heldDirections.add(button.dataset.worldDirection);
     state.target = null;
+    state.npcIndex = null;
   }
 
   function handleTouchEnd(event) {
@@ -313,15 +426,20 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
   animationFrame = window.requestAnimationFrame(tick);
 
   return {
-    setQuestStates(completed) { state.completed = [...completed]; updateInteraction(); drawWorld(); drawMinimap(); },
+    setQuestStates(completed) {
+      state.completed = [...completed];
+      world3d?.setPlayerLevel(birthdayProgress(state.completed).level);
+      updateInteraction(); drawWorld(); drawMinimap();
+    },
     selectQuest: chooseQuest,
     setPaused(paused) {
       state.paused = paused;
-      if (paused) clearMovement();
+      if (paused) { clearMovement(); clearSpeech(); }
     },
     getPlayerPosition() { return { ...state.player }; },
     dispose() {
       state.disposed = true; window.cancelAnimationFrame(animationFrame); resizeObserver.disconnect();
+      clearSpeech();
       worldCanvas.removeEventListener('click', handleWorldClick); mapCanvas.removeEventListener('click', handleMapClick);
       document.removeEventListener('keydown', handleKeyDown); document.removeEventListener('keyup', handleKeyUp);
       interactButton.removeEventListener('click', interact);
@@ -330,6 +448,7 @@ export function mountOverworld({ worldCanvas, mapCanvas, interactButton, message
       worldCanvas.parentElement.removeEventListener('pointercancel', handleTouchEnd);
       window.removeEventListener('resize', resize);
       window.removeEventListener('blur', clearMovement);
+      world3d?.dispose();
     }
   };
 }

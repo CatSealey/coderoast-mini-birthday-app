@@ -97,7 +97,7 @@ const CHAPTER_MAPS = [
     `
   },
   {
-    title: 'Earls Barton · Fright Night',
+    title: 'Earls Barton · Fright Nights',
     description: 'A maze map with the starting camp, lantern key, and exit marked.',
     scene: `
       ${MAZE.flatMap((row, y) => [...row].map((tile, x) => {

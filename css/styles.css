@@ -824,6 +824,84 @@ kbd {
   font-family: 'Inter', sans-serif;
 }
 
+[hidden] {
+  display: none !important;
+}
+
+.login-screen {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: min(100%, 440px);
+  padding: clamp(24px, 6vw, 40px);
+  border-radius: 12px;
+}
+
+.login-crest {
+  color: var(--gold-bright);
+  font-size: 2rem;
+}
+
+.login-card h1 {
+  margin: 8px 0 12px;
+  color: var(--gold-bright);
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 1.65rem;
+}
+
+.login-card > p:not(.eyebrow) {
+  color: #c4d2ce;
+  line-height: 1.5;
+}
+
+.login-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.login-form label {
+  color: #f2e3b1;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.login-form input {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  color: var(--text);
+  background: #10191c;
+  border: 1px solid #6c837b;
+  border-radius: 4px;
+}
+
+.login-form input:focus-visible {
+  outline: 3px solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
+.login-error {
+  margin: 0;
+  color: #ffd1c9;
+}
+
+.login-error:empty {
+  display: none;
+}
+
+.login-submit {
+  min-height: 46px;
+  margin-top: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
 .client-shell {
   display: grid;
   width: min(100%, 1920px);
@@ -1979,6 +2057,43 @@ kbd {
   outline-offset: -3px;
 }
 
+.world-speech-bubble {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  display: grid;
+  width: min(250px, calc(100% - 16px));
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid #bca572;
+  border-radius: 9px;
+  background: rgba(25, 38, 35, 0.97);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  color: #f5ebd2;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+.world-speech-bubble strong {
+  color: #f0d998;
+  font-size: 0.7rem;
+}
+
+.world-speech-bubble::after {
+  position: absolute;
+  top: 100%;
+  left: var(--speech-tail-x, 50%);
+  width: 0;
+  height: 0;
+  border: 8px solid transparent;
+  border-top-color: #bca572;
+  content: '';
+  transform: translateX(-50%);
+}
+
 .world-hud {
   position: absolute;
   z-index: 3;
@@ -2229,11 +2344,22 @@ kbd {
 }
 
 .quest-introduction {
+  position: relative;
   margin: 3px 0 0;
   padding: 10px;
+  border-radius: 8px;
   color: #e9e1c8;
   font-size: 0.76rem;
   line-height: 1.55;
+}
+
+.quest-introduction::before {
+  position: absolute;
+  bottom: 100%;
+  left: 18px;
+  border: 7px solid transparent;
+  border-bottom-color: rgba(115, 195, 176, 0.7);
+  content: '';
 }
 
 .quest-activity {

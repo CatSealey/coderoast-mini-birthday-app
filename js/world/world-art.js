@@ -2,6 +2,7 @@ import { QUEST_LOCATIONS, WORLD_ROUTES, WORLD_SCALE, WORLD_SIZE, WORLD_SPAWN } f
 import { createMazeWalls } from './maze-scenery.js';
 import { regionBlendAt } from './world-regions.js';
 import { drawParkRide, PARK_RIDES } from './park-scenery.js';
+import { WORLD_NPCS } from './world-npcs.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -42,7 +43,7 @@ function distanceToSegment(point, a, b) {
 const routes = WORLD_ROUTES.map((route) => route.map(([x, y]) => ({ x: x * WORLD_SCALE, y: y * WORLD_SCALE })));
 const roadSegments = routes.flatMap((route) => route.slice(1).map((point, index) => [route[index], point]));
 
-function roadDistance(point) {
+export function roadDistance(point) {
   return Math.min(...roadSegments.map(([a, b]) => distanceToSegment(point, a, b)));
 }
 
@@ -51,14 +52,6 @@ function ellipse(ctx, x, y, rx, ry, fill) {
   ctx.beginPath();
   ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
   ctx.fill();
-}
-
-function path(ctx, points) {
-  ctx.beginPath();
-  points.forEach((point, index) => {
-    if (index === 0) ctx.moveTo(point.x, point.y);
-    else ctx.lineTo(point.x, point.y);
-  });
 }
 
 function makeGround() {
@@ -97,15 +90,6 @@ function makeGround() {
     ellipse(ctx, x, y, size * 2.2, size * 0.7,
       i % 4 === 0 ? 'rgba(207, 204, 132, 0.12)' : 'rgba(29, 65, 36, 0.10)');
   }
-
-  routes.forEach((route) => {
-    path(ctx, route);
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.lineWidth = 90;
-    ctx.strokeStyle = '#716f5d';
-    ctx.stroke();
-  });
 
   for (let row = 0; row * 20 < WORLD_SIZE.height; row += 1) {
     for (let col = 0; col * 25 < WORLD_SIZE.width; col += 1) {
@@ -215,6 +199,7 @@ function addProps() {
     const x = 70 + random(i, 20) * (WORLD_SIZE.width - 140);
     const y = 70 + random(i, 21) * (WORLD_SIZE.height - 140);
     if (roadDistance({ x, y }) < 100 || QUEST_LOCATIONS.some((quest) => Math.hypot(x - quest.x, y - quest.y) < 280)
+      || WORLD_NPCS.some((npc) => Math.hypot(x - npc.x, y - npc.y) < 105)
       || Math.hypot(x - WORLD_SPAWN.x, y - WORLD_SPAWN.y) < 220) continue;
     const region = regionBlendAt({ x, y }).region.id;
     if (region === 'park') {
@@ -477,7 +462,7 @@ function drawProp(ctx, prop) {
   } else if (prop.type === 'mazeGate') {
     ctx.fillStyle = '#514334'; ctx.fillRect(-57, -100, 10, 100); ctx.fillRect(47, -100, 10, 100);
     ctx.fillStyle = '#9b713a'; ctx.fillRect(-66, -102, 132, 22);
-    drawSignText(ctx, 'FRIGHT NIGHT', -86, 100, '#e8b670');
+    drawSignText(ctx, 'Fright Nights', -86, 100, '#e8b670');
   } else if (prop.type === 'scarecrow') {
     ctx.strokeStyle = '#59452f'; ctx.lineWidth = 6;
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -70); ctx.moveTo(-30, -45); ctx.lineTo(30, -45); ctx.stroke();

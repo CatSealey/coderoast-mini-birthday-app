@@ -3,8 +3,11 @@ import { INTERACTION_RANGE, WORLD_SIZE } from './world-data.js';
 export function isQuestAvailable(index, completed) {
   return Number.isInteger(index)
     && index >= 0
-    && index < completed.length
-    && (index === 0 || completed[index - 1]);
+    && index < completed.length;
+}
+
+export function areAllQuestsComplete(completed) {
+  return completed.length > 0 && completed.every((quest) => quest === true);
 }
 
 export function distanceBetween(first, second) {
@@ -23,6 +26,16 @@ export function moveToward(position, target, distance) {
 
 export function isNearQuest(position, quest) {
   return distanceBetween(position, quest) <= INTERACTION_RANGE;
+}
+
+export function nearestNpcIndex(position, npcs) {
+  let nearest = -1;
+  let distance = INTERACTION_RANGE;
+  npcs.forEach((npc, index) => {
+    const candidate = distanceBetween(position, npc);
+    if (candidate <= distance) { nearest = index; distance = candidate; }
+  });
+  return nearest;
 }
 
 export function constrainToWorld(position, radius = 12) {

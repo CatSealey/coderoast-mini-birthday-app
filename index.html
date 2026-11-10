@@ -15,7 +15,23 @@
 </head>
 
 <body class="rs3-client-body">
-  <div class="client-shell">
+  <main id="loginScreen" class="login-screen">
+    <section class="login-card rs3-panel" aria-labelledby="loginTitle">
+      <span class="login-crest" aria-hidden="true">⚔</span>
+      <p class="eyebrow">GIELINOR · BIRTHDAY EDITION</p>
+      <h1 id="loginTitle">Enter the adventure</h1>
+      <p>Choose your character name and enter the shared app password to explore.</p>
+      <form id="loginForm" class="login-form" novalidate>
+        <label for="loginUsername">Character name</label>
+        <input id="loginUsername" name="username" type="text" maxlength="20" autocomplete="username" required autofocus>
+        <label for="loginPassword">App password</label>
+        <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+        <p id="loginError" class="login-error" role="alert"></p>
+        <button id="loginSubmit" class="rs3-btn login-submit" type="submit">Enter Gielinor</button>
+      </form>
+    </section>
+  </main>
+  <div id="clientShell" class="client-shell" hidden>
     <header class="client-topbar">
       <div class="client-brand" aria-label="Danwell's birthday adventure">
         <span class="client-brand__crest" aria-hidden="true">⚔</span>
@@ -24,9 +40,9 @@
           <small>Birthday edition</small>
         </span>
       </div>
-      <div class="client-profile" aria-label="Character Danwell, level 30">
+      <div class="client-profile" id="characterProfile" aria-label="Character, level 29">
         <span class="client-status-dot" aria-hidden="true"></span>
-        <span><strong>Danwell</strong><small>COMBAT LVL 30 · 30TH BIRTHDAY</small></span>
+        <span><strong id="characterName"></strong><small><span id="characterLevel">COMBAT LVL 29</span> · 30TH BIRTHDAY</small></span>
       </div>
       <div class="client-topbar__right">
         <span class="client-quest-status"><span class="client-status-dot" aria-hidden="true"></span><span
@@ -68,7 +84,7 @@
             </button>
             <button id="qbtn-5" type="button" data-level="5" class="quest-row">
               <span class="quest-row__icon" aria-hidden="true">✦</span>
-              <span class="quest-row__copy"><strong>Fright Night</strong><small>Earls Barton · Corn maze</small></span>
+              <span class="quest-row__copy"><strong>Fright Nights</strong><small>Earls Barton · Corn maze</small></span>
               <span id="qstatus-5" class="quest-row__status">Locked</span>
             </button>
           </nav>
@@ -82,15 +98,20 @@
       <section class="client-panel client-world-panel" id="gameStageWindow" aria-labelledby="stageTitle">
         <div class="world-titlebar">
           <div class="world-titlebar__location"><span class="world-location-dot" aria-hidden="true"></span><span
-              id="worldLocation">LUMBRIDGE · GIELINOR</span></div>
+              id="worldLocation">LUMBRIDGE CASTLE · GIELINOR</span></div>
           <span id="stageBadge" class="world-stage-badge">Exploring</span>
           <h1 id="stageTitle">Danwell's level 30 birthday adventure</h1>
         </div>
 
+        <p id="worldRenderNotice" hidden>3D is unavailable in this browser. Showing the illustrated world instead.</p>
         <div id="worldViewport" class="world-viewport">
           <canvas id="worldCanvas" role="img"
-            aria-label="Angled view of Danwell exploring Gielinor. Click a quest marker or a place to walk there."
+            aria-label="World view of your character exploring Gielinor. Click a quest marker, a character, or the ground to travel."
             tabindex="0"></canvas>
+          <div id="worldSpeechBubble" class="world-speech-bubble" aria-hidden="true" hidden>
+            <strong id="worldSpeechName"></strong>
+            <span id="worldSpeechText"></span>
+          </div>
           <div class="world-hud" aria-hidden="true"><span>GIELINOR · BIRTHDAY EDITION</span><span
               id="worldTarget">DESTINATION · ABIGAIL ESCAPE</span></div>
           <div class="world-move-pad" role="group" aria-label="Walk controls">
@@ -103,7 +124,7 @@
             quest</button>
         </div>
         <p class="world-controls-hint" id="worldMessage" aria-live="polite">Use WASD or the arrow keys to walk. Click a
-          quest marker, then press E to interact.</p>
+          quest marker or character, then press E to interact.</p>
       </section>
 
       <aside class="client-sidebar client-sidebar--right">
@@ -113,22 +134,23 @@
             <span class="minimap-compass" aria-hidden="true">N</span>
           </div>
           <canvas id="worldMapCanvas" class="world-minimap" role="img"
-            aria-label="World map showing castle home, quest destinations and Danwell's position" tabindex="0"></canvas>
-          <p class="world-map-hint">Tap a marker to travel. The house marks castle home.</p>
+            aria-label="World map showing Lumbridge Castle, quest destinations and your character's position" tabindex="0"></canvas>
+          <p class="world-map-hint">Tap a marker to travel. The house marks Lumbridge Castle.</p>
         </section>
 
         <section class="client-panel birthday-panel" aria-labelledby="birthdayPanelTitle">
           <div class="client-panel__title">
             <h2 id="birthdayPanelTitle"><span aria-hidden="true">✧</span> BIRTHDAY XP</h2><span
-              class="birthday-level">LV 30</span>
+              class="birthday-level" id="birthdayLevel">LV 29</span>
           </div>
           <div class="birthday-xp-label"><span>Quest memories</span><strong><span id="itemCount">0</span> / 5</strong>
           </div>
-          <div id="questProgressBar" class="progress-track" role="progressbar" aria-label="Birthday quest progress"
-            aria-valuemin="0" aria-valuemax="5" aria-valuenow="0">
+          <div class="birthday-xp-label"><span>XP to level 30</span><strong id="birthdayXp">0 / 100 XP</strong></div>
+          <div id="questProgressBar" class="progress-track" role="progressbar" aria-label="Birthday XP toward level 30"
+            aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0 of 100 XP">
             <div id="progressFill" class="progress-fill"></div>
           </div>
-          <p class="birthday-xp-copy" id="birthdayXpCopy">5 more memories to collect</p>
+          <p class="birthday-xp-copy" id="birthdayXpCopy">Complete quests to earn 20 XP each.</p>
         </section>
 
         <section class="client-panel inventory-panel" aria-labelledby="inventoryTitle">
@@ -137,16 +159,16 @@
               slots</span>
           </div>
           <div class="inventory-grid" id="inventoryGrid"></div>
-          <p class="inventory-hint">Collected quest memories</p>
+          <p class="inventory-hint">Keepsakes 1–5 match their quests, in journal order.</p>
         </section>
       </aside>
     </main>
 
     <footer class="client-actionbar" aria-label="Game controls">
-      <span class="actionbar-label">DANWELL'S ADVENTURE</span>
+      <span class="actionbar-label" id="characterAdventure">ADVENTURE</span>
       <div class="actionbar-shortcuts" aria-hidden="true">
         <span title="Quest journal">☷</span><span title="World map">◎</span><span title="Keepsakes">▦</span><span
-          title="Birthday level">30</span>
+          title="Character level" id="actionbarLevel">29</span>
       </div>
       <button id="toggleAudioBtn" type="button" data-action="toggle-audio" aria-pressed="false"
         class="rs3-btn actionbar-audio">
@@ -293,7 +315,7 @@
     </div>
   </div>
 
-  <script type="module" src="/js/app.js"></script>
+  <script type="module" src="/js/login.js"></script>
 </body>
 
 </html>
