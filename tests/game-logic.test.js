@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { CHAPTER_MAPS, renderChapterMap } from '../js/chapter-maps.js';
 import { createRuneSequence, evaluatePoolShot, moveMazePlayer } from '../js/games/logic.js';
 import { MAZE } from '../js/games/maze.js';
+import { QUEST_LOCATIONS, WORLD_ROUTES, WORLD_SCALE, WORLD_SIZE, WORLD_SPAWN } from '../js/world/world-data.js';
+import { constrainToWorld, distanceBetween, isNearQuest, isQuestAvailable, moveToward } from '../js/world/world-logic.js';
+import { cameraFor, projectWorld, unprojectWorld } from '../js/world/world-art.js';
 
 test('rune sequence generation returns valid rune indexes and validates length', () => {
   assert.deepEqual(createRuneSequence(4, () => 0.6), [2, 2, 2, 2]);
@@ -56,4 +59,64 @@ test('every quest chapter has an accessible map with its own location details', 
     assert.match(markup, new RegExp(map.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   });
   assert.throws(() => renderChapterMap(5), RangeError);
+});
+
+test('quest locations correspond to all five chapters and stay locked in sequence', () => {
+  assert.equal(QUEST_LOCATIONS.length, 5);
+  const completed = [false, false, false, false, false];
+  assert.equal(isQuestAvailable(0, completed), true);
+  assert.equal(isQuestAvailable(1, completed), false);
+  completed[0] = true;
+  assert.equal(isQuestAvailable(1, completed), true);
+  assert.equal(isQuestAvailable(5, completed), false);
+});
+
+test('quest destinations are far enough apart for meaningful travel', () => {
+  assert.equal(WORLD_SIZE.width, 5400);
+  assert.equal(WORLD_SIZE.height, 3600);
+  assert.equal(WORLD_SCALE, 3);
+  assert.ok(distanceBetween(WORLD_SPAWN, QUEST_LOCATIONS[0]) > 1200);
+  assert.equal(WORLD_ROUTES.length, QUEST_LOCATIONS.length);
+  WORLD_ROUTES.forEach((route, index) => {
+    const [x, y] = route.at(-1);
+    assert.equal(x * WORLD_SCALE, QUEST_LOCATIONS[index].x);
+    assert.equal(y * WORLD_SCALE, QUEST_LOCATIONS[index].y);
+  });
+  for (let index = 1; index < QUEST_LOCATIONS.length; index += 1) {
+    assert.ok(distanceBetween(QUEST_LOCATIONS[index - 1], QUEST_LOCATIONS[index]) > 1100);
+  }
+});
+
+test('world movement advances toward a destination without overshooting', () => {
+  assert.deepEqual(moveToward({ x: 10, y: 20 }, { x: 110, y: 20 }, 30), { x: 40, y: 20 });
+  assert.deepEqual(moveToward({ x: 10, y: 20 }, { x: 25, y: 20 }, 30), { x: 25, y: 20 });
+  assert.equal(distanceBetween({ x: 0, y: 0 }, { x: 3, y: 4 }), 5);
+});
+
+test('world boundaries constrain movement and quest markers have an interaction radius', () => {
+  assert.deepEqual(constrainToWorld({ x: -40, y: WORLD_SIZE.height + 30 }), { x: 12, y: WORLD_SIZE.height - 12 });
+  const quest = QUEST_LOCATIONS[0];
+  assert.equal(isNearQuest({ x: quest.x, y: quest.y }, quest), true);
+  assert.equal(isNearQuest({ x: quest.x + 120, y: quest.y }, quest), false);
+});
+
+test('angled world projection and pointer mapping round-trip at different zoom levels', () => {
+  const position = { x: 3456, y: 1702 };
+  const camera = { x: 1020, y: 440 };
+  for (const zoom of [0.65, 1, 1.5]) {
+    const restored = unprojectWorld(projectWorld(position, camera, zoom), camera, zoom);
+    assert.ok(Math.abs(restored.x - position.x) < 1e-9);
+    assert.ok(Math.abs(restored.y - position.y) < 1e-9);
+  }
+});
+
+test('camera stays within the world or centers a viewport larger than the world', () => {
+  const topLeft = cameraFor({ x: 0, y: 0 }, 800, 600, 1);
+  assert.deepEqual(topLeft, { x: 0, y: 0 });
+  const bottomRight = cameraFor({ x: WORLD_SIZE.width, y: WORLD_SIZE.height }, 800, 600, 1);
+  assert.equal(bottomRight.x, WORLD_SIZE.width - 800);
+  assert.ok(Math.abs(bottomRight.y - (WORLD_SIZE.height - 600 / 0.68)) < 1e-9);
+  const wide = cameraFor(WORLD_SPAWN, 6000, 3000, 1);
+  assert.equal(wide.x, -300);
+  assert.ok(Math.abs(wide.y - (WORLD_SIZE.height - 3000 / 0.68) / 2) < 1e-9);
 });

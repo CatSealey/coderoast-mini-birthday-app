@@ -953,7 +953,7 @@ kbd {
 .game-client-layout {
   display: grid;
   min-height: 0;
-  grid-template-columns: minmax(215px, 0.85fr) minmax(370px, 2.3fr) minmax(205px, 0.8fr);
+  grid-template-columns: minmax(200px, 0.8fr) minmax(370px, 2.8fr) minmax(190px, 0.7fr);
   grid-template-areas: 'left center right';
   gap: 7px;
 }
@@ -1951,5 +1951,496 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .danwell-avatar {
     animation: none;
+  }
+}
+
+.client-world-panel {
+  overflow: hidden;
+}
+
+.world-viewport {
+  height: clamp(420px, 70vh, 780px);
+  min-height: 420px;
+  background: #67834e;
+  touch-action: none;
+}
+
+#worldCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+#worldCanvas:focus-visible {
+  outline: 2px solid #f0d998;
+  outline-offset: -3px;
+}
+
+.world-hud {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  right: 10px;
+  left: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.world-hud span {
+  overflow: hidden;
+  max-width: 62%;
+  padding: 5px 8px;
+  border: 1px solid rgba(226, 209, 157, 0.42);
+  border-radius: 3px;
+  background: rgba(15, 23, 26, 0.78);
+  color: #f0d998;
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.world-move-pad {
+  position: absolute;
+  z-index: 4;
+  bottom: 12px;
+  left: 12px;
+  display: grid;
+  grid-template: ' . up . ' 38px 'left down right' 38px / 42px 42px 42px;
+  gap: 4px;
+  touch-action: none;
+}
+
+.world-move-pad button {
+  min-width: 42px;
+  min-height: 38px;
+  padding: 3px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.world-move-pad [data-world-direction="up"] { grid-area: up; }
+.world-move-pad [data-world-direction="left"] { grid-area: left; }
+.world-move-pad [data-world-direction="down"] { grid-area: down; }
+.world-move-pad [data-world-direction="right"] { grid-area: right; }
+
+.world-interact {
+  position: absolute;
+  z-index: 4;
+  right: 12px;
+  bottom: 12px;
+  max-width: min(52%, 250px);
+  min-height: 42px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+}
+
+.world-interact--ready {
+  border-color: #fae5a5;
+  background: linear-gradient(180deg, #836c3c, #5b492d);
+  box-shadow: 0 0 18px rgba(248, 219, 136, 0.36);
+}
+
+.world-controls-hint {
+  min-height: 1.2em;
+  margin: 0;
+  color: #9eacb4;
+  font-size: 0.62rem;
+}
+
+.world-minimap {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.34;
+  margin-top: 9px;
+  border: 1px solid #68735f;
+  border-radius: 3px;
+  background: #38533d;
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+
+.world-map-hint {
+  margin: 6px 0 0;
+  color: #82939b;
+  font-size: 0.58rem;
+}
+
+.quest-dialog {
+  width: min(1060px, calc(100vw - 28px));
+  max-width: none;
+  max-height: min(900px, calc(100dvh - 28px));
+  padding: 0;
+  overflow: auto;
+  border: 1px solid #a48a4d;
+  border-radius: 5px;
+  background: #111a20;
+  color: #e8e4d7;
+  box-shadow: 0 22px 80px rgba(0, 0, 0, 0.72), inset 0 0 0 3px #25343c;
+}
+
+.quest-dialog::backdrop {
+  background: rgba(5, 9, 12, 0.82);
+  backdrop-filter: blur(3px);
+}
+
+.quest-window {
+  min-height: 460px;
+  padding: 10px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.025), transparent 40%),
+    #17232a;
+}
+
+.quest-window__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 7px 10px;
+  border-bottom: 1px solid rgba(215, 184, 111, 0.35);
+}
+
+.quest-window__header .eyebrow {
+  margin: 0;
+  font-size: 0.58rem !important;
+}
+
+.quest-window__header h2 {
+  margin: 3px 0 0;
+  color: #f0d998;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 1rem;
+}
+
+.quest-window__close {
+  width: 36px;
+  height: 34px;
+  border-radius: 3px;
+}
+
+.quest-window__body {
+  display: grid;
+  min-height: 330px;
+  grid-template-columns: minmax(240px, 0.72fr) minmax(0, 1.28fr);
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.quest-window__body:has(.quest-briefing:not([hidden])) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.quest-window__body:has(.quest-activity:not([hidden])) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.quest-briefing,
+.quest-activity {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #3e4e58;
+  border-radius: 4px;
+  background: linear-gradient(145deg, rgba(39, 54, 60, 0.92), rgba(20, 31, 37, 0.98));
+}
+
+.quest-briefing .chapter-map {
+  margin: 0 0 9px;
+  padding: 8px;
+  border-radius: 3px;
+  background: rgba(8, 15, 19, 0.58);
+}
+
+.quest-briefing .chapter-map__heading h3 {
+  font-size: 0.78rem;
+}
+
+.quest-briefing .chapter-map__art {
+  max-height: 190px;
+}
+
+.quest-briefing .chapter-map__legend {
+  font-size: 0.6rem;
+}
+
+.quest-briefing:not([hidden]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 0.72fr);
+  align-content: start;
+  gap: 8px 14px;
+}
+
+.quest-briefing:not([hidden]) #questFieldMap {
+  grid-row: span 2;
+  min-width: 0;
+}
+
+.quest-briefing:not([hidden]) .quest-npc-card {
+  align-self: end;
+}
+
+.quest-briefing:not([hidden]) .quest-introduction {
+  align-self: start;
+}
+
+.quest-npc-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 2px;
+}
+
+.quest-npc-card > div {
+  display: grid;
+  gap: 3px;
+}
+
+.quest-npc-card .eyebrow {
+  margin: 0;
+  font-size: 0.56rem !important;
+}
+
+.quest-npc-card strong {
+  color: #f1e4be;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.83rem;
+}
+
+.quest-npc-card__portrait {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #ac9256;
+  border-radius: 4px;
+  background: linear-gradient(145deg, #43564c, #1d292b);
+  font-size: 1.7rem;
+}
+
+.quest-introduction {
+  margin: 3px 0 0;
+  padding: 10px;
+  color: #e9e1c8;
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.quest-activity {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+}
+
+.quest-activity[hidden],
+.quest-briefing[hidden],
+.quest-window__footer [hidden] {
+  display: none !important;
+}
+
+.quest-objective {
+  padding: 8px 10px;
+  border: 1px solid rgba(215, 184, 111, 0.28);
+  background: rgba(8, 15, 19, 0.6);
+}
+
+.quest-objective .eyebrow {
+  margin: 0;
+  font-size: 0.54rem !important;
+}
+
+.quest-objective p {
+  margin: 4px 0 0;
+  color: #f0e5c7;
+  font-size: 0.73rem;
+  line-height: 1.45;
+}
+
+.quest-game-root {
+  min-width: 0;
+}
+
+.quest-game-root > .mini-game {
+  width: 100%;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #56616a;
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(43, 58, 65, 0.85), rgba(19, 29, 35, 0.96));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.quest-game-root .mini-game__header h3,
+.quest-game-root .game-complete h3 {
+  font-size: clamp(0.9rem, 2vw, 1.2rem);
+}
+
+.quest-game-root .mini-game__header p,
+.quest-game-root .game-complete p {
+  font-size: 0.72rem;
+}
+
+.quest-game-root .rune-tile {
+  min-height: 62px;
+}
+
+.quest-game-root .pool-table,
+.quest-game-root .canopy-world {
+  height: clamp(160px, 26vh, 250px);
+}
+
+.quest-game-root .maze-grid {
+  width: min(100%, 300px);
+}
+
+.quest-game-root .maze-cell {
+  font-size: clamp(0.55rem, 2vw, 0.95rem);
+}
+
+.quest-window__footer {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 7px 2px;
+  border-top: 1px solid rgba(215, 184, 111, 0.32);
+  color: #9eacb4;
+  font-size: 0.65rem;
+}
+
+.quest-window__footer .game-control {
+  min-height: 38px;
+  padding: 6px 12px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
+
+.world-stage-badge--active {
+  border-color: #c5a95f;
+  background: rgba(111, 86, 39, 0.4);
+  color: #f1dd9b;
+}
+
+.world-stage-badge--complete {
+  border-color: #74a76f;
+  background: rgba(58, 100, 54, 0.42);
+  color: #bbdf9e;
+}
+
+@media (max-width: 680px) {
+  .world-viewport {
+    height: clamp(350px, 60svh, 580px);
+    min-height: 330px;
+  }
+
+  .world-hud span {
+    max-width: 57%;
+    font-size: 0.46rem;
+  }
+
+  .world-move-pad {
+    bottom: 9px;
+    left: 9px;
+    grid-template: ' . up . ' 35px 'left down right' 35px / 39px 39px 39px;
+  }
+
+  .world-move-pad button {
+    min-width: 39px;
+    min-height: 35px;
+  }
+
+  .world-interact {
+    right: 9px;
+    bottom: 10px;
+    max-width: 52%;
+    min-height: 40px;
+    padding: 6px 8px;
+    font-size: 0.61rem;
+  }
+
+  .quest-dialog {
+    width: calc(100vw - 12px);
+    max-height: calc(100dvh - 12px);
+  }
+
+  .quest-window {
+    min-height: 0;
+    padding: 6px;
+  }
+
+  .quest-window__body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+    padding: 7px 0;
+  }
+
+  .quest-briefing {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+    padding: 7px;
+  }
+
+  .quest-briefing .chapter-map {
+    max-width: 620px;
+    margin: 0 auto;
+  }
+
+  .quest-briefing .chapter-map__art {
+    max-height: 150px;
+  }
+
+  .quest-npc-card {
+    padding: 3px 1px;
+  }
+
+  .quest-npc-card__portrait {
+    width: 38px;
+    height: 38px;
+    font-size: 1.3rem;
+  }
+
+  .quest-introduction {
+    font-size: 0.68rem;
+  }
+
+  .quest-activity {
+    padding: 7px;
+  }
+
+  .quest-game-root > .mini-game {
+    gap: 7px;
+    padding: 8px;
+  }
+
+  .quest-game-root .rune-tile {
+    min-height: 52px;
+  }
+
+  .quest-window__footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .quest-window__footer .game-control {
+    width: 100%;
+  }
+
+  .client-sidebar--right {
+    grid-template-columns: 1fr 1fr;
   }
 }

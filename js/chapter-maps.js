@@ -5,7 +5,7 @@ const MAP_HEIGHT = 250;
 
 const CHAPTER_MAPS = [
   {
-    title: 'Annabelle Escape · Kettering',
+    title: 'Abigail Escape · Kettering',
     description: 'A floor plan of the escape room, with the rune chamber between the entrance and the exit.',
     scene: `
       <path class="map-route" d="M75 132 H218 V74 H368 V132 H520" />
@@ -101,14 +101,14 @@ const CHAPTER_MAPS = [
     description: 'A maze map with the starting camp, lantern key, and exit marked.',
     scene: `
       ${MAZE.flatMap((row, y) => [...row].map((tile, x) => {
-        const px = 148 + x * 34;
-        const py = 14 + y * 31;
-        if (tile === '#') return `<rect class="map-maze-wall" x="${px}" y="${py}" width="30" height="27" rx="3" />`;
-        if (tile === 'S') return `<rect class="map-maze-start" x="${px}" y="${py}" width="30" height="27" rx="3" />`;
-        if (tile === 'E') return `<rect class="map-maze-exit" x="${px}" y="${py}" width="30" height="27" rx="3" />`;
-        if (x === 1 && y === 5) return `<rect class="map-maze-key" x="${px}" y="${py}" width="30" height="27" rx="3" />`;
-        return `<rect class="map-maze-path" x="${px}" y="${py}" width="30" height="27" rx="3" />`;
-      })).join('')}
+      const px = 148 + x * 34;
+      const py = 14 + y * 31;
+      if (tile === '#') return `<rect class="map-maze-wall" x="${px}" y="${py}" width="30" height="27" rx="3" />`;
+      if (tile === 'S') return `<rect class="map-maze-start" x="${px}" y="${py}" width="30" height="27" rx="3" />`;
+      if (tile === 'E') return `<rect class="map-maze-exit" x="${px}" y="${py}" width="30" height="27" rx="3" />`;
+      if (x === 1 && y === 5) return `<rect class="map-maze-key" x="${px}" y="${py}" width="30" height="27" rx="3" />`;
+      return `<rect class="map-maze-path" x="${px}" y="${py}" width="30" height="27" rx="3" />`;
+    })).join('')}
       <path class="map-route" d="M197 59h68v62h-68v62h204V90" />
       <text class="map-map-label" x="25" y="47">CAMP</text>
       <text class="map-map-label" x="25" y="128">LANTERN</text>

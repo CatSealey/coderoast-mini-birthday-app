@@ -6,6 +6,9 @@ import { mountPoolGame } from './games/pool.js';
 import { mountCoasterGame } from './games/coaster.js';
 import { mountCanopyGame } from './games/canopy.js';
 import { mountMazeGame } from './games/maze.js';
+import { mountOverworld } from './world/overworld.js';
+import { QUEST_LOCATIONS } from './world/world-data.js';
+import { isQuestAvailable } from './world/world-logic.js';
 
 const STORAGE_KEY = 'rs3-birthday-adventure-progress';
 
@@ -13,7 +16,7 @@ const memories = [
   {
     title: 'Kettering Escape Key',
     icon: '🗝️',
-    description: 'A tiny trophy for making it through the Annabelle escape room together. The doll was creepy; having you there made it fun.'
+    description: 'A tiny trophy for making it through the Abigail escape room together. The doll was creepy; having you there made it fun.'
   },
   {
     title: 'Lucky Chucks Eight-Ball',
@@ -39,39 +42,34 @@ const memories = [
 
 const chapters = [
   {
-    title: 'Level 1: Annabelle Escape (Kettering)',
-    location: "KETTERING · ANNABELLE'S ROOM",
-    sceneName: 'The old escape room',
-    landmark: '🏚️',
-    description: 'Watch the warding rune sequence, then repeat it to open the escape-room door.'
+    title: 'Abigail Escape',
+    location: "KETTERING · ABIGAIL'S ROOM",
+    description: 'Watch the warding rune sequence, then repeat it to open the escape-room door.',
+    objective: 'Remember the warding runes and repeat each sequence to break the room’s spell.'
   },
   {
-    title: 'Level 2: Lucky Chucks Pool Night',
+    title: 'Lucky Chucks Pool Night',
     location: 'KETTERING · LUCKY CHUCKS',
-    sceneName: 'Lucky Chucks pool hall',
-    landmark: '🎱',
-    description: 'Set your aim and power, then sink the eight-ball with a clean trick shot.'
+    description: 'Set your aim and power, then sink the eight-ball with a clean trick shot.',
+    objective: 'Line up your shot and pocket the eight-ball with a controlled strike.'
   },
   {
-    title: 'Level 3: Thirteen Coaster Drop',
+    title: 'Thirteen Coaster Drop',
     location: 'ALTON TOWERS · THIRTEEN',
-    sceneName: 'The lift hill at Thirteen',
-    landmark: '🎢',
-    description: 'Catch three surprise drops at exactly the right moment. Space works on PC.'
+    description: 'Catch three surprise drops at exactly the right moment. Space works on PC.',
+    objective: 'React to three lift-hill signals and release the cart at the perfect moment.'
   },
   {
-    title: 'Level 4: Night-time GoApe Canopy',
+    title: 'Night-time GoApe Canopy',
     location: 'GOAPE · THE NIGHT CANOPY',
-    sceneName: 'The forest canopy',
-    landmark: '🌙',
-    description: 'Run and jump across the glowing platforms to reach the zip-line.'
+    description: 'Run and jump across the glowing platforms to reach the zip-line.',
+    objective: 'Cross the treetop platforms and reach the glowing zip-line.'
   },
   {
-    title: 'Level 5: Earls Barton Fright Night',
+    title: 'Earls Barton Fright Night',
     location: 'EARLS BARTON · FRIGHT NIGHT',
-    sceneName: 'The haunted corn maze',
-    landmark: '🎃',
-    description: 'Explore the corn maze, find the lantern key, and reach the locked exit.'
+    description: 'Explore the corn maze, find the lantern key, and reach the locked exit.',
+    objective: 'Find the lantern key, avoid the ghost, and unlock the maze exit.'
   }
 ];
 
@@ -98,13 +96,16 @@ function readProgress() {
 
 let completed = readProgress();
 let activeChapter = 0;
-let disposeGame = () => {};
+let disposeGame = () => { };
 const audio = createAudioController(document.querySelector('#toggleAudioBtn'));
-const gameRoot = document.querySelector('#gameCanvasContainer');
+const worldLocation = document.querySelector('#worldLocation');
 const stageTitle = document.querySelector('#stageTitle');
 const stageBadge = document.querySelector('#stageBadge');
 const dialogue = document.querySelector('#dialogueText');
-const chapterMap = document.querySelector('#chapterMapContainer');
+const questDialog = document.querySelector('#questDialog');
+const questBriefing = document.querySelector('#questBriefing');
+const questActivity = document.querySelector('#questActivity');
+const gameRoot = document.querySelector('#questGameRoot');
 
 function saveProgress() {
   try {
@@ -147,23 +148,27 @@ function renderChapterNavigation() {
   chapters.forEach((chapter, index) => {
     const button = document.querySelector(`#qbtn-${index + 1}`);
     const status = document.querySelector(`#qstatus-${index + 1}`);
-    const isAvailable = index === 0 || completed[index - 1];
-    button.disabled = !isAvailable;
-    button.classList.toggle('opacity-60', !isAvailable);
+    const available = isQuestAvailable(index, completed);
+    button.disabled = !available;
+    button.classList.toggle('opacity-60', !available);
     if (index === activeChapter) button.setAttribute('aria-current', 'step');
     else button.removeAttribute('aria-current');
-    status.textContent = completed[index] ? 'Completed ✓' : isAvailable ? 'Available' : 'Locked';
-    status.className = `quest-row__status ${
-      completed[index] ? 'quest-row__status--complete' : isAvailable ? 'quest-row__status--available' : 'quest-row__status--locked'
-    }`;
+    status.textContent = completed[index] ? 'Completed ✓' : available ? 'Available' : 'Locked';
+    status.className = `quest-row__status ${completed[index] ? 'quest-row__status--complete' : available ? 'quest-row__status--available' : 'quest-row__status--locked'
+      }`;
   });
+}
+
+function setStageStatus(text, className = '') {
+  stageBadge.textContent = text;
+  stageBadge.className = `world-stage-badge ${className}`.trim();
 }
 
 function renderCompletedChapter(index, replayComplete = false) {
   const memory = memories[index];
   const nextIndex = index + 1;
-  const action = nextIndex < chapters.length
-    ? `<button type="button" class="rs3-btn game-control game-action" data-level="${nextIndex + 1}">Continue to next chapter →</button>`
+  const nextAction = nextIndex < chapters.length
+    ? `<button type="button" class="rs3-btn game-control game-action" data-level="${nextIndex + 1}">Travel to the next chapter →</button>`
     : '<button type="button" class="rs3-btn game-control game-action" data-action="show-victory">Claim Danwell’s level 30 birthday reward 🎉</button>';
   gameRoot.innerHTML = `
     <section class="mini-game game-complete">
@@ -171,8 +176,9 @@ function renderCompletedChapter(index, replayComplete = false) {
       <p class="eyebrow">${replayComplete ? 'Replay complete' : 'Keepsake collected'}</p>
       <h3>${memory.title}</h3>
       <p>${memory.description}</p>
-      <button type="button" class="rs3-btn game-control game-action" data-action="replay-chapter">Replay this chapter ↻</button>
-      ${action}
+      <button type="button" class="rs3-btn game-control game-action" data-action="replay-chapter">Replay this activity ↻</button>
+      <button type="button" class="rs3-btn game-control game-action" data-action="close-quest">Return to the world</button>
+      ${nextIndex < chapters.length && completed[nextIndex - 1] ? nextAction : nextIndex === chapters.length ? nextAction : ''}
     </section>
   `;
 }
@@ -180,18 +186,24 @@ function renderCompletedChapter(index, replayComplete = false) {
 function completeChapter(index) {
   if (index !== activeChapter) return;
   disposeGame();
-  disposeGame = () => {};
+  disposeGame = () => { };
   const replayComplete = completed[index];
   if (!replayComplete) {
     completed[index] = true;
     saveProgress();
     renderInventory();
     renderChapterNavigation();
+    world.setQuestStates(completed);
   }
-  stageBadge.textContent = 'Completed';
-  stageBadge.className = 'text-xs bg-green-900/60 border border-green-500 text-green-200 px-2 py-1 rounded';
+  setStageStatus('Chapter complete', 'world-stage-badge--complete');
+  dialogue.textContent = replayComplete
+    ? `${memories[index].title} replayed. Your keepsake and quest progress remain unchanged.`
+    : `${memories[index].title} collected. The next chapter is now marked on your world map.`;
   audio.playSound('levelUp');
   renderCompletedChapter(index, replayComplete);
+  document.querySelector('#questDialogHint').textContent = replayComplete
+    ? 'Your keepsake is safe. Return to the world whenever you are ready.'
+    : 'Quest complete. Danwell’s keepsake has been added to the inventory.';
 }
 
 function mountActiveChapter() {
@@ -204,39 +216,77 @@ function mountActiveChapter() {
   );
 }
 
-function replayChapter() {
-  stageBadge.textContent = 'Replay';
-  stageBadge.className = 'text-xs bg-blue-900/60 border border-blue-500 text-blue-200 px-2 py-1 rounded';
-  dialogue.textContent = `Replay: ${chapters[activeChapter].description}`;
+function beginQuestActivity() {
+  if (!questDialog.open || !isQuestAvailable(activeChapter, completed)) return;
+  questBriefing.hidden = true;
+  questActivity.hidden = false;
+  document.querySelector('#questObjective').textContent = chapters[activeChapter].objective;
+  document.querySelector('#questDialogHint').textContent = 'Complete the objective to earn this chapter’s keepsake.';
+  document.querySelector('#beginQuestButton').hidden = true;
+  setStageStatus(completed[activeChapter] ? 'Replay in progress' : 'Quest in progress', 'world-stage-badge--active');
   mountActiveChapter();
+}
+
+function showQuestBriefing(index, replay = false) {
+  if (!isQuestAvailable(index, completed)) return;
+  activeChapter = index;
+  const quest = QUEST_LOCATIONS[index];
+  const chapter = chapters[index];
+  stageTitle.textContent = `Journey to ${quest.name}`;
+  worldLocation.textContent = quest.region;
+  dialogue.textContent = replay
+    ? `You’re back at ${quest.name}. Interact with the guide to replay this chapter.`
+    : `You found ${quest.name}. Speak with ${quest.guide} to begin the chapter.`;
+  renderChapterNavigation();
+
+  document.querySelector('#questDialogTitle').textContent = chapter.title;
+  document.querySelector('#questFieldMap').innerHTML = renderChapterMap(index);
+  document.querySelector('#questGuideName').textContent = quest.guide;
+  document.querySelector('#questGuideIcon').textContent = quest.icon;
+  document.querySelector('#questIntroduction').textContent = replay && completed[index]
+    ? `You’ve been here before. ${quest.introduction} Replay it whenever you like; your keepsake stays collected.`
+    : quest.introduction;
+  document.querySelector('#questDialogHint').textContent = completed[index]
+    ? 'This chapter is complete and can be replayed at any time.'
+    : 'Talk to the guide to begin this chapter.';
+  document.querySelector('#beginQuestButton').textContent = completed[index]
+    ? 'Replay quest activity ↻'
+    : 'Begin quest activity →';
+  document.querySelector('#beginQuestButton').hidden = false;
+  questBriefing.hidden = false;
+  questActivity.hidden = true;
+  disposeGame();
+  disposeGame = () => { };
+  gameRoot.replaceChildren();
+  setStageStatus(completed[index] ? 'Replay available' : 'Quest available', '');
+  world.setPaused(true);
+  if (!questDialog.open) questDialog.showModal();
+}
+
+function closeQuestDialog() {
+  disposeGame();
+  disposeGame = () => { };
+  gameRoot.replaceChildren();
+  world.setPaused(false);
+  if (questDialog.open) questDialog.close();
+  setStageStatus('Exploring', '');
 }
 
 function selectChapter(level) {
   const index = level - 1;
   if (!Number.isInteger(level) || index < 0 || index >= chapters.length) return;
-  if (index > 0 && !completed[index - 1]) return;
-
-  disposeGame();
-  disposeGame = () => {};
-  activeChapter = index;
-  stageTitle.textContent = chapters[index].title;
-  dialogue.textContent = chapters[index].description;
-  chapterMap.innerHTML = renderChapterMap(index);
-  document.querySelector('#worldLocation').textContent = chapters[index].location;
-  document.querySelector('#worldSceneName').textContent = chapters[index].sceneName;
-  document.querySelector('#worldLandmark').textContent = chapters[index].landmark;
-  document.querySelector('#worldViewport').dataset.chapter = String(level);
-  stageBadge.textContent = completed[index] ? 'Completed' : 'In progress';
-  stageBadge.className = completed[index]
-    ? 'text-xs bg-green-900/60 border border-green-500 text-green-200 px-2 py-1 rounded'
-    : 'text-xs bg-amber-900/60 border border-amber-500 text-amber-100 px-2 py-1 rounded';
-  renderChapterNavigation();
-
-  if (completed[index]) {
-    renderCompletedChapter(index);
+  if (!isQuestAvailable(index, completed)) {
+    dialogue.textContent = 'Complete the previous chapter to unlock this destination.';
     return;
   }
-  mountActiveChapter();
+  activeChapter = index;
+  stageTitle.textContent = `Journey to ${QUEST_LOCATIONS[index].name}`;
+  worldLocation.textContent = QUEST_LOCATIONS[index].region;
+  setStageStatus(completed[index] ? 'Replay available' : 'Destination set', '');
+  dialogue.textContent = `Walking to ${QUEST_LOCATIONS[index].name}. Interact with ${QUEST_LOCATIONS[index].guide} when you arrive.`;
+  renderChapterNavigation();
+  world.setQuestStates(completed);
+  world.selectQuest(index);
 }
 
 function showModal(id) {
@@ -260,14 +310,35 @@ function restartQuest() {
   completed = Array(chapters.length).fill(false);
   saveProgress();
   renderInventory();
+  renderChapterNavigation();
+  world.setQuestStates(completed);
   closeModal('victoryModal');
+  closeQuestDialog();
   selectChapter(1);
 }
+
+const world = mountOverworld({
+  worldCanvas: document.querySelector('#worldCanvas'),
+  mapCanvas: document.querySelector('#worldMapCanvas'),
+  interactButton: document.querySelector('#worldInteract'),
+  messageElement: document.querySelector('#worldMessage'),
+  locationElement: worldLocation,
+  targetElement: document.querySelector('#worldTarget'),
+  onInteract: showQuestBriefing,
+  onMessage: (message) => { dialogue.textContent = message; },
+  onQuestSelected: (index) => {
+    activeChapter = index;
+    stageTitle.textContent = `Journey to ${QUEST_LOCATIONS[index].name}`;
+    setStageStatus(completed[index] ? 'Replay available' : 'Destination set', '');
+    renderChapterNavigation();
+  }
+});
 
 document.addEventListener('click', (event) => {
   const button = event.target.closest('button');
   if (!button) return;
   if (button.dataset.level) {
+    if (questDialog.open) closeQuestDialog();
     selectChapter(Number(button.dataset.level));
   } else if (button.dataset.memory !== undefined) {
     showMemory(Number(button.dataset.memory));
@@ -284,9 +355,14 @@ document.addEventListener('click', (event) => {
     closeModal('victoryModal');
   } else if (button.dataset.action === 'restart-quest') {
     restartQuest();
+  } else if (button.dataset.action === 'close-quest') {
+    closeQuestDialog();
+  } else if (button.dataset.action === 'begin-quest') {
+    beginQuestActivity();
   } else if (button.dataset.action === 'replay-chapter') {
-    replayChapter();
+    beginQuestActivity();
   } else if (button.dataset.action === 'show-victory') {
+    closeQuestDialog();
     showModal('victoryModal');
     audio.playSound('levelUp');
   }
@@ -297,6 +373,11 @@ document.addEventListener('click', (event) => {
   if (backdrop && event.target === backdrop) closeModal(backdrop.id);
 });
 
+questDialog.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closeQuestDialog();
+});
+
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
   ['victoryModal', 'itemModal', 'rivalryModal'].forEach((id) => closeModal(id));
@@ -304,9 +385,11 @@ document.addEventListener('keydown', (event) => {
 
 window.addEventListener('pagehide', () => {
   disposeGame();
+  world.dispose();
   audio.dispose();
 });
 
 renderInventory();
 renderChapterNavigation();
+world.setQuestStates(completed);
 selectChapter(1);

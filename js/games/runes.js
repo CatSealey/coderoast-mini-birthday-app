@@ -14,7 +14,7 @@ export function mountRuneGame(root, onComplete, playSound) {
   root.innerHTML = `
     <section class="mini-game rune-game">
       <header class="mini-game__header">
-        <p class="eyebrow">Kettering · Annabelle's room</p>
+        <p class="eyebrow">Kettering · Abigail's room</p>
         <h3>Remember the warding runes</h3>
         <p>Watch the sequence, then repeat it. Each round adds one rune.</p>
       </header>
