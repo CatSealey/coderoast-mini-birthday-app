@@ -4,6 +4,9 @@ import { mountAdventureWorld } from './games/adventure-world.js';
 import { restoreAdventureState } from './games/adventure-logic.js';
 import { mountFrightWorld } from './games/fright-world.js';
 import { restoreFrightState } from './games/fright-logic.js';
+import { renderFrightClues } from './games/fright-clues.js';
+import { mountTrophyRoom } from './games/trophy-room.js';
+import { presentAvailable, restoreDisplays, restoreTrophyQuest } from './games/trophy-logic.js';
 import { restoreHouseState } from './games/abigail-house.js';
 import { questItems } from './quest-items.js';
 import { mountOverworld } from './world/overworld.js';
@@ -79,7 +82,7 @@ export function startGame(characterName) {
       title: 'Earls Barton Fright Nights',
       location: 'EARLS BARTON · Fright Nights',
       description: 'Explore seven unsettling corners of the maze and recover their hidden objects.',
-      objective: 'Find the seven clues, solve their mechanisms and return to the escape gate.'
+      objective: 'Find the clues in each area, solve the seven mechanisms and return to the escape gate.'
     }
   ];
 
@@ -98,20 +101,27 @@ export function startGame(characterName) {
         gameSaves.forEach((entry, index) => {
           if (entry?.complete === true) state.completed[index] = true;
         });
-        return { ...state, gameSaves };
+        const trophyDisplays = restoreDisplays(saved.trophyDisplays, state.completed);
+        const trophyQuest = restoreTrophyQuest(saved.trophyQuest, trophyDisplays);
+        if (!presentAvailable(trophyDisplays, state.completed)) trophyQuest.completed = false;
+        return { ...state, gameSaves, trophyDisplays, trophyQuest };
       }
     } catch (error) {
       console.error('Could not restore birthday quest progress.', error);
     }
-    return { ...normalizeQuestProgress(null, chapters.length), gameSaves: Array(chapters.length).fill(null) };
+    return { ...normalizeQuestProgress(null, chapters.length), gameSaves: Array(chapters.length).fill(null), trophyDisplays: Array(chapters.length).fill(false), trophyQuest: { accepted: false, completed: false } };
   }
 
   const progress = readProgress();
   let completed = progress.completed;
   let accepted = progress.accepted;
   let gameSaves = progress.gameSaves;
+  let trophyDisplays = progress.trophyDisplays;
+  let trophyQuest = progress.trophyQuest;
+  let inTrophyRoom = false;
   let suppressGameSaves = false;
   let inventorySignature = null;
+  let frightJournalSignature = null;
   let activeChapter = 0;
   let disposeGame = () => { };
   const audio = createAudioController(document.querySelector('#toggleAudioBtn'));
@@ -131,11 +141,12 @@ export function startGame(characterName) {
   ];
   let worldQuestIndex = null;
   let questToRemove = null;
+  let removingTrophyQuest = false;
 
   document.querySelector('#characterName').textContent = characterName;
   document.querySelector('#characterAdventure').textContent = `${characterName.toUpperCase()}'S ADVENTURE`;
 
-  function saveProgress(progressToSave = { completed, accepted, gameSaves }) {
+  function saveProgress(progressToSave = { completed, accepted, gameSaves, trophyDisplays, trophyQuest }) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(progressToSave));
       document.querySelector('#saveNotice').hidden = true;
@@ -233,6 +244,18 @@ export function startGame(characterName) {
     gameSaves[index] = structuredClone(state);
     saveProgress();
     renderQuestItems();
+    if (index === 4) renderFrightJournal();
+  }
+
+  function renderFrightJournal() {
+    const state = gameSaves[4];
+    const journal = document.querySelector('#frightJournal');
+    journal.hidden = !accepted[4] || !state?.clues?.length;
+    const signature = JSON.stringify([state?.clues || [], state?.tools || []]);
+    if (signature === frightJournalSignature) return;
+    frightJournalSignature = signature;
+    document.querySelector('#frightJournalCount').textContent = state?.clues?.length ? `(${state.clues.length}/21)` : '';
+    renderFrightClues(document.querySelector('#frightJournalClues'), state);
   }
 
   function renderChapterNavigation() {
@@ -247,9 +270,14 @@ export function startGame(characterName) {
       status.textContent = completed[index] ? 'Completed ✓' : 'Accepted';
       status.className = `quest-row__status ${completed[index] ? 'quest-row__status--complete' : 'quest-row__status--available'}`;
     });
-    document.querySelector('#questJournalHint').textContent = accepted.some(Boolean)
+    document.querySelector('#trophyQuestEntry').hidden = !trophyQuest.accepted;
+    const trophyStatus = document.querySelector('#trophyQuestStatus');
+    trophyStatus.textContent = trophyQuest.completed ? 'Completed ✓' : 'Accepted';
+    trophyStatus.className = `quest-row__status ${trophyQuest.completed ? 'quest-row__status--complete' : 'quest-row__status--available'}`;
+    document.querySelector('#questJournalHint').textContent = accepted.some(Boolean) || trophyQuest.accepted
       ? 'Select an accepted quest to travel to its entrance.'
       : 'Your journal is empty. Find quest givers marked on the world map.';
+    renderFrightJournal();
   }
 
   function setStageStatus(text, className = '') {
@@ -265,16 +293,12 @@ export function startGame(characterName) {
         <h2>${['Escaped Abigail’s room!', 'Pool night ready!', 'Thirteen complete!', 'Canopy adventure complete!', 'Escaped Fright Nights!'][index]}</h2>
         <p>Keepsake ${index + 1} collected · 20 XP earned.</p>
         <button type="button" class="rs3-btn game-control" data-action="abigail-leave">Return to the world</button>
-        ${areAllQuestsComplete(completed) ? '<button type="button" class="rs3-btn game-control" data-action="show-victory">Claim birthday reward</button>' : ''}
       </div>
     `;
       abigailRoot.querySelector('[data-action="abigail-leave"]').focus();
       return;
     }
     const memory = memories[index];
-    const rewardAction = areAllQuestsComplete(completed)
-      ? '<button type="button" class="rs3-btn game-control game-action" data-action="show-victory">Claim character’s level 30 birthday reward 🎉</button>'
-      : '';
     gameRoot.innerHTML = `
     <section class="mini-game game-complete">
       <div class="game-complete__icon" aria-hidden="true">${index + 1}</div>
@@ -282,7 +306,6 @@ export function startGame(characterName) {
       <h3>${memory.icon} ${memory.title}</h3>
       <p>${memory.description}</p>
       <button type="button" class="rs3-btn game-control game-action" data-action="close-quest">Return to the world</button>
-      ${rewardAction}
     </section>
   `;
   }
@@ -299,7 +322,7 @@ export function startGame(characterName) {
     renderChapterNavigation();
     world.setQuestStates(completed, accepted);
     setStageStatus('Chapter complete', 'world-stage-badge--complete');
-    dialogue.textContent = `Keepsake ${index + 1} collected. You earned ${XP_PER_QUEST} XP${areAllQuestsComplete(completed) ? ' and reached level 30!' : '.'}`;
+    dialogue.textContent = `Keepsake ${index + 1} collected. You earned ${XP_PER_QUEST} XP${areAllQuestsComplete(completed) ? ' and reached level 30! Display your keepsakes in the castle trophy room.' : '.'}`;
     audio.playSound('levelUp');
     renderCompletedChapter(index);
     document.querySelector('#questDialogHint').textContent = `Quest complete. You earned ${XP_PER_QUEST} XP${areAllQuestsComplete(completed) ? ' and reached level 30!' : '.'}`;
@@ -398,6 +421,47 @@ export function startGame(characterName) {
     document.querySelector('#worldCanvas').focus();
   }
 
+  function leaveTrophyRoom() {
+    if (!inTrophyRoom) return;
+    disposeGame(); disposeGame = () => { };
+    abigailRoot.replaceChildren(); abigailRoot.hidden = true; inTrophyRoom = false;
+    obscuredWorldControls.forEach((element) => { element.inert = false; });
+    document.querySelector('.world-map-hint').textContent = 'Tap a marker to travel. The house marks Lumbridge Castle.';
+    world.setPaused(false);
+    stageTitle.textContent = 'Level 30 birthday adventure';
+    setStageStatus('Exploring', '');
+    document.querySelector('#worldCanvas').focus();
+  }
+
+  function enterTrophyRoom() {
+    if (inTrophyRoom || worldQuestIndex !== null) return;
+    if (!trophyQuest.accepted) {
+      dialogue.textContent = 'Speak to Elowen the Curator outside the castle to accept The Hall of Memories.';
+      document.querySelector('#worldMessage').textContent = dialogue.textContent;
+      return;
+    }
+    inTrophyRoom = true;
+    abigailRoot.hidden = false;
+    obscuredWorldControls.forEach((element) => { element.inert = true; });
+    document.querySelector('.world-map-hint').textContent = 'The world map shows your location outside the trophy room.';
+    stageTitle.textContent = 'Lumbridge Castle · Trophy Room';
+    setStageStatus('Trophy room', '');
+    world.setPaused(true);
+    disposeGame = mountTrophyRoom(abigailRoot, {
+      characterName, memories, images: keepsakeImages, completed, displays: trophyDisplays,
+      onDisplays: (displays) => { trophyDisplays = displays; saveProgress(); },
+      onPresent: () => {
+        if (!presentAvailable(trophyDisplays, completed)) return;
+        trophyQuest = { accepted: true, completed: true };
+        saveProgress(); renderChapterNavigation();
+        showModal('victoryModal'); audio.playSound('levelUp');
+        document.querySelector('[data-action="close-victory"]').focus();
+      },
+      onLeave: leaveTrophyRoom,
+      onMessage: (message) => { dialogue.textContent = message; document.querySelector('#worldMessage').textContent = message; }
+    });
+  }
+
   function closeQuestDialog() {
     disposeGame();
     disposeGame = () => { };
@@ -411,6 +475,7 @@ export function startGame(characterName) {
     const index = level - 1;
     if (!Number.isInteger(level) || index < 0 || index >= chapters.length) return;
     leaveWorldQuest();
+    leaveTrophyRoom();
     activeChapter = index;
     stageTitle.textContent = `Journey to ${QUEST_LOCATIONS[index].name}`;
     worldLocation.textContent = QUEST_LOCATIONS[index].region;
@@ -454,21 +519,39 @@ export function startGame(characterName) {
 
   function closeRemoveQuestDialog() {
     questToRemove = null;
+    removingTrophyQuest = false;
     removeQuestDialog.close();
-    if (worldQuestIndex === null) world.setPaused(false);
+    if (worldQuestIndex === null && !inTrophyRoom) world.setPaused(false);
   }
 
   function confirmRemoveQuest() {
+    if (removingTrophyQuest) {
+      const updated = { completed, accepted, gameSaves, trophyDisplays: Array(memories.length).fill(false),
+        trophyQuest: { accepted: false, completed: false } };
+      if (!saveProgress(updated)) {
+        document.querySelector('#removeQuestDescription').textContent = 'The quest could not be removed because your browser could not save progress. Please try again.';
+        return;
+      }
+      closeRemoveQuestDialog(); leaveTrophyRoom();
+      trophyDisplays = updated.trophyDisplays; trophyQuest = updated.trophyQuest;
+      renderChapterNavigation();
+      dialogue.textContent = 'The Hall of Memories was removed. Speak to Elowen to start again.';
+      document.querySelector('#worldMessage').textContent = dialogue.textContent;
+      document.querySelector('#questPanelTitle').focus();
+      return;
+    }
     const index = questToRemove;
     if (index === null || (!accepted[index] && !completed[index])) return;
-    const updated = { ...removeQuestProgress({ completed, accepted }, index), gameSaves: [...gameSaves] };
+    const updated = { ...removeQuestProgress({ completed, accepted }, index), gameSaves: [...gameSaves], trophyDisplays: [...trophyDisplays], trophyQuest: { ...trophyQuest, completed: false } };
     updated.gameSaves[index] = null;
+    updated.trophyDisplays[index] = false;
     if (!saveProgress(updated)) {
       document.querySelector('#removeQuestDescription').textContent = 'The quest could not be removed because your browser could not save progress. Your quest is unchanged; please try again.';
       return;
     }
     const wasActive = activeChapter === index;
     closeRemoveQuestDialog();
+    leaveTrophyRoom();
     if (worldQuestIndex === index) {
       suppressGameSaves = true;
       leaveWorldQuest();
@@ -477,6 +560,8 @@ export function startGame(characterName) {
     completed = updated.completed;
     accepted = updated.accepted;
     gameSaves = updated.gameSaves;
+    trophyDisplays = updated.trophyDisplays;
+    trophyQuest = updated.trophyQuest;
     world.clearQuestSelection(index);
     if (wasActive && worldQuestIndex === null) {
       activeChapter = null;
@@ -502,6 +587,20 @@ export function startGame(characterName) {
     onGuide: speakToQuestGuide,
     onAcceptQuest: acceptQuest,
     onEntrance: enterQuest,
+    onCastle: enterTrophyRoom,
+    onTrophyGuide: () => {
+      const words = trophyQuest.completed
+        ? 'The hall is complete, and your birthday present is waiting inside whenever you wish to revisit it.'
+        : trophyQuest.accepted
+          ? 'Bring your five keepsakes to the hall and place each one on its display. A birthday surprise awaits.'
+          : 'I care for a hall of memories in the castle. Will you gather your five keepsakes and display them there? I have a birthday surprise for you.';
+      world.showTrophySpeech(words, !trophyQuest.accepted);
+    },
+    onAcceptTrophy: () => {
+      trophyQuest = { accepted: true, completed: false }; saveProgress(); renderChapterNavigation();
+      dialogue.textContent = 'The Hall of Memories added to your journal. Enter the castle to display your keepsakes.';
+      document.querySelector('#worldMessage').textContent = dialogue.textContent;
+    },
     onMessage: (message) => { dialogue.textContent = message; },
     onQuestSelected: (index) => {
       activeChapter = index;
@@ -518,6 +617,16 @@ export function startGame(characterName) {
       const show = !button.classList.contains('quest-item--show-name');
       document.querySelectorAll('.quest-item--show-name').forEach((item) => item.classList.remove('quest-item--show-name'));
       button.classList.toggle('quest-item--show-name', show);
+    } else if (button.dataset.action === 'trophy-quest') {
+      leaveWorldQuest(); leaveTrophyRoom();
+      world.walkToCastle();
+    } else if (button.dataset.action === 'remove-trophy-quest') {
+      if (!trophyQuest.accepted) return;
+      removingTrophyQuest = true;
+      document.querySelector('#removeQuestTitle').textContent = 'Remove The Hall of Memories?';
+      document.querySelector('#removeQuestDescription').textContent = 'This resets the hall quest and its displays, but keeps your five earned keepsakes and XP. Speak to Elowen to accept it again.';
+      if (worldQuestIndex === null) world.setPaused(true);
+      removeQuestDialog.showModal();
     } else if (button.dataset.removeQuest !== undefined) {
       promptRemoveQuest(Number(button.dataset.removeQuest));
     } else if (button.dataset.action === 'cancel-remove-quest') {
@@ -544,15 +653,6 @@ export function startGame(characterName) {
       closeModal('victoryModal');
     } else if (button.dataset.action === 'close-quest') {
       closeQuestDialog();
-    } else if (button.dataset.action === 'show-victory') {
-      if (!areAllQuestsComplete(completed)) {
-        dialogue.textContent = 'Complete all five quests to claim the birthday reward.';
-        return;
-      }
-      leaveWorldQuest();
-      closeQuestDialog();
-      showModal('victoryModal');
-      audio.playSound('levelUp');
     }
   });
 
@@ -574,6 +674,10 @@ export function startGame(characterName) {
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
     ['victoryModal', 'itemModal', 'rivalryModal'].forEach((id) => closeModal(id));
+  });
+
+  document.querySelector('#frightJournalClues').addEventListener('keydown', (event) => {
+    if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) event.stopPropagation();
   });
 
   window.addEventListener('pagehide', () => {

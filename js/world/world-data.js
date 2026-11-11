@@ -5,6 +5,7 @@ export const WORLD_SIZE = Object.freeze({
   height: BASE_WORLD_SIZE.height * WORLD_SCALE
 });
 export const WORLD_SPAWN = Object.freeze({ x: 2500, y: 2000 });
+export const CASTLE_ENTRANCE = Object.freeze({ x: WORLD_SPAWN.x + 50, y: WORLD_SPAWN.y - 165 });
 export const INTERACTION_RANGE = 74;
 export const WORLD_ROUTES = Object.freeze([
   Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [760, 570], [650, 500], [470, 450]]),

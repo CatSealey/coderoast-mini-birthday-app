@@ -1,9 +1,10 @@
-import { FRIGHT_OBJECTS, FRIGHT_THEMES, answerFright, frightPath, frightStage, interactFright, restoreFrightState, walkFright } from './fright-logic.js';
+import { FRIGHT_OBJECTS, answerFright, frightPath, frightStage, interactFright, restoreFrightState, walkFright } from './fright-logic.js';
+import { renderFrightClues } from './fright-clues.js';
 import { createFrightScene } from './fright-scene.js';
 
 export function mountFrightWorld(root, { characterName, savedState, onProgress, onComplete, onLeave, onMessage, playSound }) {
   let state = restoreFrightState(savedState);
-  let disposed = false, frame = 0, lastFrame = 0, path = [], selectedObject = null, listedObjects = '';
+  let disposed = false, frame = 0, lastFrame = 0, path = [], selectedObject = null, listedObjects = '', clueSignature = null;
   const keysDown = new Set(), held = new Set();
   const keys = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
   const vectors = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -28,7 +29,7 @@ export function mountFrightWorld(root, { characterName, savedState, onProgress, 
       <section id="frightPuzzle" class="abigail-world__puzzle" aria-labelledby="frightPuzzleTitle" hidden>
         <strong id="frightPuzzleTitle"></strong>
         <p id="frightQuestion"></p>
-        <div class="abigail-runes" id="frightChoices"></div>
+        <div class="fright-world__choices" id="frightChoices"></div>
         <button type="button" class="rs3-btn game-control abigail-back" data-fright-close>Step away</button>
       </section>
     </div>`;
@@ -43,17 +44,13 @@ export function mountFrightWorld(root, { characterName, savedState, onProgress, 
   function render() {
     root.querySelector('#frightObjective').textContent = state.collected.length === 7
       ? 'All seven objects found. Return to the entrance gate.'
-      : `Read clues, take tools, work mechanisms (${state.collected.length}/7 objects, ${state.tools.length}/7 tools).`;
+      : `Find 3 clues in each area, take its tool and solve its mechanism (${state.collected.length}/7 objects).`;
     root.querySelector('#frightMessage').textContent = state.message;
-    const clues = root.querySelector('#frightClues');
-    clues.replaceChildren();
-    if (!state.clues.length) clues.textContent = 'No clues found yet. Look for glowing signs.';
-    state.clues.forEach((id) => {
-      const theme = FRIGHT_THEMES.find((entry) => entry.id === id);
-      const line = document.createElement('p');
-      line.textContent = `${theme.name}: ${theme.clue}${state.tools.includes(id) ? ` (Carrying: ${theme.tool.name})` : ''}`;
-      clues.append(line);
-    });
+    const signatureClues = JSON.stringify([state.clues, state.tools]);
+    if (signatureClues !== clueSignature) {
+      renderFrightClues(root.querySelector('#frightClues'), state);
+      clueSignature = signatureClues;
+    }
     const objects = FRIGHT_OBJECTS.filter((object) => Math.hypot(object.x - state.player.x, object.y - state.player.y) < 150);
     const signature = objects.map((object) => object.id).join(',');
     if (signature !== listedObjects) {
@@ -80,7 +77,7 @@ export function mountFrightWorld(root, { characterName, savedState, onProgress, 
         choices.replaceChildren();
         current.choices.forEach((choice) => {
           const button = document.createElement('button');
-          button.type = 'button'; button.className = 'rune-tile game-control';
+          button.type = 'button'; button.className = 'rs3-btn game-control fright-world__choice';
           button.dataset.frightAnswer = choice; button.textContent = choice;
           choices.append(button);
         });

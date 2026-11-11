@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#10191c">
   <meta name="description" content="A 30th birthday adventure: a personal RuneScape 3-inspired game.">
-  <title>30th Birthday · RuneScape Adventure</title>
+  <title>RS3 Birthday Edition</title>
   <link
     href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap"
     rel="stylesheet">
@@ -42,7 +42,7 @@
       </div>
       <div class="client-profile" id="characterProfile" aria-label="Character, level 29">
         <span class="client-status-dot" aria-hidden="true"></span>
-        <span><strong id="characterName"></strong><small><span id="characterLevel">COMBAT LVL 29</span> · 30TH BIRTHDAY</small></span>
+        <span><strong id="characterName"></strong><small><span id="characterLevel">COMBAT LVL 29</span></small></span>
       </div>
       <div class="client-topbar__right">
         <span class="client-quest-status"><span class="client-status-dot" aria-hidden="true"></span><span
@@ -101,7 +101,19 @@
               </button>
               <button type="button" class="quest-entry__remove" data-remove-quest="4" aria-label="Remove Fright Nights from journal">✕</button>
             </div>
+            <div class="quest-entry" id="trophyQuestEntry" hidden>
+              <button id="trophyQuestButton" type="button" class="quest-row" data-action="trophy-quest">
+                <span class="quest-row__icon" aria-hidden="true">✧</span>
+                <span class="quest-row__copy"><strong>The Hall of Memories</strong><small>Lumbridge Castle · Birthday finale</small></span>
+                <span id="trophyQuestStatus" class="quest-row__status">Accepted</span>
+              </button>
+              <button type="button" class="quest-entry__remove" data-action="remove-trophy-quest" aria-label="Remove The Hall of Memories from journal">✕</button>
+            </div>
           </nav>
+          <details class="quest-clues" id="frightJournal" open hidden>
+            <summary>Fright Nights clues <span id="frightJournalCount"></span></summary>
+            <div class="quest-clues__list" id="frightJournalClues" tabindex="0" aria-label="Discovered Fright Nights clues"></div>
+          </details>
           <div class="client-chat" aria-label="Quest log message">
             <span class="client-chat__label"><span aria-hidden="true">✧</span> QUEST GUIDE</span>
             <p id="dialogueText">Welcome, Adventurer. Your level 30 birthday adventure awaits.</p>
@@ -332,13 +344,12 @@
       <!-- Surprise Gift Voucher Box -->
       <div class="bg-black/60 border-2 border-dashed border-yellow-400 p-4 rounded-lg mb-6">
         <span class="rune-font text-xs text-yellow-400 block mb-1">🎁 SPECIAL BIRTHDAY REWARD UNLOCKED</span>
-        <p class="text-lg font-bold text-green-300">1× cozy movie night, dinner & a RuneScape carry!</p>
+        <p class="text-lg font-bold text-green-300">1× ticket for cuddles and films!</p>
         <p class="text-xs text-amber-300/80 mt-1">Redeem any time with your favourite Arsenal fan.</p>
       </div>
 
       <div class="flex gap-3">
-        <button type="button" data-action="close-victory" class="flex-1 rs3-btn py-2 text-xs rounded-lg">View Quest
-          Log</button>
+        <button type="button" data-action="close-victory" class="flex-1 rs3-btn py-2 text-xs rounded-lg">Back to the trophy room</button>
       </div>
 
     </div>

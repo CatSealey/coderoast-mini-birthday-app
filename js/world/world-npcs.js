@@ -2,6 +2,11 @@ import { QUEST_LOCATIONS, WORLD_SPAWN } from './world-data.js';
 
 export const WORLD_NPCS = Object.freeze([
   {
+    name: 'Elowen the Curator', x: WORLD_SPAWN.x + 150, y: WORLD_SPAWN.y - 90, color: '#76577a',
+    trophyGuide: true,
+    dialogue: ['Welcome to the Hall of Memories.', 'Every keepsake has a story worth sharing.']
+  },
+  {
     name: 'Ellis the Gardener', x: WORLD_SPAWN.x - 105, y: WORLD_SPAWN.y + 105, color: '#789164',
     dialogue: [
       'Welcome home, {player}! The roads lead to all sorts of birthday adventures.',

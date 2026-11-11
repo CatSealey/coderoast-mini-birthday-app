@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
 import { regionBlendAt } from './world-regions.js';
-import { createMazeWalls } from './maze-scenery.js';
 import { PARK_RIDES } from './park-scenery.js';
 import { roadDistance } from './world-art.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { CANOPY_LINKS, CANOPY_PLATFORMS, COASTER_TRACKS, placeQuestDecorations } from './world-scenery-data.js';
+import { worldCornWalls, worldTrees } from './world-collision.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -537,14 +537,8 @@ export function createWorld3D(canvas, ground, characterName) {
     }
   });
   const corn = [];
-  createMazeWalls(8, 8).forEach((wall) => {
-    const x = harvest.x + (wall.x - 4 + (wall.vertical ? 0 : 0.5)) * 135;
-    const z = harvest.y + (wall.y - 4 + (wall.vertical ? 0.5 : 0)) * 135;
-    const intersectsRoad = [-0.5, 0, 0.5].some((offset) => roadDistance({
-      x: x + (wall.vertical ? 0 : offset * 135),
-      y: z + (wall.vertical ? offset * 135 : 0)
-    }) < 105);
-    if (Math.hypot(x - harvest.x, z - harvest.y) < 190 || intersectsRoad) return;
+  worldCornWalls().forEach((wall) => {
+    const x = wall.x, z = wall.y;
     for (let i = 0; i < 11; i += 1) {
       const offset = -62 + i * 12.4;
       corn.push({ x: x + (wall.vertical ? 0 : offset), z: z + (wall.vertical ? offset : 0), size: 0.8 + random(i + x, z) * 0.35 });
@@ -561,21 +555,7 @@ export function createWorld3D(canvas, ground, characterName) {
     box(pumpkin, 10, 2, 2, '#4d3827', 0, 8, 15);
   });
 
-  const treeData = [];
-  for (let i = 0; i < 1350; i += 1) {
-    const x = 70 + random(i, 20) * (WORLD_SIZE.width - 140);
-    const z = 70 + random(i, 21) * (WORLD_SIZE.height - 140);
-    if (roadDistance({ x, y: z }) < 100 || QUEST_LOCATIONS.some((quest) => Math.hypot(x - quest.x, z - quest.y) < 310)
-      || WORLD_NPCS.some((npc) => Math.hypot(x - npc.x, z - npc.y) < 105)
-      || CANOPY_PLATFORMS.some((platform) => Math.hypot(x - forest.x - platform.x, z - forest.y - platform.z) < 75)
-      || Math.hypot(x - WORLD_SPAWN.x, z - WORLD_SPAWN.y) < 300) continue;
-    const region = regionBlendAt({ x, y: z }).region.id;
-    if (region === 'park' || region === 'harvest') continue;
-    treeData.push({
-      x, z, region, size: 0.65 + random(i, 22) * 0.9,
-      variant: i % 3, angle: random(i, 33) * Math.PI * 2
-    });
-  }
+  const treeData = worldTrees();
   function instances(data, geometry, color, transform) {
     geometries.add(geometry);
     const instanced = new THREE.InstancedMesh(geometry, material(color), data.length);

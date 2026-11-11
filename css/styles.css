@@ -1133,6 +1133,41 @@ kbd {
   gap: 5px;
 }
 
+.quest-clues {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #3c4d59;
+  border-radius: 4px;
+  background: rgba(5, 11, 16, 0.6);
+  color: #d2d7d5;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.quest-clues summary {
+  color: #e1cc88;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.quest-clues__list {
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+.fright-clue-group {
+  margin-top: 8px;
+}
+
+.fright-clue-group strong {
+  color: #e1cc88;
+}
+
+.fright-clue-group p {
+  margin: 4px 0 0;
+}
+
 .quest-entry {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 38px;
@@ -1838,6 +1873,32 @@ kbd {
 .adventure-world__pad [data-adventure-move="right"] {
   grid-area: right;
 }
+
+.abigail-world__pad [data-trophy-move="up"] { grid-area: up; }
+.abigail-world__pad [data-trophy-move="left"] { grid-area: left; }
+.abigail-world__pad [data-trophy-move="down"] { grid-area: down; }
+.abigail-world__pad [data-trophy-move="right"] { grid-area: right; }
+.trophy-room .trophy-room__header {
+  max-width: min(65%, 275px);
+  gap: 4px;
+  padding: 10px 13px;
+  border: 1px solid #aa9260;
+  border-radius: 4px;
+  background: linear-gradient(135deg, rgba(38, 42, 33, .96), rgba(15, 23, 24, .94));
+  box-shadow: inset 0 0 0 2px rgba(208, 183, 124, .12), 0 3px 12px rgba(0, 0, 0, .35);
+}
+.trophy-room__header strong {
+  color: #f0d99d;
+  font-family: Cinzel, Georgia, serif;
+  letter-spacing: .06em;
+}
+.trophy-room__header small { color: #c9c4af; font-size: .6rem; }
+.trophy-room .trophy-room__dialogue {
+  border-color: #968359;
+  background: linear-gradient(120deg, rgba(34, 39, 31, .96), rgba(15, 23, 24, .96));
+  box-shadow: inset 0 0 0 2px rgba(208, 183, 124, .08);
+}
+.trophy-room .adventure-world__actions button { min-height: 42px; }
 
 .adventure-world__actions {
   position: absolute;
@@ -2930,6 +2991,22 @@ kbd {
 
 .abigail-world__puzzle p {
   margin: 0;
+}
+
+.fright-world__choices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.fright-world__choice {
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  overflow-wrap: normal;
 }
 
 .adventure-world__shot {

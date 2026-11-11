@@ -1,8 +1,9 @@
 import { QUEST_LOCATIONS, WORLD_ROUTES, WORLD_SCALE, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
-import { createMazeWalls } from './maze-scenery.js';
 import { regionBlendAt } from './world-regions.js';
 import { drawParkRide, PARK_RIDES } from './park-scenery.js';
 import { WORLD_NPCS } from './world-npcs.js';
+import { worldCornWalls, worldTrees } from './world-collision.js';
+import { placeQuestDecorations } from './world-scenery-data.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -136,10 +137,7 @@ function addProps() {
 
   add('haunted', escape.x - 70, escape.y - 185, 1.25);
   add('deadTree', escape.x + 185, escape.y - 140, 1.25);
-  add('deadTree', escape.x - 255, escape.y + 30, 0.9);
-  add('grave', escape.x + 165, escape.y + 60, 1);
-  add('grave', escape.x + 220, escape.y + 45, 0.8);
-  add('grave', escape.x - 175, escape.y + 140, 0.85);
+  placeQuestDecorations(escape, 'escape', 22, 560, 12).forEach(({ x, y, scale, variant }) => add('grave', x, y, scale, variant));
 
   add('tavern', town.x - 85, town.y - 165, 1.25);
   add('house', town.x + 230, town.y - 135, 0.95, 1);
@@ -173,27 +171,15 @@ function addProps() {
   add('canopy', forest.x + 340, forest.y + 230, 0.9);
   add('canopy', forest.x - 350, forest.y - 440, 0.85);
   add('canopy', forest.x + 340, forest.y - 430, 0.8);
-  add('pine', forest.x - 215, forest.y - 140, 1.25);
-  add('pine', forest.x + 190, forest.y - 180, 1.35);
-  add('pine', forest.x - 240, forest.y + 110, 1.05);
-  add('pine', forest.x + 230, forest.y + 120, 1.1);
   [[-165, -20], [155, -65], [-125, 165], [180, 190], [-285, -285], [295, -290]].forEach(([dx, dy], index) => {
     add('fairyLight', forest.x + dx, forest.y + dy, 0.9, index % 4);
   });
   add('mazeGate', harvest.x - 175, harvest.y - 175, 1);
-  createMazeWalls(8, 8).forEach((wall, index) => {
-    const x = harvest.x + (wall.x - 4 + (wall.vertical ? 0 : 0.5)) * 135;
-    const y = harvest.y + (wall.y - 4 + (wall.vertical ? 0.5 : 0)) * 135;
-    if (Math.hypot(x - harvest.x, y - harvest.y) < 160 || roadDistance({ x, y }) < 105) return;
-    add('cornWall', x, y, 1, Number(wall.vertical));
-    if (index % 12 === 0) add('pumpkin', x + 35, y + 35, 0.7);
-    if (index % 25 === 0) add('scarecrow', x - 35, y + 30, 0.8);
-  });
-  add('pumpkin', harvest.x + 160, harvest.y + 55, 1);
-  add('pumpkin', harvest.x - 135, harvest.y + 105, 0.8);
-  [escape, town, park, harvest].forEach((quest) => {
-    add('lamp', quest.x - 75, quest.y - 38);
-    add('lamp', quest.x + 80, quest.y + 55);
+  worldCornWalls().forEach((wall) => add('cornWall', wall.x, wall.y, 1, Number(wall.vertical)));
+  placeQuestDecorations(harvest, 'harvest', 35, 760, 48).forEach(({ x, y, scale }) => add('pumpkin', x, y, scale));
+  [WORLD_SPAWN, escape, town, park, harvest].forEach((quest) => {
+    add('lamp', quest.x - 75, quest.y - 50);
+    add('lamp', quest.x + 95, quest.y + 75);
   });
   for (let i = 0; i < 950; i += 1) {
     const x = 70 + random(i, 20) * (WORLD_SIZE.width - 140);
@@ -204,16 +190,12 @@ function addProps() {
     const region = regionBlendAt({ x, y }).region.id;
     if (region === 'park') {
       if (i % 4 === 0) add('banner', x, y, 0.7, Math.floor(i / 4) % 2);
-    } else if (region === 'harvest') {
-      if (Math.hypot(x - harvest.x, y - harvest.y) < 670) continue;
-      if (i % 3 === 0) add('cornWall', x, y, 0.8, i % 2);
-      if (i % 13 === 0) add('pumpkin', x + 24, y + 10, 0.7);
-    } else {
-      add(i % 11 === 0 ? 'rock' : region === 'forest' ? 'pine' : region === 'escape' ? 'deadTree' : 'tree',
-        x, y, 0.7 + random(i, 22) * 0.65, i % 3);
-      if (region === 'forest' && i % 4 === 0) add('fairyLight', x + 45, y + 20, 0.9, Math.floor(i / 4) % 4);
     }
   }
+  worldTrees().forEach(({ x, z, size, variant, region }) => {
+    add(region === 'forest' ? 'pine' : region === 'escape' ? 'deadTree' : 'tree', x, z, size, variant);
+    if (variant === 0) add('rock', x + 48, z + 18, 1);
+  });
   return props;
 }
 

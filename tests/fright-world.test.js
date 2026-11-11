@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FRIGHT_MAZE, FRIGHT_OBJECTS, FRIGHT_START, FRIGHT_THEMES, answerFright, frightPath, frightStage, frightWalkable, interactFright, newFrightState, restoreFrightState, walkFright } from '../js/games/fright-logic.js';
+import { FRIGHT_CLUES, FRIGHT_MAZE, FRIGHT_OBJECTS, FRIGHT_START, FRIGHT_THEMES, SIZE, answerFright, frightPath, frightStage, frightThemeCluesFound, frightWalkable, interactFright, newFrightState, restoreFrightState, walkFright } from '../js/games/fright-logic.js';
 import { questItems } from '../js/quest-items.js';
+import { discoveredFrightClues } from '../js/games/fright-clues.js';
 
 function visit(state, object) {
   const path = frightPath(state.player, object);
@@ -20,7 +21,8 @@ function visit(state, object) {
 
 test('maze routes reach all seven clues and mechanisms with continuous collision', () => {
   assert.equal(FRIGHT_THEMES.length, 7);
-  assert.equal(new Set(FRIGHT_OBJECTS.map(({ x, y }) => `${x},${y}`)).size, 22);
+  assert.ok(SIZE >= 25);
+  assert.equal(new Set(FRIGHT_OBJECTS.map(({ x, y }) => `${x},${y}`)).size, 36);
   assert.ok(FRIGHT_MAZE.some((row) => row.includes('#')));
   const state = newFrightState();
   let atWall = state;
@@ -37,6 +39,10 @@ test('each themed area has distinct content, 3 stages and unambiguous answers', 
   assert.equal(new Set(FRIGHT_THEMES.map((theme) => theme.zone)).size, 7);
   assert.equal(new Set(FRIGHT_THEMES.map((theme) => theme.tool.name)).size, 7);
   for (const theme of FRIGHT_THEMES) {
+    assert.equal(FRIGHT_CLUES[theme.id].length, 3);
+    const clues = FRIGHT_OBJECTS.filter((object) => object.kind === 'clue' && object.theme === theme.id);
+    assert.equal(clues.length, 3);
+    assert.equal(new Set(clues.map((clue) => clue.text)).size, 3);
     assert.equal(theme.stages.length, 3);
     for (const entry of theme.stages) {
       assert.ok(entry.choices.includes(entry.answer));
@@ -56,10 +62,18 @@ test('clue, tool and mechanism must be done in order; mistakes reset steps but k
   assert.match(state.message, /mystery/);
   state = visit(state, at('tool', first));
   assert.equal(state.tools.length, 0);
-  assert.match(state.message, /clue first/);
+  assert.match(state.message, /clues first/);
   for (const theme of FRIGHT_THEMES) {
-    state = visit(state, at('clue', theme));
-    assert.ok(state.clues.includes(theme.id));
+    const clues = FRIGHT_OBJECTS.filter((object) => object.kind === 'clue' && object.theme === theme.id);
+    for (const [index, clue] of clues.entries()) {
+      state = visit(state, clue);
+      assert.equal(frightThemeCluesFound(state, theme.id), index + 1);
+      assert.ok(state.clues.includes(clue.id));
+      if (index === 0) {
+        state = visit(state, at('tool', theme));
+        assert.ok(!state.tools.includes(theme.id));
+      }
+    }
     state = visit(state, at('cache', theme));
     assert.match(state.message, /needs the/);
     assert.ok(!state.puzzle);
@@ -100,7 +114,7 @@ test('clue, tool and mechanism must be done in order; mistakes reset steps but k
 
 test('stepping away mid-mechanism restarts it from step one and saves never persist a puzzle', () => {
   const theme = FRIGHT_THEMES[1];
-  let state = { ...newFrightState(), clues: [theme.id], tools: [theme.id] };
+  let state = { ...newFrightState(), clues: FRIGHT_OBJECTS.filter((o) => o.kind === 'clue' && o.theme === theme.id).map((o) => o.id), tools: [theme.id] };
   state = visit({ ...state, player: { ...FRIGHT_OBJECTS.find((o) => o.id === `cache-${theme.id}`) } }, FRIGHT_OBJECTS.find((o) => o.id === `cache-${theme.id}`));
   state = answerFright(state, theme.stages[0].answer);
   assert.equal(state.stage, 1);
@@ -113,25 +127,57 @@ test('stepping away mid-mechanism restarts it from step one and saves never pers
 
 test('puzzle questions do not repeat the clue and discovered clues survive mechanism progress', () => {
   for (const theme of FRIGHT_THEMES) {
-    for (const entry of theme.stages) assert.ok(!entry.question.includes(theme.clue), theme.id);
+    for (const entry of theme.stages) for (const clue of FRIGHT_CLUES[theme.id]) assert.ok(!entry.question.includes(clue), theme.id);
   }
   const theme = FRIGHT_THEMES[0];
   const cache = FRIGHT_OBJECTS.find((o) => o.id === `cache-${theme.id}`);
-  let state = { ...newFrightState(), player: { x: cache.x, y: cache.y }, clues: [theme.id], tools: [theme.id] };
+  const clues = FRIGHT_OBJECTS.filter((o) => o.kind === 'clue' && o.theme === theme.id).map((o) => o.id);
+  let state = { ...newFrightState(), player: { x: cache.x, y: cache.y }, clues, tools: [theme.id] };
   state = interactFright(state, cache.id);
   state = answerFright(state, theme.stages[0].answer);
-  assert.deepEqual([state.puzzle, state.stage, state.clues], [theme.id, 1, [theme.id]]);
+  assert.deepEqual([state.puzzle, state.stage, state.clues], [theme.id, 1, clues]);
   const wrong = answerFright(state, frightStage(state).choices.find((c) => c !== frightStage(state).answer));
-  assert.deepEqual(wrong.clues, [theme.id]);
+  assert.deepEqual(wrong.clues, clues);
   assert.deepEqual(wrong.tools, [theme.id]);
 });
 
 test('saves from the earlier Fright Nights version keep collected items and clues', () => {
   const old = restoreFrightState({ version: 2, player: { ...FRIGHT_START }, clues: ['ai'], collected: ['disease'], legacyKey: false, complete: false });
   assert.deepEqual(old.collected, ['disease']);
-  assert.deepEqual(old.clues.sort(), ['ai', 'disease']);
+  assert.equal(frightThemeCluesFound(old, 'ai'), 3);
+  assert.equal(frightThemeCluesFound(old, 'disease'), 3);
+  assert.deepEqual(old.player, FRIGHT_START);
   assert.deepEqual(old.tools, ['disease']);
   assert.equal(restoreFrightState({ ...old, tools: ['nonsense'] }).collected.length, 0);
+});
+
+test('individual clues and position survive new saves without revealing undiscovered clues', () => {
+  const first = FRIGHT_OBJECTS.find((object) => object.id === 'clue-ai-1');
+  const second = FRIGHT_OBJECTS.find((object) => object.id === 'clue-ai-2');
+  const state = interactFright({ ...newFrightState(), player: { x: first.x, y: first.y } }, first.id);
+  const restored = restoreFrightState(JSON.parse(JSON.stringify(state)));
+  assert.deepEqual(restored.clues, [first.id]);
+  assert.deepEqual(restored.player, { x: first.x, y: first.y });
+  assert.ok(!restored.clues.includes(second.id));
+  assert.match(restored.message, /three separate clues/);
+});
+
+test('journal groups only discovered clues and retains earlier discoveries across saves', () => {
+  const first = FRIGHT_OBJECTS.find((object) => object.id === 'clue-ai-1');
+  const second = FRIGHT_OBJECTS.find((object) => object.id === 'clue-ai-2');
+  const third = FRIGHT_OBJECTS.find((object) => object.id === 'clue-disease-3');
+  let state = newFrightState();
+  assert.deepEqual(discoveredFrightClues(state), []);
+  for (const clue of [first, third, second]) {
+    state = interactFright({ ...state, player: { x: clue.x, y: clue.y } }, clue.id);
+  }
+  state = restoreFrightState(JSON.parse(JSON.stringify(state)));
+  const groups = discoveredFrightClues(state);
+  assert.deepEqual(groups.map((group) => group.theme.id), ['disease', 'ai']);
+  assert.deepEqual(groups.map((group) => group.clues.map((clue) => clue.id)), [[third.id], [first.id, second.id]]);
+  assert.equal(groups[1].hasTool, false);
+  assert.equal(discoveredFrightClues({ ...state, tools: ['ai'] })[1].hasTool, true);
+  assert.deepEqual(discoveredFrightClues(null), []);
 });
 
 test('legacy maze saves keep a held lantern key and completed saves remain complete', () => {

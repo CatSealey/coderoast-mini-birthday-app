@@ -174,8 +174,22 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
     const theme = object.theme, color = colors[theme], { x, y } = object;
     if (object.kind === 'clue') {
       box(x, 3, y, 70, 4, 70, color);
-      box(x, 20, y, 5, 40, 5, '#4a4030'); box(x, 40, y, 34, 24, 4, '#e8d8a8');
-      box(x, 40, y + 3, 26, 3, 2, '#3a2c1c'); box(x, 34, y + 3, 20, 3, 2, '#3a2c1c');
+      if (object.id.endsWith('-1')) {
+        box(x, 20, y, 5, 40, 5, '#4a4030'); box(x, 40, y, 34, 24, 4, '#e8d8a8');
+        box(x, 40, y + 3, 26, 3, 2, '#3a2c1c'); box(x, 34, y + 3, 20, 3, 2, '#3a2c1c');
+      } else if (object.id.endsWith('-2')) {
+        box(x, 14, y, 38, 28, 32, '#594333');
+        box(x, 29, y, 30, 3, 24, '#eee0b9');
+        for (const z of [-6, 0, 6]) box(x, 31, y + z, 22, 1, 2, '#6d5640');
+      } else {
+        cyl(x, 14, y, 28, 28, 28, '#78674e');
+        box(x, 32, y, 22, 18, 5, '#ebd8a5');
+        for (const h of [28, 34, 38]) box(x, h, y + 3, 15, 2, 2, '#725b40');
+      }
+      const marker = ball(x, 63, y, 12, color, true);
+      marker.userData.objectId = object.id; markers.set(object.id, marker);
+      animations.push((t) => { marker.position.y = 63 + Math.sin(t * 2 + x) * 4; });
+      label(object.name, x, 87, y);
       return;
     }
     if (object.kind === 'tool') {
