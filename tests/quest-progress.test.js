@@ -55,7 +55,7 @@ test('removing a quest resets only its acceptance and completion and updates der
     assert.equal(result.completed[index], false);
     assert.equal(result.completed.filter(Boolean).length, 4);
     assert.equal(result.accepted.filter(Boolean).length, 4);
-    assert.equal(birthdayProgress(result.completed).xp, 80);
+    assert.equal(birthdayProgress(result.completed).xp, 60);
     assert.equal(birthdayProgress(result.completed).level, 29);
     assert.equal(areAllQuestsComplete(result.completed), false);
     assert.deepEqual(normalizeQuestProgress(result, 5), result);

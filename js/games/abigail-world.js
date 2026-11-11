@@ -1,4 +1,4 @@
-import { ABIGAIL_RUNES, chooseAbigailRune } from './abigail-logic.js';
+import { ABIGAIL_RUNE_OPTIONS, chooseAbigailRune } from './abigail-logic.js';
 import { HOUSE_OBJECTS, HOUSE_ROOM_NAMES, INTERACTION_DISTANCE, housePath, houseRoomAt, interactHouse, restoreHouseState, pathToHouseObject, walkHouse } from './abigail-house.js';
 import { createAbigailScene } from './abigail-scene.js';
 
@@ -31,7 +31,7 @@ export function mountAbigailWorld(root, { characterName, onComplete, onLeave, on
         <strong id="abigailPuzzleTitle">Choose the runes in order</strong>
         <p id="abigailRuneProgress"></p>
         <div class="abigail-runes">
-          ${ABIGAIL_RUNES.map((rune, i) => `<button type="button" class="rune-tile game-control" data-abigail-rune="${rune}"><span aria-hidden="true">${['✦', '☾', '◇'][i]}</span><small>${rune}</small></button>`).join('')}
+          ${ABIGAIL_RUNE_OPTIONS.map(({ name, symbol }) => `<button type="button" class="rune-tile game-control" data-abigail-rune="${name}"><span aria-hidden="true">${symbol}</span><small>${name}</small></button>`).join('')}
         </div>
         <button type="button" class="rs3-btn game-control abigail-back" data-abigail-close>Step away</button>
       </section>

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ABIGAIL_RUNES, chooseAbigailRune } from '../js/games/abigail-logic.js';
+import { ABIGAIL_RUNES, ABIGAIL_RUNE_OPTIONS, ABIGAIL_SOLUTION, chooseAbigailRune } from '../js/games/abigail-logic.js';
 import { HOUSE_OBJECTS, HOUSE_ROOM_NAMES, housePath, interactHouse, newHouseState, pathToHouseObject, walkHouse } from '../js/games/abigail-house.js';
 import { questItems } from '../js/quest-items.js';
 
@@ -86,6 +86,11 @@ test('connected rooms can be walked between and the quest completed', () => {
 
 test('only three rune options exist and missing diary still prevents the ward', () => {
   assert.deepEqual(ABIGAIL_RUNES, ['Star', 'Moon', 'Diamond']);
+  assert.deepEqual(ABIGAIL_RUNE_OPTIONS, [
+    { name: 'Moon', symbol: '☾' }, { name: 'Diamond', symbol: '◇' }, { name: 'Star', symbol: '✦' }
+  ]);
+  assert.deepEqual(ABIGAIL_SOLUTION, ['Star', 'Moon', 'Diamond']);
+  assert.deepEqual([...ABIGAIL_RUNE_OPTIONS.map((rune) => rune.name)].sort(), [...ABIGAIL_RUNES].sort());
   assert.equal(Object.keys(HOUSE_ROOM_NAMES).length, 5);
   let state = newHouseState();
   state = visit(state, 'doll');

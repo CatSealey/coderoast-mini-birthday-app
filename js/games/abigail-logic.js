@@ -23,6 +23,11 @@ export const ABIGAIL_ROOMS = Object.freeze({
 
 export const ABIGAIL_RUNES = Object.freeze(['Star', 'Moon', 'Diamond']);
 export const ABIGAIL_SOLUTION = Object.freeze(['Star', 'Moon', 'Diamond']);
+export const ABIGAIL_RUNE_OPTIONS = Object.freeze([
+  Object.freeze({ name: 'Moon', symbol: '☾' }),
+  Object.freeze({ name: 'Diamond', symbol: '◇' }),
+  Object.freeze({ name: 'Star', symbol: '✦' })
+]);
 
 export function newAbigailState() {
   return {

@@ -1,0 +1,12 @@
+.trophy-room__continue {
+  position: absolute;
+  z-index: 3;
+  right: 12px;
+  bottom: 108px;
+  min-height: 44px;
+  padding: 8px 16px;
+}
+
+.trophy-room__continue[hidden] {
+  display: none;
+}

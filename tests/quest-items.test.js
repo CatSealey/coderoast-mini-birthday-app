@@ -7,6 +7,8 @@ import { restorePoolState } from '../js/games/pool.js';
 import { restoreCoasterState } from '../js/games/coaster.js';
 import { restoreCanopyState } from '../js/games/canopy.js';
 import { chooseAbigailRune } from '../js/games/abigail-logic.js';
+import { newAdventureState, restoreAdventureState } from '../js/games/adventure-logic.js';
+import { COASTER_TREATS } from '../js/games/coaster-course.js';
 
 test('quest inventory shows only actually collected items across quests', () => {
   const saves = [null, null, null, null, null];
@@ -19,6 +21,18 @@ test('quest inventory shows only actually collected items across quests', () => 
   assert.ok(questItems(saves).some((item) => item.name === 'Escape token'));
   saves[0] = null;
   assert.deepEqual(questItems(saves).map((item) => item.name), ['Lantern key']);
+});
+
+test('Thirteen park items appear in the quest inventory and survive a save', () => {
+  const state = { ...newAdventureState(2), phase: 'riding', treats: COASTER_TREATS.map((item) => item.id) };
+  const names = COASTER_TREATS.map((item) => item.name);
+  const items = questItems([null, null, state, null, null]);
+  assert.deepEqual(items.map((item) => item.name), names);
+  assert.equal(new Set(items.map((item) => item.image)).size, names.length);
+  assert.ok(items.every((item) => item.image.endsWith('.svg') && item.quest === 'Thirteen'));
+  const restored = restoreAdventureState(2, JSON.parse(JSON.stringify(state)));
+  assert.deepEqual(questItems([null, null, restored, null, null]).map((item) => item.name), names);
+  assert.deepEqual(questItems([null, null, { ...restored, complete: true }, null, null]), []);
 });
 
 test('Abigail quest progress survives serialization with inventory and location', () => {

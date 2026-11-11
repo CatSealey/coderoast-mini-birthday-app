@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createCollision, findWorldPath, worldObstacles, worldTrees } from '../js/world/world-collision.js';
 import { CASTLE_ENTRANCE, QUEST_LOCATIONS, WORLD_SPAWN } from '../js/world/world-data.js';
 import { WORLD_NPCS } from '../js/world/world-npcs.js';
+import { CANOPY_OFFSET, CANOPY_PLATFORMS } from '../js/world/world-scenery-data.js';
 
 test('castle, buildings and tree trunks are solid without blocking nearby entrances', () => {
   const trees = worldTrees(), collision = createCollision(worldObstacles(trees));
@@ -36,5 +37,45 @@ test('routes go around obstacles without crossing them', () => {
   for (const waypoint of path) {
     assert.equal(collision.clearSegment(position, waypoint), true);
     position = waypoint;
+  }
+});
+
+test('tree rocks use the original collision footprint', () => {
+  const tree = { x: 100, z: 200, size: 1, variant: 0 };
+  assert.ok(worldObstacles([tree]).some((obstacle) =>
+    obstacle.x === 148 && obstacle.y === 218 && obstacle.radius === 13));
+});
+
+test('GoApe canopy stays behind the entrance and its platform trees have clearance', () => {
+  const forest = QUEST_LOCATIONS[3];
+  const trees = worldTrees();
+  for (const platform of CANOPY_PLATFORMS) {
+    const x = forest.x + CANOPY_OFFSET.x + platform.x;
+    const y = forest.y + CANOPY_OFFSET.z + platform.z;
+    const sceneryRadius = Math.max(platform.size / 2, 49);
+    assert.ok(y + sceneryRadius < forest.entrance.y, 'Canopy must stay behind the entrance');
+    assert.ok(trees.every((tree) => Math.hypot(tree.x - x, tree.z - y) >= 75),
+      'Generated trees must not overlap a canopy platform');
+  }
+});
+
+test('GoApe guide, entrance and ranger remain reachable from one another', () => {
+  const forest = QUEST_LOCATIONS[3];
+  const ranger = WORLD_NPCS.find((npc) => npc.name === 'Fern the Ranger');
+  assert.ok(ranger);
+  const collision = createCollision(worldObstacles());
+  for (const from of [forest, forest.entrance, ranger]) {
+    for (const destination of [forest, forest.entrance, ranger]) {
+      if (from === destination) continue;
+      const path = findWorldPath(from, destination, collision);
+      assert.ok(path, `No path from ${from.name} to ${destination.name}`);
+      const endpoint = path.at(-1) || from;
+      assert.ok(Math.hypot(endpoint.x - destination.x, endpoint.y - destination.y) < 74);
+      let position = from;
+      for (const waypoint of path) {
+        assert.ok(collision.clearSegment(position, waypoint));
+        position = waypoint;
+      }
+    }
   }
 });

@@ -1,10 +1,25 @@
-.fright-world__interact {
+.fright-world__actions {
   position: absolute;
   right: 12px;
   bottom: 88px;
   z-index: 4;
+  display: flex;
+  max-width: 46%;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.fright-world__actions button {
+  min-height: 40px;
   padding: 8px 12px;
   font-size: 0.75rem;
+}
+
+.fright-world__teleport {
+  border-color: #bda9ef;
+  background: linear-gradient(135deg, #59427e, #273c56);
+  box-shadow: 0 0 14px rgba(181, 149, 255, 0.5);
 }
 
 .adventure-world__pad [data-adventure-move="up"] {
@@ -57,6 +72,8 @@
   display: flex;
   gap: 5px;
 }
+.adventure-world__actions[hidden],
+.adventure-world__pad[hidden] { display: none; }
 
 .adventure-world__actions button,
 .adventure-world__ride button {
@@ -82,39 +99,15 @@
   display: none;
 }
 
-.adventure-world__track {
-  position: relative;
-  height: 14px;
-  margin: 10px 0;
-  background: #39434a;
-  border-radius: 6px;
+.adventure-world__ride [hidden] { display: none; }
+.adventure-world__ride-next { margin: 8px 0; color: #f3d996; }
+.adventure-world__ride-buttons { display: flex; gap: 8px; }
+.adventure-world__ride-buttons button { flex: 1; }
+.adventure-world__ride button.is-selected {
+  background: #526e64;
+  border-color: #d7d4a0;
+  box-shadow: 0 0 10px rgba(215, 212, 160, 0.4);
 }
-
-.adventure-world__track span {
-  position: absolute;
-  left: 64%;
-  width: 8%;
-  height: 100%;
-  background: #d3b663;
-}
-
-.adventure-world__track i {
-  position: absolute;
-  top: -4px;
-  width: 4px;
-  height: 22px;
-  background: #fff;
-}
-
-.adventure-world__track .ride-signal {
-  position: absolute;
-  top: 0;
-  width: 4px;
-  height: 100%;
-  background: #8bcac2;
-}
-.adventure-world__track .ride-signal--one { left: 22%; }
-.adventure-world__track .ride-signal--two { left: 48%; }
 
 .adventure-world__crossing {
   position: absolute;
@@ -131,20 +124,9 @@
 }
 .adventure-world__crossing p { margin: 4px 0; }
 .adventure-world__crossing-meter { position: relative; height: 12px; margin: 10px 0; background: #725247; }
-.adventure-world__crossing-meter span { position: absolute; left: 35%; width: 30%; height: 100%; background: #71ac7a; }
-.adventure-world__crossing-meter i { position: absolute; top: -4px; width: 4px; height: 20px; background: #fff; }
+.adventure-world__crossing-meter span { position: absolute; height: 100%; background: #71ac7a; }
+.adventure-world__crossing-meter i { position: absolute; top: -4px; width: 4px; height: 20px; background: #fff; transform: translateX(-50%); }
 .adventure-world__crossing button { min-height: 42px; padding: 7px 16px; }
-
-.adventure-world__ride-buttons {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.adventure-world__ride small {
-  display: block;
-  margin-top: 6px;
-}
 
 .quest-item:hover::after,
 .quest-item:focus-visible::after,
@@ -277,4 +259,3 @@
     transform: translate(-50%, -2px);
   }
 }
-

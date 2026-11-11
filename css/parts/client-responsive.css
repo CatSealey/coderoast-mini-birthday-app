@@ -146,7 +146,6 @@
 
   .inventory-panel {
     grid-column: 1 / -1;
-    min-height: 155px;
   }
 
   .quest-inventory-panel {
@@ -215,4 +214,3 @@
     animation: none;
   }
 }
-

@@ -1,4 +1,5 @@
 import { FRIGHT_THEMES } from './games/fright-logic.js';
+import { COASTER_TREATS } from './games/coaster-course.js';
 
 const images = {
   key: new URL('../assets/items/small-key.svg', import.meta.url).href,
@@ -28,6 +29,13 @@ const adventureImages = {
   acorn: new URL('../assets/items/canopy-acorn.svg', import.meta.url).href,
   star: new URL('../assets/items/canopy-star.svg', import.meta.url).href
 };
+const parkItemImages = {
+  pizza: new URL('../assets/items/park-pizza.svg', import.meta.url).href,
+  cup: new URL('../assets/items/park-cup.svg', import.meta.url).href,
+  map: new URL('../assets/items/park-map.svg', import.meta.url).href,
+  ticket: new URL('../assets/items/park-fastrack.svg', import.meta.url).href,
+  umbrella: new URL('../assets/items/park-umbrella.svg', import.meta.url).href
+};
 const frightToolImages = {
   disease: new URL('../assets/items/fright-gloves.svg', import.meta.url).href,
   ai: new URL('../assets/items/fright-access-key.svg', import.meta.url).href,
@@ -56,6 +64,10 @@ export function questItems(saves) {
   }
   const ride = saves[2];
   if (ride?.version === 3) {
+    if (!ride.complete && Array.isArray(ride.treats)) {
+      COASTER_TREATS.filter((item) => ride.treats.includes(item.id))
+        .forEach((item) => items.push({ name: item.name, image: parkItemImages[item.kind], quest: 'Thirteen' }));
+    }
     if (ride.bags) items.push({ name: 'Bags', image: adventureImages.bags, quest: 'Thirteen' });
     if (ride.ticket) items.push({ name: 'Exit ticket', image: adventureImages.ticket, quest: 'Thirteen' });
   }

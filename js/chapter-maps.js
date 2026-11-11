@@ -41,8 +41,6 @@ const CHAPTER_MAPS = [
       <circle class="map-ball map-ball--gold" cx="453" cy="81" r="7" />
       <circle class="map-ball" cx="482" cy="81" r="7" />
       <circle class="map-ball" cx="511" cy="81" r="7" />
-      <text class="map-label" x="115" y="75">BAR</text>
-      <text class="map-label" x="286" y="137">POOL TABLES</text>
       <text class="map-label" x="483" y="137">LUCKY CHUCKS</text>
       <text class="map-label" x="95" y="165">LOUNGE</text>
       <circle class="map-landmark" cx="82" cy="187" r="13" />

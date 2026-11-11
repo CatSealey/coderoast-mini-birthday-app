@@ -209,6 +209,18 @@ export function frightPath(start, destination) {
   return [...cells, destination];
 }
 
+export function frightExitReady(state) {
+  return !state.complete && FRIGHT_THEMES.every((theme) => state.collected.includes(theme.id));
+}
+
+export function teleportFright(state) {
+  if (state.complete) return state;
+  if (!frightExitReady(state) || state.puzzle) {
+    return { ...state, message: 'Recover all seven objects before using the escape teleport.' };
+  }
+  return { ...state, complete: true, message: 'The escape teleport carries you out of Fright Nights!' };
+}
+
 export function interactFright(state, id) {
   const object = FRIGHT_OBJECTS.find((entry) => entry.id === id);
   if (!object || state.complete) return state;
@@ -216,7 +228,7 @@ export function interactFright(state, id) {
     return { ...state, message: `Move closer to ${object.name}.` };
   }
   if (object.kind === 'exit') {
-    if (state.collected.length < FRIGHT_THEMES.length) return { ...state, message: `The gate needs all seven objects. You have ${state.collected.length} of 7.` };
+    if (!frightExitReady(state)) return { ...state, message: `The gate needs all seven objects. You have ${state.collected.length} of 7.` };
     return { ...state, complete: true, message: 'The seven objects open the gate. You escaped Fright Nights!' };
   }
   const theme = FRIGHT_THEMES.find((entry) => entry.id === object.theme);
@@ -253,5 +265,9 @@ export function answerFright(state, answer) {
       message: `${theme.scare} The mechanism resets. Re-read the clue and try again.` };
   }
   if (index + 1 < total) return { ...state, stage: index + 1, message: `Step ${index + 1} of ${total} done. The mechanism clicks forward.` };
-  return { ...state, puzzle: null, stage: 0, collected: [...state.collected, theme.id], message: `You recovered the ${theme.item.toLowerCase()}!` };
+  const collected = [...state.collected, theme.id];
+  const message = collected.length === FRIGHT_THEMES.length
+    ? `You recovered the ${theme.item.toLowerCase()}! The escape teleport is ready.`
+    : `You recovered the ${theme.item.toLowerCase()}!`;
+  return { ...state, puzzle: null, stage: 0, collected, message };
 }

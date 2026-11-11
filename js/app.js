@@ -4,7 +4,6 @@ import { mountAdventureWorld } from './games/adventure-world.js';
 import { restoreAdventureState } from './games/adventure-logic.js';
 import { mountFrightWorld } from './games/fright-world.js';
 import { restoreFrightState } from './games/fright-logic.js';
-import { renderFrightClues } from './games/fright-clues.js';
 import { mountTrophyRoom } from './games/trophy-room.js';
 import { presentAvailable, restoreDisplays, restoreTrophyQuest } from './games/trophy-logic.js';
 import { restoreHouseState } from './games/abigail-house.js';
@@ -14,6 +13,7 @@ import { QUEST_LOCATIONS } from './world/world-data.js';
 import { areAllQuestsComplete, isQuestAvailable } from './world/world-logic.js';
 import { birthdayProgress, XP_PER_QUEST } from './progression.js';
 import { normalizeQuestProgress, questGuideSpeech, removeQuestProgress } from './quest-progress.js';
+import { questJournalSteps, trophyJournalSteps } from './quest-journal.js';
 
 export function startGame(characterName) {
   const STORAGE_KEY = 'rs3-birthday-adventure-progress';
@@ -64,13 +64,13 @@ export function startGame(characterName) {
       title: 'Lucky Chucks Pool Night',
       location: 'KETTERING · LUCKY CHUCKS',
       description: 'Prepare drinks and pool equipment, then recover the runaway eight-ball.',
-      objective: 'Set up the drinks and pool table, find the eight-ball and speak to My Love.'
+      objective: 'Set up the drinks and pool table, find the eight-ball and speak to Cat.'
     },
     {
       title: 'Thirteen Coaster Drop',
       location: 'ALTON TOWERS · THIRTEEN',
-      description: 'Ride with Meu Amor, control the carriage and stop at the drop.',
-      objective: 'Board the carriage, stop in the drop zone and retrieve the bags after the ride.'
+      description: 'Ride with Cat and collect park items before the surprise drop.',
+      objective: 'Hold left or right for all park items, ride backwards and retrieve the bags.'
     },
     {
       title: 'Night-time GoApe Canopy',
@@ -82,7 +82,7 @@ export function startGame(characterName) {
       title: 'Earls Barton Fright Nights',
       location: 'EARLS BARTON · Fright Nights',
       description: 'Explore seven unsettling corners of the maze and recover their hidden objects.',
-      objective: 'Find the clues in each area, solve the seven mechanisms and return to the escape gate.'
+      objective: 'Find the clues, solve the seven mechanisms and escape through the teleport or entrance gate.'
     }
   ];
 
@@ -121,7 +121,7 @@ export function startGame(characterName) {
   let inTrophyRoom = false;
   let suppressGameSaves = false;
   let inventorySignature = null;
-  let frightJournalSignature = null;
+  const journalStepSignatures = Array(chapters.length + 1).fill(null);
   let activeChapter = 0;
   let disposeGame = () => { };
   const audio = createAudioController(document.querySelector('#toggleAudioBtn'));
@@ -182,7 +182,8 @@ export function startGame(characterName) {
     });
     renderQuestItems();
 
-    const { questsCompleted: count, xp, targetXp, level } = birthdayProgress(completed);
+    const { questsCompleted: count, xp, targetXp, level } = birthdayProgress(completed, trophyQuest.completed);
+    const questCount = count + Number(trophyQuest.completed);
     document.querySelector('#characterProfile').setAttribute('aria-label', `Character ${characterName}, level ${level}`);
     document.querySelector('#characterLevel').textContent = `COMBAT LVL ${level}`;
     document.querySelector('#birthdayLevel').textContent = `LV ${level}`;
@@ -191,11 +192,11 @@ export function startGame(characterName) {
     document.querySelector('#itemCount').textContent = String(count);
     document.querySelector('#birthdayXpCopy').textContent = level === 30
       ? 'Level 30 reached! All birthday memories collected.'
-      : `${targetXp - xp} XP to level 30 · ${XP_PER_QUEST} XP per quest`;
-    document.querySelector('#questProgressText').textContent = count === memories.length
-      ? `Complete · ${count}/5`
-      : `In progress · ${count}/5`;
-    document.querySelector('#heroProgressText').textContent = `${count} of 5`;
+      : `${targetXp - xp} XP to level 30 · 15 XP per keepsake quest, 25 XP for the finale`;
+    document.querySelector('#questProgressText').textContent = questCount === 6
+      ? 'Complete · 6/6'
+      : `In progress · ${questCount}/6`;
+    document.querySelector('#heroProgressText').textContent = `${questCount} of 6`;
     document.querySelector('#questProgressBar').setAttribute('aria-valuemax', String(targetXp));
     document.querySelector('#questProgressBar').setAttribute('aria-valuenow', String(xp));
     document.querySelector('#questProgressBar').setAttribute('aria-valuetext', `${xp} of ${targetXp} XP`);
@@ -244,18 +245,48 @@ export function startGame(characterName) {
     gameSaves[index] = structuredClone(state);
     saveProgress();
     renderQuestItems();
-    if (index === 4) renderFrightJournal();
+    renderJournalSteps(index);
   }
 
-  function renderFrightJournal() {
-    const state = gameSaves[4];
-    const journal = document.querySelector('#frightJournal');
-    journal.hidden = !accepted[4] || !state?.clues?.length;
-    const signature = JSON.stringify([state?.clues || [], state?.tools || []]);
-    if (signature === frightJournalSignature) return;
-    frightJournalSignature = signature;
-    document.querySelector('#frightJournalCount').textContent = state?.clues?.length ? `(${state.clues.length}/21)` : '';
-    renderFrightClues(document.querySelector('#frightJournalClues'), state);
+  function renderSteps(list, count, steps, index) {
+    const signature = JSON.stringify(steps);
+    if (signature === journalStepSignatures[index]) return;
+    journalStepSignatures[index] = signature;
+    count.textContent = `(${steps.filter((entry) => entry.done).length}/${steps.length})`;
+    function renderStep({ text, done, status, substeps }) {
+      const item = document.createElement('li');
+      const marker = document.createElement('span');
+      marker.className = `quest-steps__marker${done ? ' quest-steps__marker--done' : ''}`;
+      marker.setAttribute('aria-hidden', 'true');
+      marker.textContent = done ? '✓' : status ? '–' : '○';
+      const content = document.createElement('div');
+      content.className = 'quest-steps__content';
+      const label = document.createElement('span');
+      label.textContent = `${text} — ${status || (done ? 'Done' : 'To do')}`;
+      content.append(label);
+      if (substeps?.length) {
+        const nested = document.createElement('ol');
+        nested.className = 'quest-steps__substeps';
+        nested.append(...substeps.map(renderStep));
+        content.append(nested);
+      }
+      item.append(marker, content);
+      return item;
+    }
+    const scrollTop = list.scrollTop;
+    list.replaceChildren(...steps.map(renderStep));
+    list.scrollTop = scrollTop;
+  }
+
+  function renderJournalSteps(index) {
+    renderSteps(document.querySelector(`#questSteps-${index + 1}`),
+      document.querySelector(`#questStepsCount-${index + 1}`),
+      questJournalSteps(index, gameSaves[index], completed[index]), index);
+  }
+
+  function renderTrophySteps() {
+    renderSteps(document.querySelector('#trophySteps'), document.querySelector('#trophyStepsCount'),
+      trophyJournalSteps(trophyDisplays, trophyQuest.completed), chapters.length);
   }
 
   function renderChapterNavigation() {
@@ -269,15 +300,16 @@ export function startGame(characterName) {
       else button.removeAttribute('aria-current');
       status.textContent = completed[index] ? 'Completed ✓' : 'Accepted';
       status.className = `quest-row__status ${completed[index] ? 'quest-row__status--complete' : 'quest-row__status--available'}`;
+      renderJournalSteps(index);
     });
     document.querySelector('#trophyQuestEntry').hidden = !trophyQuest.accepted;
     const trophyStatus = document.querySelector('#trophyQuestStatus');
     trophyStatus.textContent = trophyQuest.completed ? 'Completed ✓' : 'Accepted';
     trophyStatus.className = `quest-row__status ${trophyQuest.completed ? 'quest-row__status--complete' : 'quest-row__status--available'}`;
+    renderTrophySteps();
     document.querySelector('#questJournalHint').textContent = accepted.some(Boolean) || trophyQuest.accepted
       ? 'Select an accepted quest to travel to its entrance.'
       : 'Your journal is empty. Find quest givers marked on the world map.';
-    renderFrightJournal();
   }
 
   function setStageStatus(text, className = '') {
@@ -291,7 +323,7 @@ export function startGame(characterName) {
       <div class="abigail-world__complete">
         <p class="eyebrow">QUEST COMPLETE</p>
         <h2>${['Escaped Abigail’s room!', 'Pool night ready!', 'Thirteen complete!', 'Canopy adventure complete!', 'Escaped Fright Nights!'][index]}</h2>
-        <p>Keepsake ${index + 1} collected · 20 XP earned.</p>
+        <p>Keepsake ${index + 1} collected · ${XP_PER_QUEST} XP earned.</p>
         <button type="button" class="rs3-btn game-control" data-action="abigail-leave">Return to the world</button>
       </div>
     `;
@@ -320,12 +352,12 @@ export function startGame(characterName) {
     saveProgress();
     renderInventory();
     renderChapterNavigation();
-    world.setQuestStates(completed, accepted);
+    world.setQuestStates(completed, accepted, trophyQuest.completed);
     setStageStatus('Chapter complete', 'world-stage-badge--complete');
-    dialogue.textContent = `Keepsake ${index + 1} collected. You earned ${XP_PER_QUEST} XP${areAllQuestsComplete(completed) ? ' and reached level 30! Display your keepsakes in the castle trophy room.' : '.'}`;
-    audio.playSound('levelUp');
+    dialogue.textContent = `Keepsake ${index + 1} collected. You earned ${XP_PER_QUEST} XP${areAllQuestsComplete(completed) ? '. Display your keepsakes in the castle and collect the final present to reach level 30.' : '.'}`;
+    audio.playSound('success');
     renderCompletedChapter(index);
-    document.querySelector('#questDialogHint').textContent = `Quest complete. You earned ${XP_PER_QUEST} XP${areAllQuestsComplete(completed) ? ' and reached level 30!' : '.'}`;
+    document.querySelector('#questDialogHint').textContent = `Quest complete. You earned ${XP_PER_QUEST} XP.`;
   }
 
   function speakToQuestGuide(index) {
@@ -346,7 +378,7 @@ export function startGame(characterName) {
     accepted[index] = true;
     saveProgress();
     renderChapterNavigation();
-    world.setQuestStates(completed, accepted);
+    world.setQuestStates(completed, accepted, trophyQuest.completed);
     world.selectQuest(index, true);
   }
 
@@ -428,7 +460,7 @@ export function startGame(characterName) {
     obscuredWorldControls.forEach((element) => { element.inert = false; });
     document.querySelector('.world-map-hint').textContent = 'Tap a marker to travel. The house marks Lumbridge Castle.';
     world.setPaused(false);
-    stageTitle.textContent = 'Level 30 birthday adventure';
+    stageTitle.textContent = 'Birthday adventure';
     setStageStatus('Exploring', '');
     document.querySelector('#worldCanvas').focus();
   }
@@ -449,13 +481,22 @@ export function startGame(characterName) {
     world.setPaused(true);
     disposeGame = mountTrophyRoom(abigailRoot, {
       characterName, memories, images: keepsakeImages, completed, displays: trophyDisplays,
-      onDisplays: (displays) => { trophyDisplays = displays; saveProgress(); },
+      onDisplays: (displays) => { trophyDisplays = displays; saveProgress(); renderTrophySteps(); },
       onPresent: () => {
-        if (!presentAvailable(trophyDisplays, completed)) return;
-        trophyQuest = { accepted: true, completed: true };
-        saveProgress(); renderChapterNavigation();
-        showModal('victoryModal'); audio.playSound('levelUp');
-        document.querySelector('[data-action="close-victory"]').focus();
+        if (!presentAvailable(trophyDisplays, completed)) return false;
+        if (!trophyQuest.completed) {
+          const nextTrophyQuest = { accepted: true, completed: true };
+          if (!saveProgress({ completed, accepted, gameSaves, trophyDisplays, trophyQuest: nextTrophyQuest })) {
+            document.querySelector('#worldMessage').textContent = 'The present could not be saved. Please try again.';
+            return false;
+          }
+          trophyQuest = nextTrophyQuest;
+          renderInventory();
+          renderChapterNavigation();
+          world.setQuestStates(completed, accepted, trophyQuest.completed);
+          audio.playSound('levelUp');
+        }
+        return true;
       },
       onLeave: leaveTrophyRoom,
       onMessage: (message) => { dialogue.textContent = message; document.querySelector('#worldMessage').textContent = message; }
@@ -482,7 +523,7 @@ export function startGame(characterName) {
     setStageStatus(completed[index] ? 'Quest complete' : 'Destination set', '');
     dialogue.textContent = `Walking to ${QUEST_LOCATIONS[index].entrance.name}. Interact with the entrance when you arrive.`;
     renderChapterNavigation();
-    world.setQuestStates(completed, accepted);
+    world.setQuestStates(completed, accepted, trophyQuest.completed);
     world.selectQuest(index, walk);
   }
 
@@ -491,7 +532,8 @@ export function startGame(characterName) {
   }
 
   function closeModal(id) {
-    document.querySelector(`#${id}`).classList.add('hidden');
+    const modal = document.querySelector(`#${id}`);
+    modal.classList.add('hidden');
   }
 
   function showMemory(index) {
@@ -511,7 +553,7 @@ export function startGame(characterName) {
     questToRemove = index;
     document.querySelector('#removeQuestTitle').textContent = `Remove ${chapters[index].title}?`;
     document.querySelector('#removeQuestDescription').textContent = completed[index]
-      ? `This removes its completion, keepsake and ${XP_PER_QUEST} XP. Your level and birthday reward eligibility may change. You can accept and complete it again by speaking to ${QUEST_LOCATIONS[index].guide}.`
+      ? `This removes its completion, keepsake and ${XP_PER_QUEST} XP.${trophyQuest.completed ? ' It also resets the hall finale and removes its 25 XP and level 30.' : ''} You can accept and complete it again by speaking to ${QUEST_LOCATIONS[index].guide}.`
       : `This removes the quest and its unfinished progress. You can accept it again by speaking to ${QUEST_LOCATIONS[index].guide}.`;
     if (worldQuestIndex === null) world.setPaused(true);
     removeQuestDialog.showModal();
@@ -526,15 +568,20 @@ export function startGame(characterName) {
 
   function confirmRemoveQuest() {
     if (removingTrophyQuest) {
-      const updated = { completed, accepted, gameSaves, trophyDisplays: Array(memories.length).fill(false),
-        trophyQuest: { accepted: false, completed: false } };
+      const updated = {
+        completed, accepted, gameSaves, trophyDisplays: Array(memories.length).fill(false),
+        trophyQuest: { accepted: false, completed: false }
+      };
       if (!saveProgress(updated)) {
         document.querySelector('#removeQuestDescription').textContent = 'The quest could not be removed because your browser could not save progress. Please try again.';
         return;
       }
       closeRemoveQuestDialog(); leaveTrophyRoom();
       trophyDisplays = updated.trophyDisplays; trophyQuest = updated.trophyQuest;
+      document.querySelector('#trophyQuestEntry .quest-steps').open = false;
+      renderInventory();
       renderChapterNavigation();
+      world.setQuestStates(completed, accepted, trophyQuest.completed);
       dialogue.textContent = 'The Hall of Memories was removed. Speak to Elowen to start again.';
       document.querySelector('#worldMessage').textContent = dialogue.textContent;
       document.querySelector('#questPanelTitle').focus();
@@ -562,15 +609,16 @@ export function startGame(characterName) {
     gameSaves = updated.gameSaves;
     trophyDisplays = updated.trophyDisplays;
     trophyQuest = updated.trophyQuest;
+    document.querySelector(`#qentry-${index + 1} .quest-steps`).open = false;
     world.clearQuestSelection(index);
     if (wasActive && worldQuestIndex === null) {
       activeChapter = null;
-      stageTitle.textContent = "Level 30 birthday adventure";
+      stageTitle.textContent = "Birthday adventure";
       setStageStatus('Exploring', '');
     }
     renderInventory();
     renderChapterNavigation();
-    world.setQuestStates(completed, accepted);
+    world.setQuestStates(completed, accepted, trophyQuest.completed);
     dialogue.textContent = `${chapters[index].title} removed. Speak to ${QUEST_LOCATIONS[index].guide} to start again.`;
     document.querySelector('#worldMessage').textContent = dialogue.textContent;
     document.querySelector('#questPanelTitle').focus();
@@ -624,7 +672,7 @@ export function startGame(characterName) {
       if (!trophyQuest.accepted) return;
       removingTrophyQuest = true;
       document.querySelector('#removeQuestTitle').textContent = 'Remove The Hall of Memories?';
-      document.querySelector('#removeQuestDescription').textContent = 'This resets the hall quest and its displays, but keeps your five earned keepsakes and XP. Speak to Elowen to accept it again.';
+      document.querySelector('#removeQuestDescription').textContent = 'This resets the hall quest and its displays. Your five keepsakes and their XP remain, but the finale’s 25 XP and level 30 are removed if earned. Speak to Elowen to accept it again.';
       if (worldQuestIndex === null) world.setPaused(true);
       removeQuestDialog.showModal();
     } else if (button.dataset.removeQuest !== undefined) {
@@ -649,8 +697,6 @@ export function startGame(characterName) {
       document.querySelector('#rivalryModal').classList.toggle('hidden');
     } else if (button.dataset.action === 'close-item') {
       closeModal('itemModal');
-    } else if (button.dataset.action === 'close-victory') {
-      closeModal('victoryModal');
     } else if (button.dataset.action === 'close-quest') {
       closeQuestDialog();
     }
@@ -673,11 +719,14 @@ export function startGame(characterName) {
 
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
-    ['victoryModal', 'itemModal', 'rivalryModal'].forEach((id) => closeModal(id));
+    ['itemModal', 'rivalryModal'].forEach((id) => closeModal(id));
   });
 
-  document.querySelector('#frightJournalClues').addEventListener('keydown', (event) => {
-    if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) event.stopPropagation();
+  document.querySelector('.quest-list').addEventListener('keydown', (event) => {
+    if (event.target.closest('.quest-steps')
+      && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) {
+      event.stopPropagation();
+    }
   });
 
   window.addEventListener('pagehide', () => {
@@ -688,5 +737,5 @@ export function startGame(characterName) {
 
   renderInventory();
   renderChapterNavigation();
-  world.setQuestStates(completed, accepted);
+  world.setQuestStates(completed, accepted, trophyQuest.completed);
 }

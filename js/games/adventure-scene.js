@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import { CANOPY_PLATFORMS, OBJECTS } from './adventure-logic.js';
+import { CANOPY_CROSSINGS, CANOPY_PLATFORMS, CANOPY_ZIPLINE, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_PARTNER_OFFSET, PUB_STOOLS, adventureObjectDistance } from './adventure-logic.js';
+import { COASTER_PLATFORM, COASTER_RAIL_OFFSET, COASTER_REJOIN_PROGRESS, COASTER_TREATS, coasterDirection, coasterHeading, coasterLanePosition, coasterPosition, coasterRailPosition } from './coaster-course.js';
+import { drawCoasterItem } from './coaster-art.js';
+import { createCharacterLegs } from './character-legs.js';
 
 export function createAdventureScene(canvas, index, onSelect, characterName) {
   const probe = document.createElement('canvas').getContext('webgl2');
@@ -14,10 +17,11 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   const sphereGeometry = new THREE.SphereGeometry(0.5, 12, 8);
   const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
   const coneGeometry = new THREE.ConeGeometry(0.5, 1, 8);
+  const triangleGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 3);
   const materials = new Map(), textures = [], interactive = [], platformMeshes = [];
-  const collectibles = new Map();
+  const collectibles = new Map(), beacons = new Map(), rideTreats = new Map(), rideItemImages = new Map();
   let state, player, train, ball, lightMarker, platformAmor, width = 1, height = 1, scale = 1, ballAnimation = 0, lastBallLost = false;
-  let platformCarriage;
+  let platformCarriage, pubLove, joinedHands, pubExitMarker, dropTrack;
   let cueGuide, poolBalls, placedCues, placedDrinks, previousPlayer, walkPhase = 0;
   const theme = index === 1 ? '#342f28' : index === 2 ? '#20272f' : '#152b29';
   scene.background = new THREE.Color(theme);
@@ -82,15 +86,66 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     box(0, 39, 0, 26, 38, 17, color, group);
     box(0, 70, 0, 19, 20, 19, '#dfb38c', group);
     box(0, 82, 0, 21, 6, 21, '#47372e', group);
-    const leftLeg = box(-7, 11, 0, 9, 22, 10, '#302d2a', group);
-    const rightLeg = box(7, 11, 0, 9, 22, 10, '#302d2a', group);
-    box(0, -9, 2, 10, 4, 13, '#594336', leftLeg); box(0, -9, 2, 10, 4, 13, '#594336', rightLeg);
-    group.userData.legs = [leftLeg, rightLeg];
+    group.userData.legs = createCharacterLegs(group, box, 7, '#594336');
     box(0, 27, 9, 26, 4, 2, '#a98e60', group);
     box(-5, 71, 10, 3, 3, 2, '#47372e', group); box(5, 71, 10, 3, 3, 2, '#47372e', group);
     box(-17, 40, 0, 7, 28, 8, color, group);
     box(17, 40, 0, 7, 28, 8, color, group);
     if (name) group.userData.label = label(name, x, 103, z);
+    return group;
+  }
+  function carriage(withRiders = false) {
+    const group = new THREE.Group(); scene.add(group);
+    box(0, 18, 0, 70, 35, 42, '#675143', group);
+    box(0, 38, -17, 72, 25, 8, '#493d34', group);
+    box(0, 34, 20, 74, 10, 6, '#9e896b', group);
+    for (const x of [-25, 25]) for (const z of [-24, 24]) {
+      round(cylinderGeometry, x, 9, z, 15, 7, 15, '#252f2c', group).rotation.z = Math.PI / 2;
+    }
+    if (withRiders) for (const [x, color] of [[-17, '#315d4a'], [17, '#a56a7c']]) {
+      const rider = person(color, null, x, 0, group); rider.position.y = 18; rider.scale.set(0.7, 0.7, 0.7);
+      rider.userData.legs.forEach((leg) => { leg.rotation.x = -Math.PI / 2; });
+    }
+    return group;
+  }
+  function itemImage(kind) {
+    if (!rideItemImages.has(kind)) {
+      const image = document.createElement('canvas'); image.width = 96; image.height = 96;
+      const context = image.getContext('2d');
+      if (!context) throw new Error('Could not create a coaster item icon.');
+      drawCoasterItem(context, kind); rideItemImages.set(kind, image);
+    }
+    return rideItemImages.get(kind);
+  }
+  function itemModel(kind) {
+    const group = new THREE.Group();
+    const b = (x, y, z, w, h, d, color) => box(x, y, z, w, h, d, color, group);
+    const r = (geometry, x, y, z, w, h, d, color) => round(geometry, x, y, z, w, h, d, color, group);
+    if (kind === 'pizza') {
+      r(triangleGeometry, 0, 0, 0, 56, 6, 56, '#f2c56b');
+      b(0, 5, -12, 45, 7, 7, '#c47c42');
+      for (const [x, z] of [[-9, -5], [10, -5], [0, 9]]) r(cylinderGeometry, x, 4, z, 9, 2, 9, '#c84c43');
+    } else if (kind === 'cup') {
+      r(cylinderGeometry, 0, 0, 0, 32, 45, 32, '#74c8d3');
+      r(cylinderGeometry, 0, 4, 0, 33, 11, 33, '#f4b65d');
+      r(cylinderGeometry, 0, 24, 0, 37, 5, 37, '#f3e5bf');
+      b(7, 34, 0, 4, 20, 4, '#ed8b88').rotation.z = -0.25;
+    } else if (kind === 'map') {
+      for (const [x, angle] of [[-19, 0.3], [0, -0.3], [19, 0.3]]) {
+        b(x, 0, 0, 20, 35, 3, '#e9dfba').rotation.y = angle;
+      }
+      b(0, 3, 3, 38, 3, 2, '#679b6c').rotation.z = 0.35;
+      r(sphereGeometry, 3, 6, 5, 7, 7, 7, '#cd6460');
+    } else if (kind === 'ticket') {
+      b(0, 0, 0, 54, 32, 5, '#f2c56b');
+      for (const x of [-18, 18]) for (const y of [-9, 0, 9]) b(x, y, 3, 3, 4, 2, '#9b6739');
+      b(-8, 0, 4, 3, 18, 2, '#9b6739'); b(-3, 8, 4, 13, 3, 2, '#9b6739'); b(-5, 1, 4, 9, 3, 2, '#9b6739');
+      b(8, 8, 4, 14, 3, 2, '#9b6739'); b(8, 0, 4, 3, 18, 2, '#9b6739');
+    } else if (kind === 'umbrella') {
+      r(coneGeometry, 0, 14, 0, 56, 25, 56, '#779ed1');
+      r(cylinderGeometry, 0, -9, 0, 3, 42, 3, '#e7e7db');
+      b(6, -29, 0, 14, 3, 3, '#e7e7db'); b(12, -25, 0, 3, 9, 3, '#e7e7db');
+    }
     return group;
   }
   function makeObject(object) {
@@ -99,8 +154,13 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     if (kind === 'npc') {
       mesh = person('#a56a7c', object.name, x, z);
       if (object.id === 'amor') platformAmor = mesh;
+      if (index === 1 && object.id === 'love') pubLove = mesh;
     } else {
-      if (kind === 'bar') {
+      if (kind === 'carriage') {
+        mesh = carriage();
+        mesh.position.set(x, coasterPosition('riding', 0).height, z);
+        mesh.rotation.y = coasterHeading('riding', 0);
+      } else if (kind === 'bar') {
         mesh = box(x, 40, z, 180, 80, 55, '#754b34');
         box(x, 84, z, 190, 9, 65, '#b59061');
         for (const offset of [-60, 0, 60]) {
@@ -109,7 +169,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           round(cylinderGeometry, x + offset, 116, z, 6, 6, 6, '#d4c184');
         }
       } else if (kind === 'pool') {
-        mesh = box(x, 37, z, 220, 55, 125, '#65482f');
+        mesh = box(x, 37, z, POOL_TABLE_FOOTPRINT.width, 55, 125, '#65482f');
         box(x, 68, z, 205, 8, 110, '#397852');
         for (const dz of [-61, 61]) box(x, 75, z + dz, 220, 14, 9, '#b48a51');
         for (const dx of [-108, 108]) box(x + dx, 75, z, 9, 14, 115, '#b48a51');
@@ -150,31 +210,31 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         mesh = box(x, 36, z, 62, 70, 32, '#70503b');
         box(x, 75, z, 40, 3, 25, '#e1d2aa');
         for (const dz of [-6, 0, 6]) box(x, 77, z + dz, 28, 1, 1, '#8e765a');
-      } else if (kind === 'carriage') {
-        mesh = new THREE.Group(); mesh.position.set(x, 0, z); scene.add(mesh);
-        box(0, 20, 0, 100, 40, 65, '#635145', mesh);
-        box(0, 48, 0, 80, 22, 50, '#796453', mesh);
-        for (const dx of [-28, 28]) {
-          box(dx, 55, -10, 28, 28, 18, '#47463a', mesh);
-          round(cylinderGeometry, dx, 10, 36, 15, 8, 15, '#292e2d', mesh).rotation.x = Math.PI / 2;
-        }
       } else if (kind === 'net' || kind === 'rope') {
+        const crossing = CANOPY_CROSSINGS[object.id];
+        const [endX, , endHeight] = crossing.end;
         if (kind === 'net') {
-          mesh = beam([x, h + 6, z - 38], [x + 70, h + 86, z - 38], 5, '#d7bd81');
-          for (let dz = -20; dz <= 40; dz += 20) beam([x, h + 6, z + dz], [x + 70, h + 86, z + dz], 4, '#d7bd81');
+          mesh = beam([x, h + 6, z - 38], [endX, endHeight + 6, z - 38], 5, '#d7bd81');
+          for (let dz = -20; dz <= 40; dz += 20) beam([x, h + 6, z + dz], [endX, endHeight + 6, z + dz], 4, '#d7bd81');
           for (let i = 0; i <= 5; i += 1) {
-            box(x + 14 * i, h + 6 + 16 * i, z, 5, 5, 85, '#d7bd81');
+            box(x + (endX - x) * i / 5, h + 6 + (endHeight - h) * i / 5, z, 5, 5, 85, '#d7bd81');
           }
         } else {
-          mesh = beam([x, h + 5, z], [x + 115, h + 55, z], 7, '#c3a77a');
-          for (const dz of [-27, 27]) beam([x, h + 55, z + dz], [x + 115, h + 105, z + dz], 4, '#d7bd81');
+          mesh = beam([x, h + 5, z], [endX, endHeight + 5, z], 7, '#c3a77a');
+          for (const dz of [-27, 27]) beam([x, h + 55, z + dz], [endX, endHeight + 55, z + dz], 4, '#d7bd81');
           for (let i = 0; i <= 4; i += 1) for (const dz of [-27, 27]) {
-            box(x + 28.75 * i, h + 30 + 12.5 * i, z + dz, 3, 50, 3, '#d7bd81');
+            box(x + (endX - x) * i / 4, h + 30 + (endHeight - h) * i / 4, z + dz, 3, 50, 3, '#d7bd81');
           }
         }
       } else if (kind === 'zipline') {
         mesh = box(x, h + 65, z, 10, 130, 10, '#c6a575');
-        beam([x, h + 85, z], [960, 85, 570], 4, '#e8d18c');
+        const cablePoint = (point) => [point.x, point.height + CANOPY_ZIPLINE.cableHeight, point.y];
+        beam(cablePoint(CANOPY_ZIPLINE.start), cablePoint(CANOPY_ZIPLINE.departure), 4, '#e8d18c');
+        beam(cablePoint(CANOPY_ZIPLINE.departure), cablePoint(CANOPY_ZIPLINE.end), 4, '#e8d18c');
+      } else if (kind === 'beacon') {
+        box(x, h + 22, z, 10, 44, 10, '#6d5537');
+        mesh = round(sphereGeometry, x, h + 52, z, 25, 30, 25, '#8a7959');
+        beacons.set(object.id, mesh);
       } else if (kind === 'collectible') {
         mesh = round(sphereGeometry, x, h + 30, z, 19, 19, 19, '#edd68e', scene, true);
         round(cylinderGeometry, x, h + 9, z, 30, 18, 30, '#644c35');
@@ -185,9 +245,11 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           kind === 'collectible' ? 20 : 45, color, scene, kind === 'collectible');
         if (kind === 'cabinet' || kind === 'locker') box(x, h + 30, z + 24, 48, 42, 4, '#a78c67');
       }
-      const objectLabel = label(object.name, x, h + (kind === 'bar' ? 135 : 105), z);
-      if (kind === 'collectible') collectibles.set(object.id, { mesh, label: objectLabel });
-      if (kind === 'carriage') platformCarriage = { mesh, label: objectLabel };
+      if (kind === 'collectible') collectibles.set(object.id, mesh);
+      if (index === 2 && kind === 'carriage') {
+        const objectLabel = label(object.name, x, h + (kind === 'bar' ? 135 : 105), z);
+        platformCarriage = { mesh, label: objectLabel };
+      }
     }
     mesh.userData.objectId = object.id;
     interactive.push(mesh);
@@ -216,78 +278,96 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         box(x, 105, 22, 88, 63, 2, '#35564e');
         box(x, 105, 24, 4, 63, 2, '#c3a97b'); box(x, 105, 24, 88, 4, 2, '#c3a97b');
       }
-      for (const x of [75, 135, 195]) {
-        round(cylinderGeometry, x, 20, 205, 8, 40, 8, '#5a3d2c');
-        round(cylinderGeometry, x, 42, 205, 35, 7, 35, '#9a714c');
-        round(cylinderGeometry, x, 2, 205, 24, 4, 24, '#4f392e');
-      }
       box(530, 2, 385, 340, 3, 195, '#573e36');
       box(530, 4, 385, 325, 2, 180, '#80584b');
-      for (const x of [420, 640]) for (const z of [470, 570]) {
-        round(cylinderGeometry, x, 35, z, 10, 70, 10, '#523c2c');
-        round(cylinderGeometry, x, 71, z, 47, 8, 47, '#956d48');
-        round(cylinderGeometry, x, 77, z, 37, 5, 37, '#68473d');
+      for (const { x, y: z, radius } of PUB_STOOLS) {
+        if (radius === 17.5) {
+          round(cylinderGeometry, x, 20, z, 8, 40, 8, '#5a3d2c');
+          round(cylinderGeometry, x, 42, z, radius * 2, 7, radius * 2, '#9a714c');
+          round(cylinderGeometry, x, 2, z, 24, 4, 24, '#4f392e');
+        } else {
+          round(cylinderGeometry, x, 35, z, 10, 70, 10, '#523c2c');
+          round(cylinderGeometry, x, 71, z, radius * 2, 8, radius * 2, '#956d48');
+          round(cylinderGeometry, x, 77, z, 37, 5, 37, '#68473d');
+        }
       }
       for (const x of [360, 660, 920]) {
         box(x, 146, 100, 5, 35, 5, '#6d5339');
         round(cylinderGeometry, x, 126, 100, 34, 10, 34, '#d9bc79');
         round(sphereGeometry, x, 119, 100, 15, 12, 15, '#f3d996', scene, true);
       }
+      pubExitMarker = new THREE.Group(); scene.add(pubExitMarker);
+      box(PUB_EXIT.x, 3, PUB_EXIT.y, 100, 5, 65, '#567b62', pubExitMarker);
+      box(PUB_EXIT.x, 7, PUB_EXIT.y, 65, 3, 5, '#d7c58c', pubExitMarker);
+      joinedHands = box(0, 27, 0, 10, 7, 8, '#dfb38c');
     } else if (index === 2) {
       box(500, -8, 350, 1000, 16, 700, '#384736');
       for (let x = 30; x < 1000; x += 65) for (let z = 25; z < 700; z += 65) {
         box(x, 1, z, 38 + (x * z % 23), 2, 28, (x + z) % 3 ? '#40533b' : '#4b5c40');
       }
-      box(500, 3, 530, 950, 6, 150, '#807768');
-      for (let x = 40; x < 960; x += 42) box(x, 7, 530, 2, 2, 145, '#5e584d');
-      for (const x of [65, 245, 410, 590, 760, 935]) for (const z of [40, 650]) {
+      const { left, right, top: platformTop, bottom: platformBottom } = COASTER_PLATFORM;
+      box((left + right) / 2, 3, (platformTop + platformBottom) / 2, right - left, 6, platformBottom - platformTop, '#807768');
+      for (let x = left + 15; x < right; x += 42) box(x, 7, (platformTop + platformBottom) / 2, 2, 2, platformBottom - platformTop - 5, '#5e584d');
+      joinedHands = box(0, 27, 0, 10, 7, 8, '#dfb38c');
+      for (const x of [65, 245, 410, 590, 760, 935]) {
+        const z = 40;
         round(cylinderGeometry, x, 45, z, 20, 90, 20, '#514433');
         for (let i = 0; i < 3; i += 1) round(coneGeometry, x, 100 + i * 27, z, 100 - i * 18, 75, 100 - i * 18, '#314c38');
       }
-      for (let i = 0; i < 96; i += 1) {
-        const a = i / 96 * Math.PI * 2, b = (i + 1) / 96 * Math.PI * 2;
-        const x = 500 + 350 * Math.cos(a), z = 280 + 200 * Math.sin(a);
-        const nx = 500 + 350 * Math.cos(b), nz = 280 + 200 * Math.sin(b);
-        const dx = nx - x, dz = nz - z, length = Math.hypot(dx, dz), yaw = -Math.atan2(dz, dx);
-        const progress = (i / 96 + 0.75) % 1;
-        const color = progress >= 0.64 && progress <= 0.72 ? '#d5b66c' : '#6e736a';
-        for (const side of [-1, 1]) {
-          const rail = box((x + nx) / 2 - dz / length * 13 * side, 45, (z + nz) / 2 + dx / length * 13 * side,
-            length + 1, 5, 5, color);
-          rail.rotation.y = yaw;
-        }
-        if (i % 3 === 0) {
-          const sleeper = box(x, 41, z, 7, 5, 36, '#645446'); sleeper.rotation.y = yaw;
-          box(x, 21, z, 7, 42, 7, '#5c5145');
+      for (const phase of ['riding', 'returning']) {
+        for (let i = 0; i < 120; i += 1) {
+          if (phase === 'returning' && i / 120 >= COASTER_REJOIN_PROGRESS) break;
+          const a = coasterPosition(phase, i / 120);
+          const direction = coasterDirection(phase, (i + 0.5) / 120);
+          for (const side of [-1, 1]) {
+            const start = coasterRailPosition(phase, i / 120, side);
+            const end = coasterRailPosition(phase, (i + 1) / 120, side);
+            beam([start.x, start.height, start.y], [end.x, end.height, end.y], 5,
+              phase === 'riding' ? '#b8a78a' : '#8b94a0');
+          }
+          if (i % 5 === 0) {
+            beam([a.x - direction.y * 32, a.height - 4, a.y + direction.x * 32],
+              [a.x + direction.y * 32, a.height - 4, a.y - direction.x * 32], 6, '#645446');
+            const clearLowerTrack = phase !== 'riding' || !Array.from({ length: 61 }, (_, j) => coasterPosition('returning', j / 60))
+              .some((point) => Math.hypot(point.x - a.x, point.y - a.y) < 30);
+            if (clearLowerTrack) box(a.x, a.height / 2, a.y, 6, a.height, 6, '#5c5145');
+          }
         }
       }
-      for (const [x, z] of [[430, 80], [855, 250]]) {
-        box(x, 65, z, 14, 130, 14, '#6d6654');
-        box(x, 132, z, 110, 14, 30, '#817867');
-        box(x - 48, 65, z, 15, 130, 30, '#686456');
-        box(x + 48, 65, z, 15, 130, 30, '#686456');
-        for (let y = 20; y < 130; y += 28) for (const dx of [-48, 48]) box(x + dx, y, z + 16, 16, 2, 2, '#4b5048');
+      const top = coasterPosition('dropping', 0), bottom = coasterPosition('dropping', 1);
+      const dropDirection = coasterDirection('dropping', 0);
+      for (const side of [-1, 1]) {
+        const dx = -dropDirection.y * COASTER_RAIL_OFFSET * side, dz = dropDirection.x * COASTER_RAIL_OFFSET * side;
+        beam([top.x + dx, top.height, top.y + dz], [bottom.x + dx, bottom.height, bottom.y + dz], 5, '#a28e6f');
+      }
+      dropTrack = new THREE.Group(); scene.add(dropTrack);
+      for (const side of [-1, 1]) box(side * COASTER_RAIL_OFFSET, 0, 0, 5, 5, 74, '#b8a78a', dropTrack);
+      for (const z of [-28, 0, 28]) box(0, -4, z, 64, 5, 6, '#645446', dropTrack);
+      const towerHeight = top.height + 105;
+      const towerSide = { x: -dropDirection.y * 70, y: dropDirection.x * 70 };
+      for (const side of [-1, 1]) {
+        box(top.x + towerSide.x * side, towerHeight / 2, top.y + towerSide.y * side,
+          10, towerHeight, 10, '#6d6654');
+      }
+      beam([top.x - towerSide.x, towerHeight, top.y - towerSide.y],
+        [top.x + towerSide.x, towerHeight, top.y + towerSide.y], 10, '#817867');
+      for (const treat of COASTER_TREATS) {
+        const point = coasterLanePosition(treat.progress, treat.lane);
+        const item = itemModel(treat.kind);
+        item.position.set(point.x, point.height, point.y); scene.add(item);
+        rideTreats.set(treat.id, item);
       }
       for (const x of [325, 925]) {
         box(x, 34, 610, 8, 68, 8, '#5a4939');
         round(sphereGeometry, x, 74, 610, 18, 18, 18, '#e1c47b', scene, true);
       }
-      train = new THREE.Group(); scene.add(train);
-      box(0, 18, 0, 70, 35, 42, '#675143', train);
-      box(0, 38, -17, 72, 25, 8, '#493d34', train);
-      box(0, 34, 20, 74, 10, 6, '#9e896b', train);
-      for (const x of [-25, 25]) for (const z of [-24, 24]) {
-        round(cylinderGeometry, x, 9, z, 15, 7, 15, '#252f2c', train).rotation.x = Math.PI / 2;
-      }
-      for (const [x, color] of [[-17, '#315d4a'], [17, '#a56a7c']]) {
-        const rider = person(color, null, x, 0, train); rider.position.y = 18; rider.scale.set(0.7, 0.7, 0.7);
-        rider.userData.legs.forEach((leg) => { leg.rotation.x = -Math.PI / 2; });
-      }
+      train = carriage(true);
     } else {
-      box(500, -100, 350, 1000, 10, 700, '#142d24');
-      for (let x = 25; x < 1000; x += 80) for (let z = 35; z < 700; z += 90) {
+      box(1160, -100, 350, 2320, 10, 700, '#142d24');
+      for (let x = 25; x < 2320; x += 80) for (let z = 35; z < 700; z += 90) {
         round(coneGeometry, x, -48, z, 80, 105, 80, (x + z) % 3 ? '#203f30' : '#294c36');
       }
+      box(CANOPY_ZIPLINE.end.x, -8, CANOPY_ZIPLINE.end.y, 150, 16, 110, '#806443');
       for (const p of CANOPY_PLATFORMS) {
         platformMeshes.push(box((p.left + p.right) / 2, p.height - 8, (p.top + p.bottom) / 2,
           p.right - p.left, 16, p.bottom - p.top, '#806443'));
@@ -302,7 +382,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           box(x, p.height + 22, z, 3, 44, 3, '#d1b680');
         }
       }
-      for (const x of [100, 270, 460, 660, 850]) for (const z of [70, 620]) {
+      for (const x of [100, 270, 460, 660, 850, 1050, 1250, 1450, 1650, 1820]) for (const z of [70, 620]) {
         round(cylinderGeometry, x, 30, z, 34, 260, 34, '#59402f');
         for (let i = 0; i < 3; i += 1) round(coneGeometry, x, 130 + i * 32, z, 140 - i * 25, 95, 140 - i * 25, i % 2 ? '#365c42' : '#294e38');
       }
@@ -321,7 +401,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   }
   function resize(w, h) {
     width = Math.max(1, w); height = Math.max(1, h);
-    scale = Math.min(width / 1050, height / 750);
+    scale = Math.min(width / (index === 3 && width < 520 ? 580 : 1050), height / 750);
     if (renderer) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(width, height, false);
       const viewHeight = width < 520 ? 820 : 850;
@@ -338,9 +418,13 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     if (state.ballLost && !lastBallLost) ballAnimation = 0.001;
     lastBallLost = Boolean(state.ballLost);
     if (ballAnimation && ballAnimation < 1) ballAnimation = Math.min(1, ballAnimation + dt / 2);
-    const targetX = width < 520 ? Math.max(220, Math.min(780, state.player.x)) : 500;
+    const riding = index === 2 && ['riding', 'dropping', 'returning'].includes(state.phase);
+    const ridePoint = riding ? coasterPosition(state.phase, state.progress) : null;
+    const followRide = renderer && riding && width < 520;
+    const targetX = followRide ? ridePoint.x : targetXForClick();
+    const targetY = followRide ? ridePoint.y
+      : state.pubTogether || (index === 3 && state.zipline) ? state.player.y : 350;
     if (renderer) {
-      const riding = index === 2 && ['riding', 'dropping', 'returning'].includes(state.phase);
       player.visible = !riding; player.position.set(state.player.x, state.player.height, state.player.y);
       if (previousPlayer && dt > 0) {
         const distance = Math.hypot(state.player.x - previousPlayer.x, state.player.y - previousPlayer.y);
@@ -353,15 +437,33 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       if (platformAmor) {
         platformAmor.visible = !riding;
         platformAmor.userData.label.visible = !riding;
+        const amorX = state.pubTogether ? state.player.x + PUB_PARTNER_OFFSET : OBJECTS[2].find((item) => item.id === 'amor').x;
+        const amorY = state.pubTogether ? state.player.y : OBJECTS[2].find((item) => item.id === 'amor').y;
+        platformAmor.position.set(amorX, 0, amorY);
+        platformAmor.userData.label.position.set(amorX, 103, amorY);
+        platformAmor.userData.legs.forEach((leg, i) => { leg.rotation.x = state.pubTogether ? player.userData.legs[i].rotation.x : 0; });
+        joinedHands.visible = Boolean(state.pubTogether);
+        joinedHands.position.set(state.player.x + PUB_PARTNER_OFFSET / 2, 27, state.player.y);
       }
       if (platformCarriage) {
         platformCarriage.mesh.visible = !riding;
         platformCarriage.label.visible = !riding;
       }
-      player.userData.label.position.set(state.player.x, state.player.height + 105, state.player.y);
-      camera.position.set(targetX + 500, 1100, 350 + 950); camera.lookAt(targetX, 0, 350); camera.updateMatrixWorld();
+      if (pubLove) {
+        const together = Boolean(state.pubTogether);
+        const loveX = together ? state.player.x + PUB_PARTNER_OFFSET : OBJECTS[1].find((item) => item.id === 'love').x;
+        const loveY = together ? state.player.y : OBJECTS[1].find((item) => item.id === 'love').y;
+        pubLove.position.set(loveX, 0, loveY);
+        pubLove.userData.label.position.set(loveX, 103, loveY);
+        pubLove.userData.legs.forEach((leg, i) => { leg.rotation.x = together ? player.userData.legs[i].rotation.x : 0; });
+        joinedHands.visible = together;
+        joinedHands.position.set(state.player.x + PUB_PARTNER_OFFSET / 2, 27, state.player.y);
+        pubExitMarker.visible = state.pubEnding === 'ready';
+      }
+      player.userData.label.position.set(state.player.x, state.player.height + (state.pubTogether ? 145 : 105), state.player.y);
+      camera.position.set(targetX + 500, 1100, targetY + 950); camera.lookAt(targetX, 0, targetY); camera.updateMatrixWorld();
       if (ball) {
-        const t = state.ballFound ? 1 : ballAnimation;
+        const t = state.ballFound || state.pubEnding ? 1 : ballAnimation;
         const offTable = Math.max(0, Math.min(1, (t - 0.2) / 0.15));
         ball.position.set(512 + 328 * t, 77 - 71 * offTable, 230 + 270 * t);
         ball.rotation.z = -t * 15;
@@ -384,42 +486,139 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       }
       if (train) {
         train.visible = riding;
-        const angle = (state.phase === 'riding' ? state.progress : state.phase === 'returning' ? 0.72 + state.progress * 0.28 : 0.68) * Math.PI * 2 + Math.PI / 2;
-        train.position.set(500 + 350 * Math.cos(angle), state.phase === 'dropping' ? 45 - state.progress * 60 : state.phase === 'returning' ? -15 : 45, 280 + 200 * Math.sin(angle));
-        train.rotation.y = -angle;
+        dropTrack.visible = state.phase === 'dropping';
+        if (riding) {
+          train.position.set(ridePoint.x, ridePoint.height, ridePoint.y);
+          train.rotation.y = coasterHeading(state.phase, state.progress);
+          train.rotation.z = state.phase === 'riding' ? -state.lane * 0.08 : 0;
+          if (state.phase === 'dropping') {
+            dropTrack.position.set(ridePoint.x, ridePoint.height, ridePoint.y);
+            dropTrack.rotation.y = train.rotation.y;
+          }
+        }
+        for (const treat of COASTER_TREATS) {
+          rideTreats.get(treat.id).visible = !state.treats.includes(treat.id);
+        }
       }
       if (lightMarker) {
-        const p = CANOPY_PLATFORMS[Math.min(state.checkpoint + 1, 3)];
+        const p = CANOPY_PLATFORMS[Math.min(state.checkpoint + 1, CANOPY_PLATFORMS.length - 1)];
         lightMarker.position.set((p.left + p.right) / 2, p.height + 3, 350);
         platformMeshes.forEach((platform, i) => { platform.material = material(i <= state.checkpoint + 1 ? '#806443' : '#283a32'); });
       }
       collectibles.forEach((item, id) => {
         const platform = ['leaf', 'feather', 'acorn', 'star'].indexOf(id);
-        const visible = !state.collected.includes(id) && platform <= state.checkpoint + 1;
-        item.mesh.visible = visible; item.label.visible = visible;
+        item.visible = !state.collected.includes(id) && platform <= state.checkpoint + 1;
+      });
+      beacons.forEach((beacon, id) => {
+        beacon.material = material((state.lanterns || []).includes(id) ? '#f0d484' : '#8a7959', (state.lanterns || []).includes(id));
       });
       renderer.render(scene, camera);
       return;
     }
     ctx.fillStyle = theme; ctx.fillRect(0, 0, width, height);
-    const sx = (x) => width / 2 + (x - targetX) * scale, sy = (y) => height / 2 + (y - 350) * scale;
+    const sx = (x) => width / 2 + (x - targetX) * scale, sy = (y) => height / 2 + (y - targetY) * scale;
     if (index !== 3) { ctx.fillStyle = index === 1 ? '#71583f' : '#414d3d'; ctx.fillRect(sx(0), sy(0), 1000 * scale, 700 * scale); }
     else for (const [i, p] of CANOPY_PLATFORMS.entries()) {
       ctx.fillStyle = i <= state.checkpoint + 1 ? '#806443' : '#283a32'; ctx.fillRect(sx(p.left), sy(p.top), (p.right - p.left) * scale, (p.bottom - p.top) * scale);
-      ctx.strokeStyle = i === Math.min(state.checkpoint + 1, 3) ? '#e9ca76' : '#594c36'; ctx.lineWidth = 3;
+      ctx.strokeStyle = i === Math.min(state.checkpoint + 1, CANOPY_PLATFORMS.length - 1) ? '#e9ca76' : '#594c36'; ctx.lineWidth = 3;
       ctx.strokeRect(sx(p.left), sy(p.top), (p.right - p.left) * scale, (p.bottom - p.top) * scale);
     }
+    if (index === 3) {
+      ctx.strokeStyle = '#d7bd81'; ctx.lineWidth = 4;
+      Object.values(CANOPY_CROSSINGS).forEach(({ start, end }) => {
+        ctx.beginPath(); ctx.moveTo(sx(start[0]), sy(start[1])); ctx.lineTo(sx(end[0]), sy(end[1])); ctx.stroke();
+      });
+      ctx.fillStyle = '#806443';
+      ctx.fillRect(sx(CANOPY_ZIPLINE.end.x - 75), sy(CANOPY_ZIPLINE.end.y - 55), 150 * scale, 110 * scale);
+      ctx.beginPath();
+      ctx.moveTo(sx(CANOPY_ZIPLINE.start.x), sy(CANOPY_ZIPLINE.start.y));
+      ctx.lineTo(sx(CANOPY_ZIPLINE.departure.x), sy(CANOPY_ZIPLINE.departure.y));
+      ctx.lineTo(sx(CANOPY_ZIPLINE.end.x), sy(CANOPY_ZIPLINE.end.y));
+      ctx.stroke();
+    }
     if (index === 2) {
-      ctx.strokeStyle = '#d1b995'; ctx.lineWidth = 5; ctx.beginPath();
-      ctx.ellipse(sx(500), sy(280), 350 * scale, 200 * scale, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#807768';
+      ctx.fillRect(sx(COASTER_PLATFORM.left), sy(COASTER_PLATFORM.top),
+        (COASTER_PLATFORM.right - COASTER_PLATFORM.left) * scale, (COASTER_PLATFORM.bottom - COASTER_PLATFORM.top) * scale);
+      for (const phase of ['returning', 'riding']) {
+        ctx.strokeStyle = phase === 'riding' ? '#d1b995' : '#8b94a0';
+        ctx.lineWidth = phase === 'riding' ? 5 : 3; ctx.beginPath();
+        const segments = phase === 'returning' ? Math.round(120 * COASTER_REJOIN_PROGRESS) : 120;
+        for (let i = 0; i <= segments; i += 1) {
+          const point = coasterPosition(phase, i / 120);
+          if (i === 0) ctx.moveTo(sx(point.x), sy(point.y));
+          else ctx.lineTo(sx(point.x), sy(point.y));
+        }
+        ctx.stroke();
+      }
+      for (const treat of COASTER_TREATS) {
+        if (state.treats.includes(treat.id)) continue;
+        const point = coasterLanePosition(treat.progress, treat.lane);
+        ctx.drawImage(itemImage(treat.kind), sx(point.x) - 15, sy(point.y) - 15, 30, 30);
+      }
+    }
+    if (index === 1) {
+      if (state.pubEnding === 'ready') {
+        ctx.fillStyle = '#567b62';
+        ctx.fillRect(sx(PUB_EXIT.x - 50), sy(PUB_EXIT.y - 32.5), 100 * scale, 65 * scale);
+      }
+      ctx.fillStyle = '#956d48';
+      for (const stool of PUB_STOOLS) {
+        ctx.beginPath(); ctx.arc(sx(stool.x), sy(stool.y), stool.radius * scale, 0, Math.PI * 2); ctx.fill();
+      }
     }
     OBJECTS[index].forEach((object) => {
       if (['amor', 'carriage'].includes(object.id) && ['riding', 'dropping', 'returning'].includes(state.phase)) return;
       if (object.kind === 'collectible' && (state.collected.includes(object.id)
         || ['leaf', 'feather', 'acorn', 'star'].indexOf(object.id) > state.checkpoint + 1)) return;
-      ctx.fillStyle = object.kind === 'npc' ? '#d29caf' : object.kind === 'collectible' ? '#f4d686' : '#a9895e';
+      if (object.kind === 'carriage') {
+        ctx.save(); ctx.translate(sx(object.x), sy(object.y)); ctx.rotate(-coasterHeading('riding', 0));
+        ctx.fillStyle = '#675143'; ctx.fillRect(-35 * scale, -21 * scale, 70 * scale, 42 * scale); ctx.restore();
+        ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
+        ctx.fillText(object.name, sx(object.x), sy(object.y) - 25 * scale);
+        return;
+      }
+      if (index === 2 && object.id === 'amor' && state.pubTogether) {
+        ctx.fillStyle = '#d29caf';
+        ctx.fillRect(sx(state.player.x + PUB_PARTNER_OFFSET) - 13, sy(state.player.y) - 13, 26, 26);
+        ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
+        ctx.fillText(object.name, sx(state.player.x + PUB_PARTNER_OFFSET), sy(state.player.y) - 17);
+        return;
+      }
+      if (index === 2 && object.kind === 'locker') {
+        ctx.fillStyle = '#6d7f80';
+        ctx.fillRect(sx(object.x - object.footprint.width / 2), sy(object.y - object.footprint.depth / 2),
+          object.footprint.width * scale, object.footprint.depth * scale);
+        return;
+      }
+      if (index === 1 && object.kind === 'pool') {
+        ctx.fillStyle = '#65482f';
+        ctx.fillRect(sx(object.x - POOL_TABLE_FOOTPRINT.width / 2), sy(object.y - POOL_TABLE_FOOTPRINT.depth / 2),
+          POOL_TABLE_FOOTPRINT.width * scale, POOL_TABLE_FOOTPRINT.depth * scale);
+        ctx.fillStyle = '#397852';
+        ctx.fillRect(sx(object.x - 100), sy(object.y - 52), 200 * scale, 104 * scale);
+        return;
+      }
+      if (index === 1 && object.footprint) {
+        const objectX = object.id === 'love' && state.pubTogether ? state.player.x + PUB_PARTNER_OFFSET : object.x;
+        const objectY = object.id === 'love' && state.pubTogether ? state.player.y : object.y;
+        ctx.fillStyle = object.kind === 'npc' ? '#d29caf' : '#a9895e';
+        const { width: w, depth: d, radius } = object.footprint;
+        if (radius !== undefined) {
+          ctx.beginPath(); ctx.arc(sx(objectX), sy(objectY), radius * scale, 0, Math.PI * 2); ctx.fill();
+        } else ctx.fillRect(sx(objectX - w / 2), sy(objectY - d / 2), w * scale, d * scale);
+        if (object.kind === 'npc') {
+          ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
+          ctx.fillText(object.name, sx(objectX), sy(objectY) - 17);
+        }
+        return;
+      }
+      ctx.fillStyle = object.kind === 'npc' ? '#d29caf' : object.kind === 'collectible'
+        || (object.kind === 'beacon' && (state.lanterns || []).includes(object.id)) ? '#f4d686' : '#a9895e';
       ctx.fillRect(sx(object.x) - 13, sy(object.y) - 13, 26, 26);
-      ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd'; ctx.fillText(object.name, sx(object.x), sy(object.y) - 17);
+      if (index !== 3) {
+        ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd'; ctx.fillText(object.name, sx(object.x), sy(object.y) - 17);
+      }
     });
     if (index === 1 && state.shot) {
       ctx.strokeStyle = '#fff3be'; ctx.lineWidth = 3; ctx.beginPath();
@@ -430,10 +629,19 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     if (index !== 2 || !['riding', 'dropping', 'returning'].includes(state.phase)) {
       ctx.fillStyle = '#e7c198'; ctx.beginPath(); ctx.arc(sx(state.player.x), sy(state.player.y), 8, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#315d4a'; ctx.fillRect(sx(state.player.x) - 8, sy(state.player.y) + 6, 16, 16);
+      if ((index === 1 || index === 2) && state.pubTogether) {
+        ctx.fillStyle = '#dfb38c';
+        ctx.fillRect(sx(state.player.x + PUB_PARTNER_OFFSET), sy(state.player.y) + 5, -PUB_PARTNER_OFFSET * scale, 4);
+      }
+      if ((index === 1 || index === 3) && characterName) {
+        ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
+        ctx.fillText(characterName, sx(state.player.x), sy(state.player.y) - (state.pubTogether ? 31 : 17));
+      }
     }
     if (index === 2 && ['riding', 'dropping', 'returning'].includes(state.phase)) {
-      const angle = (state.phase === 'riding' ? state.progress : state.phase === 'returning' ? 0.72 + state.progress * 0.28 : 0.68) * Math.PI * 2 + Math.PI / 2;
-      ctx.fillStyle = '#dec181'; ctx.fillRect(sx(500 + 350 * Math.cos(angle)) - 15, sy(280 + 200 * Math.sin(angle)) - 10, 30, 20);
+      ctx.save(); ctx.translate(sx(ridePoint.x), sy(ridePoint.y));
+      ctx.rotate(-coasterHeading(state.phase, state.progress));
+      ctx.fillStyle = '#dec181'; ctx.fillRect(-15, -10, 30, 20); ctx.restore();
     }
   }
   function click(event) {
@@ -448,11 +656,19 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       if (!hit) return;
       target = { x: hit.x, y: hit.z };
     } else target = { x: targetXForClick() + (event.clientX - rect.left - width / 2) / scale,
-      y: 350 + (event.clientY - rect.top - height / 2) / scale };
-    const object = OBJECTS[index].find((item) => Math.hypot(item.x - target.x, item.y - target.y) < 40);
+      y: (state.pubTogether ? state.player.y : 350) + (event.clientY - rect.top - height / 2) / scale };
+    const object = OBJECTS[index].find((item) => (index === 1 || index === 2) && item.footprint
+      ? adventureObjectDistance(index, target, item) === 0
+      : Math.hypot(item.x - target.x, item.y - target.y) < 40);
     onSelect(object ? { objectId: object.id } : target);
   }
-  function targetXForClick() { return width < 520 ? Math.max(220, Math.min(780, state.player.x)) : 500; }
+  function targetXForClick() {
+    if (state.pubTogether) return state.player.x;
+    if (index === 3 && state.zipline) return state.player.x;
+    if (index === 3) return Math.max(220, Math.min(1660, state.player.x));
+    if (!renderer && index === 2) return 500;
+    return width < 520 ? Math.max(220, Math.min(780, state.player.x)) : 500;
+  }
   canvas.addEventListener('click', click);
   function objectPosition(id) {
     const object = OBJECTS[index].find((item) => item.id === id);
@@ -464,7 +680,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     return { x: width / 2 + (object.x - targetXForClick()) * scale, y: height / 2 + (object.y - 350) * scale - 30 };
   }
   return { draw, resize, objectPosition, dispose() {
-    canvas.removeEventListener('click', click); boxGeometry.dispose(); sphereGeometry.dispose(); cylinderGeometry.dispose(); coneGeometry.dispose(); materials.forEach((m) => m.dispose());
+    canvas.removeEventListener('click', click); boxGeometry.dispose(); sphereGeometry.dispose(); cylinderGeometry.dispose(); coneGeometry.dispose(); triangleGeometry.dispose(); materials.forEach((m) => m.dispose());
     textures.forEach((t) => t.dispose()); renderer?.dispose();
   } };
 }

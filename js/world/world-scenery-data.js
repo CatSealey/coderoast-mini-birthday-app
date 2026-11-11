@@ -1,4 +1,7 @@
-// Coordinates are offsets from the relevant quest guide.
+// The course sits behind the GoApe entrance, leaving the foreground clear.
+export const CANOPY_OFFSET = Object.freeze({ x: 0, z: -520 });
+
+// Platform coordinates are offsets from the course center.
 export const CANOPY_PLATFORMS = Object.freeze([
   { x: -340, z: -310, height: 145, size: 76 },
   { x: -85, z: -370, height: 180, size: 92 },

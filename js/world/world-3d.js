@@ -4,7 +4,7 @@ import { regionBlendAt } from './world-regions.js';
 import { PARK_RIDES } from './park-scenery.js';
 import { roadDistance } from './world-art.js';
 import { WORLD_NPCS } from './world-npcs.js';
-import { CANOPY_LINKS, CANOPY_PLATFORMS, COASTER_TRACKS, placeQuestDecorations } from './world-scenery-data.js';
+import { CANOPY_LINKS, CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, placeQuestDecorations } from './world-scenery-data.js';
 import { worldCornWalls, worldTrees } from './world-collision.js';
 
 function random(index, salt = 0) {
@@ -269,12 +269,12 @@ export function createWorld3D(canvas, ground, characterName) {
     person.add(label);
     return person;
   });
-  const entrances = QUEST_LOCATIONS.map((quest) => {
+  const entrances = QUEST_LOCATIONS.map((quest, index) => {
     const marker = groupAt(quest.entrance.x, quest.entrance.y);
     const ring = mesh(new THREE.TorusGeometry(21, 3, 6, 24), '#e6bf63', marker, 0, 3, 0);
     ring.rotation.x = Math.PI / 2;
     const label = textSprite(`ENTER · ${quest.entrance.name.toUpperCase()}`, 'rgba(38, 48, 34, .94)', 512);
-    label.position.y = 48;
+    label.position.set(index === 3 ? -90 : 0, 48, index === 3 ? 40 : 0);
     marker.add(label);
     return label;
   });
@@ -473,7 +473,7 @@ export function createWorld3D(canvas, ground, characterName) {
     halo.scale.set(size * 7, size * 7, 1);
     parent.add(halo);
   }
-  const canopy = groupAt(forest.x, forest.y);
+  const canopy = groupAt(forest.x + CANOPY_OFFSET.x, forest.y + CANOPY_OFFSET.z);
   CANOPY_PLATFORMS.forEach((platform, index) => {
     const g = new THREE.Group();
     g.position.set(platform.x, 0, platform.z);

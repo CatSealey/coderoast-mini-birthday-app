@@ -300,29 +300,6 @@
   gap: 5px;
 }
 
-.quest-clues {
-  margin-top: 8px;
-  padding: 8px;
-  border: 1px solid #3c4d59;
-  border-radius: 4px;
-  background: rgba(5, 11, 16, 0.6);
-  color: #d2d7d5;
-  font-size: 0.7rem;
-  line-height: 1.4;
-}
-
-.quest-clues summary {
-  color: #e1cc88;
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.quest-clues__list {
-  max-height: 180px;
-  overflow-y: auto;
-  overflow-wrap: anywhere;
-}
-
 .fright-clue-group {
   margin-top: 8px;
 }
@@ -339,6 +316,59 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 38px;
   gap: 4px;
+}
+
+.quest-steps {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid #3c4d59;
+  border-radius: 4px;
+  background: rgba(5, 11, 16, 0.6);
+  color: #d2d7d5;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.quest-steps summary {
+  color: #e1cc88;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.quest-steps__list {
+  max-height: 180px;
+  margin: 6px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  list-style: none;
+}
+
+.quest-steps__list li {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.quest-steps__marker {
+  flex: none;
+  color: #92a3ae;
+}
+
+.quest-steps__marker--done {
+  color: #a7cf86;
+}
+
+.quest-steps__content {
+  min-width: 0;
+}
+
+.quest-steps__substeps {
+  margin: 4px 0 8px;
+  padding-left: 12px;
+  border-left: 1px solid #52616a;
+  list-style: none;
 }
 
 .quest-entry__remove {
@@ -482,4 +512,3 @@
   border-color: #59636a;
   background: linear-gradient(180deg, rgba(25, 35, 42, 0.99), rgba(11, 18, 24, 0.99));
 }
-

@@ -46,7 +46,7 @@
       </div>
       <div class="client-topbar__right">
         <span class="client-quest-status"><span class="client-status-dot" aria-hidden="true"></span><span
-            id="questProgressText">In progress · 0/5</span></span>
+            id="questProgressText">In progress · 0/6</span></span>
         <button type="button" data-action="toggle-rivalry" class="rs3-btn client-icon-button"
           aria-label="Open football rivalry">⚽</button>
       </div>
@@ -57,7 +57,7 @@
         <section class="client-panel quest-panel" aria-labelledby="questPanelTitle">
           <div class="client-panel__title">
             <h2 id="questPanelTitle" tabindex="-1"><span aria-hidden="true">☷</span> QUEST JOURNAL</h2>
-            <span class="client-panel__count"><span id="heroProgressText">0 of 5</span></span>
+            <span class="client-panel__count"><span id="heroProgressText">0 of 6</span></span>
           </div>
           <p class="client-panel__intro" id="questJournalHint">Your journal is empty. Find quest givers marked on the world map.</p>
           <nav class="quest-list" aria-label="Birthday quest chapters">
@@ -68,6 +68,7 @@
                 <span id="qstatus-1" class="quest-row__status">Available</span>
               </button>
               <button type="button" class="quest-entry__remove" data-remove-quest="0" aria-label="Remove Abigail Escape from journal">✕</button>
+              <details class="quest-steps"><summary>Quest steps <span id="questStepsCount-1"></span></summary><ol id="questSteps-1" class="quest-steps__list" tabindex="0" aria-label="Abigail Escape quest steps"></ol></details>
             </div>
             <div class="quest-entry" id="qentry-2" hidden>
               <button id="qbtn-2" type="button" data-level="2" class="quest-row">
@@ -76,6 +77,7 @@
                 <span id="qstatus-2" class="quest-row__status">Locked</span>
               </button>
               <button type="button" class="quest-entry__remove" data-remove-quest="1" aria-label="Remove Lucky Chucks from journal">✕</button>
+              <details class="quest-steps"><summary>Quest steps <span id="questStepsCount-2"></span></summary><ol id="questSteps-2" class="quest-steps__list" tabindex="0" aria-label="Lucky Chucks quest steps"></ol></details>
             </div>
             <div class="quest-entry" id="qentry-3" hidden>
               <button id="qbtn-3" type="button" data-level="3" class="quest-row">
@@ -84,6 +86,7 @@
                 <span id="qstatus-3" class="quest-row__status">Locked</span>
               </button>
               <button type="button" class="quest-entry__remove" data-remove-quest="2" aria-label="Remove Thirteen from journal">✕</button>
+              <details class="quest-steps"><summary>Quest steps <span id="questStepsCount-3"></span></summary><ol id="questSteps-3" class="quest-steps__list" tabindex="0" aria-label="Thirteen quest steps"></ol></details>
             </div>
             <div class="quest-entry" id="qentry-4" hidden>
               <button id="qbtn-4" type="button" data-level="4" class="quest-row">
@@ -92,6 +95,7 @@
                 <span id="qstatus-4" class="quest-row__status">Locked</span>
               </button>
               <button type="button" class="quest-entry__remove" data-remove-quest="3" aria-label="Remove GoApe After Dark from journal">✕</button>
+              <details class="quest-steps"><summary>Quest steps <span id="questStepsCount-4"></span></summary><ol id="questSteps-4" class="quest-steps__list" tabindex="0" aria-label="GoApe quest steps"></ol></details>
             </div>
             <div class="quest-entry" id="qentry-5" hidden>
               <button id="qbtn-5" type="button" data-level="5" class="quest-row">
@@ -100,6 +104,7 @@
                 <span id="qstatus-5" class="quest-row__status">Locked</span>
               </button>
               <button type="button" class="quest-entry__remove" data-remove-quest="4" aria-label="Remove Fright Nights from journal">✕</button>
+              <details class="quest-steps"><summary>Quest steps <span id="questStepsCount-5"></span></summary><ol id="questSteps-5" class="quest-steps__list" tabindex="0" aria-label="Fright Nights quest steps"></ol></details>
             </div>
             <div class="quest-entry" id="trophyQuestEntry" hidden>
               <button id="trophyQuestButton" type="button" class="quest-row" data-action="trophy-quest">
@@ -108,15 +113,12 @@
                 <span id="trophyQuestStatus" class="quest-row__status">Accepted</span>
               </button>
               <button type="button" class="quest-entry__remove" data-action="remove-trophy-quest" aria-label="Remove The Hall of Memories from journal">✕</button>
+              <details class="quest-steps"><summary>Quest steps <span id="trophyStepsCount"></span></summary><ol id="trophySteps" class="quest-steps__list" tabindex="0" aria-label="The Hall of Memories quest steps"></ol></details>
             </div>
           </nav>
-          <details class="quest-clues" id="frightJournal" open hidden>
-            <summary>Fright Nights clues <span id="frightJournalCount"></span></summary>
-            <div class="quest-clues__list" id="frightJournalClues" tabindex="0" aria-label="Discovered Fright Nights clues"></div>
-          </details>
           <div class="client-chat" aria-label="Quest log message">
             <span class="client-chat__label"><span aria-hidden="true">✧</span> QUEST GUIDE</span>
-            <p id="dialogueText">Welcome, Adventurer. Your level 30 birthday adventure awaits.</p>
+            <p id="dialogueText">Welcome, Adventurer. Your birthday adventure awaits.</p>
           </div>
         </section>
       </aside>
@@ -126,7 +128,7 @@
           <div class="world-titlebar__location"><span class="world-location-dot" aria-hidden="true"></span><span
               id="worldLocation">LUMBRIDGE CASTLE · GIELINOR</span></div>
           <span id="stageBadge" class="world-stage-badge">Exploring</span>
-          <h1 id="stageTitle">Level 30 birthday adventure</h1>
+          <h1 id="stageTitle">Birthday adventure</h1>
         </div>
 
         <p id="worldRenderNotice" hidden>3D is unavailable in this browser. Showing the illustrated world instead.</p>
@@ -182,7 +184,7 @@
             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0 of 100 XP">
             <div id="progressFill" class="progress-fill"></div>
           </div>
-          <p class="birthday-xp-copy" id="birthdayXpCopy">Complete quests to earn 20 XP each.</p>
+          <p class="birthday-xp-copy" id="birthdayXpCopy">Earn 15 XP per keepsake quest, then 25 XP for the finale.</p>
         </section>
 
         <section class="client-panel inventory-panel" aria-labelledby="inventoryTitle">
@@ -310,48 +312,6 @@
       </div>
       <button type="button" data-action="close-item" class="w-full rs3-btn py-2 text-sm rounded-lg">Close
         keepsake</button>
-    </div>
-  </div>
-
-  <!-- MODAL: FINAL LEVEL UP 99 BIRTHDAY REWARD -->
-  <div id="victoryModal" data-modal-backdrop
-    class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div
-      class="rs3-panel modal-panel max-w-lg w-full p-6 rounded-xl border-2 border-yellow-400 text-center relative level-up-glow"
-      role="dialog" aria-modal="true" aria-labelledby="victoryTitle">
-
-      <!-- Sparkles / Confetti Icon -->
-      <div class="text-5xl mb-2 animate-bounce">🎉 ⚔️ 👑</div>
-
-      <!-- Birthday level-up banner -->
-      <div
-        class="bg-gradient-to-r from-amber-900 via-yellow-700 to-amber-900 border-y-2 border-yellow-300 py-2 px-4 mb-4 shadow-lg">
-        <p class="rune-font text-xs text-yellow-200">CONGRATULATIONS!</p>
-        <h2 id="victoryTitle" class="rune-font text-base sm:text-lg text-yellow-300 tracking-wide mt-1">YOU JUST LEVELED
-          UP!</h2>
-      </div>
-
-      <div class="space-y-3 mb-6">
-        <p class="text-2xl text-pink-300 font-bold">Level 30 Birthday Legend Achieved! 💖</p>
-        <p class="text-sm text-amber-200 leading-relaxed px-2">
-          Your's level 30 adventure is complete! From escaping Abigail in Kettering to our terrible pool games at
-          Lucky Chucks, getting tricked on Thirteen, glowing GoApe trees and spooky Fright Nights — every adventure is
-          better with you. Thank you for being my favourite teammate, flatpack master, and person to watch one more
-          documentary with.
-        </p>
-      </div>
-
-      <!-- Surprise Gift Voucher Box -->
-      <div class="bg-black/60 border-2 border-dashed border-yellow-400 p-4 rounded-lg mb-6">
-        <span class="rune-font text-xs text-yellow-400 block mb-1">🎁 SPECIAL BIRTHDAY REWARD UNLOCKED</span>
-        <p class="text-lg font-bold text-green-300">1× ticket for cuddles and films!</p>
-        <p class="text-xs text-amber-300/80 mt-1">Redeem any time with your favourite Arsenal fan.</p>
-      </div>
-
-      <div class="flex gap-3">
-        <button type="button" data-action="close-victory" class="flex-1 rs3-btn py-2 text-xs rounded-lg">Back to the trophy room</button>
-      </div>
-
     </div>
   </div>
 

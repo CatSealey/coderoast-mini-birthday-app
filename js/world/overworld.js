@@ -17,6 +17,10 @@ const DIRECTIONS = {
   ArrowRight: { x: 1, y: 0 }, d: { x: 1, y: 0 }
 };
 
+function entranceLabelOffset(index) {
+  return index === 3 ? { x: -90, y: -50 } : { x: 0, y: -35 };
+}
+
 function drawPerson(ctx, color, moving, time) {
   const stride = moving ? Math.sin(time / 120) * 5 : 0;
   ctx.fillStyle = 'rgba(10, 20, 15, .38)';
@@ -65,7 +69,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   const declineOfferButton = document.querySelector('#declineQuestOffer');
   const state = {
     player: { ...WORLD_SPAWN }, target: null, questIndex: null, destinationKind: 'guide', pendingEntrance: null,
-    completed: Array(QUEST_LOCATIONS.length).fill(false), accepted: Array(QUEST_LOCATIONS.length).fill(false), paused: false,
+    completed: Array(QUEST_LOCATIONS.length).fill(false), accepted: Array(QUEST_LOCATIONS.length).fill(false), finaleCompleted: false, paused: false,
     npcIndex: null, npcDialogue: Array(WORLD_NPCS.length).fill(0), speaker: null,
     frame: 0, lastFrame: 0, keys: new Set(), heldDirections: new Set(), disposed: false, path: []
   };
@@ -251,12 +255,15 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
         if (selected) label(ctx, quest.guide, -101);
       }
     }));
-    QUEST_LOCATIONS.forEach((quest) => actors.push({
+    QUEST_LOCATIONS.forEach((quest, index) => actors.push({
       ...quest.entrance,
       draw(ctx) {
         ctx.strokeStyle = '#e6bf63'; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.ellipse(0, 0, 21, 9, 0, 0, Math.PI * 2); ctx.stroke();
-        label(ctx, `ENTER · ${quest.entrance.name}`, -35);
+        const offset = entranceLabelOffset(index);
+        ctx.save(); ctx.translate(offset.x, 0);
+        label(ctx, `ENTER · ${quest.entrance.name}`, offset.y);
+        ctx.restore();
       }
     }));
     WORLD_NPCS.forEach((npc) => actors.push({
@@ -270,7 +277,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       ...state.player,
       draw(ctx) {
         drawPerson(ctx, '#315a49', Boolean(state.target || state.keys.size || state.heldDirections.size), state.frame);
-        label(ctx, `${characterName.toUpperCase()} · ${birthdayProgress(state.completed).level}`, -70);
+        label(ctx, `${characterName.toUpperCase()} · ${birthdayProgress(state.completed, state.finaleCompleted).level}`, -70);
       }
     });
     art.draw(context, camera, zoom, canvasWidth, canvasHeight, actors);
@@ -399,9 +406,11 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     if (state.paused) return;
     worldCanvas.focus();
     const screen = { x: event.clientX - worldCanvas.getBoundingClientRect().left, y: event.clientY - worldCanvas.getBoundingClientRect().top };
-    const entranceIndex = world3d ? world3d.entranceAt(screen) : QUEST_LOCATIONS.findIndex((quest) => {
+    const entranceIndex = world3d ? world3d.entranceAt(screen) : QUEST_LOCATIONS.findIndex((quest, index) => {
       const position = projectWorld(quest.entrance, camera, zoom);
-      return Math.abs(screen.x - position.x) <= 80 * zoom && Math.abs(screen.y - (position.y - 35 * zoom)) <= 16 * zoom;
+      const offset = entranceLabelOffset(index);
+      return Math.abs(screen.x - (position.x + offset.x * zoom)) <= 80 * zoom
+        && Math.abs(screen.y - (position.y + offset.y * zoom)) <= 16 * zoom;
     });
     if (entranceIndex !== -1) {
       const quest = QUEST_LOCATIONS[entranceIndex];
@@ -568,10 +577,11 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   animationFrame = window.requestAnimationFrame(tick);
 
   return {
-    setQuestStates(completed, accepted) {
+    setQuestStates(completed, accepted, finaleCompleted = false) {
       state.completed = [...completed];
       state.accepted = [...accepted];
-      world3d?.setPlayerLevel(birthdayProgress(state.completed).level);
+      state.finaleCompleted = finaleCompleted;
+      world3d?.setPlayerLevel(birthdayProgress(state.completed, state.finaleCompleted).level);
       updateInteraction(); drawWorld(); drawMinimap();
     },
     selectQuest: chooseQuest,

@@ -2,7 +2,7 @@ import { CASTLE_ENTRANCE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from './wor
 import { regionBlendAt } from './world-regions.js';
 import { roadDistance } from './world-art.js';
 import { WORLD_NPCS } from './world-npcs.js';
-import { CANOPY_PLATFORMS, placeQuestDecorations } from './world-scenery-data.js';
+import { CANOPY_OFFSET, CANOPY_PLATFORMS, placeQuestDecorations } from './world-scenery-data.js';
 import { PARK_RIDES } from './park-scenery.js';
 import { createMazeWalls } from './maze-scenery.js';
 
@@ -18,7 +18,8 @@ export function worldTrees() {
     const z = 70 + random(i, 21) * (WORLD_SIZE.height - 140);
     if (roadDistance({ x, y: z }) < 100 || QUEST_LOCATIONS.some((quest) => Math.hypot(x - quest.x, z - quest.y) < 310)
       || WORLD_NPCS.some((npc) => Math.hypot(x - npc.x, z - npc.y) < 105)
-      || CANOPY_PLATFORMS.some((platform) => Math.hypot(x - forest.x - platform.x, z - forest.y - platform.z) < 75)
+      || CANOPY_PLATFORMS.some((platform) => Math.hypot(x - forest.x - CANOPY_OFFSET.x - platform.x,
+        z - forest.y - CANOPY_OFFSET.z - platform.z) < 75)
       || Math.hypot(x - WORLD_SPAWN.x, z - WORLD_SPAWN.y) < 300) continue;
     const region = regionBlendAt({ x, y: z }).region.id;
     if (region === 'park' || region === 'harvest') continue;

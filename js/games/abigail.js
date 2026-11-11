@@ -1,4 +1,4 @@
-import { ABIGAIL_ROOMS, ABIGAIL_RUNES, abigailObjective, chooseAbigailRune, interactAbigail, moveAbigail, newAbigailState } from './abigail-logic.js';
+import { ABIGAIL_ROOMS, ABIGAIL_RUNE_OPTIONS, abigailObjective, chooseAbigailRune, interactAbigail, moveAbigail, newAbigailState } from './abigail-logic.js';
 
 const DIRECTIONS = [
   ['up', '↑', 'Move up'],
@@ -38,7 +38,7 @@ export function mountAbigailGame(root, onComplete, playSound) {
         <strong id="abigailPuzzleTitle">Choose the runes in order</strong>
         <p id="abigailRuneProgress"></p>
         <div class="abigail-runes">
-          ${ABIGAIL_RUNES.map((rune, i) => `<button type="button" class="rune-tile game-control" data-abigail-rune="${rune}"><span aria-hidden="true">${['✦', '☾', '◇', '✧'][i]}</span><small>${rune}</small></button>`).join('')}
+          ${ABIGAIL_RUNE_OPTIONS.map(({ name, symbol }) => `<button type="button" class="rune-tile game-control" data-abigail-rune="${name}"><span aria-hidden="true">${symbol}</span><small>${name}</small></button>`).join('')}
         </div>
         <button type="button" class="rs3-btn game-control abigail-back" data-abigail-close>Step away from the ward</button>
       </section>

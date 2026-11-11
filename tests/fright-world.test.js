@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FRIGHT_CLUES, FRIGHT_MAZE, FRIGHT_OBJECTS, FRIGHT_START, FRIGHT_THEMES, SIZE, answerFright, frightPath, frightStage, frightThemeCluesFound, frightWalkable, interactFright, newFrightState, restoreFrightState, walkFright } from '../js/games/fright-logic.js';
+import { FRIGHT_CLUES, FRIGHT_MAZE, FRIGHT_OBJECTS, FRIGHT_START, FRIGHT_THEMES, SIZE, answerFright, frightExitReady, frightPath, frightStage, frightThemeCluesFound, frightWalkable, interactFright, newFrightState, restoreFrightState, teleportFright, walkFright } from '../js/games/fright-logic.js';
 import { questItems } from '../js/quest-items.js';
 import { discoveredFrightClues } from '../js/games/fright-clues.js';
 
@@ -110,6 +110,33 @@ test('clue, tool and mechanism must be done in order; mistakes reset steps but k
   const restored = restoreFrightState(JSON.parse(JSON.stringify(state)));
   assert.equal(restored.complete, true);
   assert.equal(restored.collected.length, 7);
+});
+
+test('escape teleport unlocks after the final object and completes from anywhere, including after reload', () => {
+  const last = FRIGHT_THEMES.at(-1);
+  const cache = FRIGHT_OBJECTS.find((object) => object.id === `cache-${last.id}`);
+  const clues = FRIGHT_OBJECTS.filter((object) => object.kind === 'clue' && object.theme === last.id).map((object) => object.id);
+  let state = { ...newFrightState(), player: { x: cache.x, y: cache.y }, clues, tools: [last.id],
+    collected: FRIGHT_THEMES.slice(0, -1).map((theme) => theme.id) };
+  assert.equal(frightExitReady(state), false);
+  const blocked = teleportFright(state);
+  assert.equal(blocked.complete, false);
+  assert.match(blocked.message, /all seven/);
+  state = interactFright(state, cache.id);
+  for (const stage of last.stages) state = answerFright(state, stage.answer);
+  assert.equal(frightExitReady(state), true);
+  assert.match(state.message, /teleport is ready/);
+  state = restoreFrightState(JSON.parse(JSON.stringify(state)));
+  assert.equal(frightExitReady(state), true);
+  assert.notDeepEqual(state.player, FRIGHT_START);
+  assert.equal(teleportFright({ ...state, puzzle: last.id }).complete, false);
+  const escaped = teleportFright(state);
+  assert.equal(escaped.complete, true);
+  assert.deepEqual(escaped.player, state.player);
+  assert.equal(questItems([null, null, null, null, escaped]).length, 0);
+  assert.equal(frightExitReady(escaped), false);
+  assert.strictEqual(teleportFright(escaped), escaped);
+  assert.equal(restoreFrightState(JSON.parse(JSON.stringify(escaped))).complete, true);
 });
 
 test('stepping away mid-mechanism restarts it from step one and saves never persist a puzzle', () => {

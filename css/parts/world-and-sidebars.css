@@ -494,6 +494,10 @@
 }
 
 .inventory-panel {
+  flex: 0 0 auto;
+}
+
+.quest-inventory-panel {
   flex: 1 0 auto;
 }
 
@@ -506,6 +510,11 @@
 
 .inventory-grid.keepsake-grid {
   grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.keepsake-grid .inventory-slot {
+  height: 44px;
+  aspect-ratio: auto;
 }
 
 .inventory-slot img {
@@ -522,12 +531,16 @@
 
 .quest-items {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 52px));
   gap: 6px;
   margin-top: 8px;
+}
+
+.quest-items .inventory-slot {
+  height: 44px;
+  aspect-ratio: auto;
 }
 
 .quest-item {
   position: relative;
 }
-

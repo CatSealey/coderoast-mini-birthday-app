@@ -34,7 +34,7 @@ export const QUEST_LOCATIONS = Object.freeze([
     y: 920 * WORLD_SCALE,
     entrance: Object.freeze({ x: 1020 * WORLD_SCALE - 85, y: 920 * WORLD_SCALE - 95, name: 'Lucky Chucks entrance' }),
     guide: 'Chuck the Innkeeper',
-    introduction: 'My Love is waiting inside. Gather the drinks and pool equipment, then help with a surprise under the cabinet.'
+    introduction: 'Cat is waiting inside. Gather the drinks and pool equipment, then help with a surprise under the cabinet.'
   }),
   Object.freeze({
     name: 'Thirteen',
@@ -44,7 +44,7 @@ export const QUEST_LOCATIONS = Object.freeze([
     y: 330 * WORLD_SCALE,
     entrance: Object.freeze({ x: 1510 * WORLD_SCALE - 180, y: 330 * WORLD_SCALE - 60, name: 'Thirteen entrance' }),
     guide: 'Pippa the Ride Keeper',
-    introduction: 'Board with Meu Amor, control the carriage and stop at the right place for the mysterious drop.'
+    introduction: 'Board with Cat and hold left or right to collect all five park items. Then enjoy the drop!'
   }),
   Object.freeze({
     name: 'GoApe After Dark',

@@ -1,4 +1,4 @@
-import { FRIGHT_OBJECTS, answerFright, frightPath, frightStage, interactFright, restoreFrightState, walkFright } from './fright-logic.js';
+import { FRIGHT_OBJECTS, answerFright, frightExitReady, frightPath, frightStage, interactFright, restoreFrightState, teleportFright, walkFright } from './fright-logic.js';
 import { renderFrightClues } from './fright-clues.js';
 import { createFrightScene } from './fright-scene.js';
 
@@ -24,7 +24,10 @@ export function mountFrightWorld(root, { characterName, savedState, onProgress, 
         <button type="button" class="rs3-btn" data-fright-move="down" aria-label="Move down">▼</button>
         <button type="button" class="rs3-btn" data-fright-move="right" aria-label="Move right">▶</button>
       </div>
-      <button type="button" class="rs3-btn fright-world__interact" data-fright-interact>Investigate</button>
+      <div class="fright-world__actions">
+        <button type="button" class="rs3-btn fright-world__teleport" data-fright-teleport hidden>✦ Teleport out</button>
+        <button type="button" class="rs3-btn" data-fright-interact>Investigate</button>
+      </div>
       <div class="abigail-world__dialogue" id="frightMessage" role="status"></div>
       <section id="frightPuzzle" class="abigail-world__puzzle" aria-labelledby="frightPuzzleTitle" hidden>
         <strong id="frightPuzzleTitle"></strong>
@@ -42,9 +45,10 @@ export function mountFrightWorld(root, { characterName, savedState, onProgress, 
   observer.observe(canvas);
 
   function render() {
-    root.querySelector('#frightObjective').textContent = state.collected.length === 7
-      ? 'All seven objects found. Return to the entrance gate.'
+    root.querySelector('#frightObjective').textContent = frightExitReady(state)
+      ? 'All seven objects found. Use the escape teleport or the entrance gate.'
       : `Find 3 clues in each area, take its tool and solve its mechanism (${state.collected.length}/7 objects).`;
+    root.querySelector('[data-fright-teleport]').hidden = !frightExitReady(state) || Boolean(state.puzzle);
     root.querySelector('#frightMessage').textContent = state.message;
     const signatureClues = JSON.stringify([state.clues, state.tools]);
     if (signatureClues !== clueSignature) {
@@ -118,6 +122,7 @@ export function mountFrightWorld(root, { characterName, savedState, onProgress, 
     const button = event.target.closest('button');
     if (!button || !root.contains(button)) return;
     if (button.hasAttribute('data-fright-leave')) { stopWalking(); onLeave(); }
+    else if (button.hasAttribute('data-fright-teleport')) { stopWalking(); clearInput(); update(teleportFright(state)); }
     else if (button.hasAttribute('data-fright-interact') && !state.puzzle) investigate();
     else if (button.dataset.frightMove && !state.puzzle) {
       const direction = vectors[button.dataset.frightMove];
