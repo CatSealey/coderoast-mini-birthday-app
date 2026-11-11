@@ -43,6 +43,20 @@ test('Fright Nights restores the key and position', () => {
   assert.deepEqual(questItems([null, null, null, null, completed]), []);
 });
 
+test('Fright Nights tools appear until their matching mechanisms are solved', () => {
+  const saves = [null, null, null, null, { tools: ['disease', 'ai', 'darkness', 'chainsaws', 'bogeymen', 'claustrophobia', 'clowns'], collected: [], complete: false }];
+  const before = questItems(saves);
+  assert.deepEqual(before.map((item) => item.name), ['Sterile gloves', 'Access key', 'Match box', 'Heavy wrench', 'Salt lantern', 'Pry bar', 'Pin']);
+  assert.equal(new Set(before.map((item) => item.image)).size, 7);
+  saves[4].collected = ['disease'];
+  const after = questItems(saves).map((item) => item.name);
+  assert.ok(!after.includes('Sterile gloves'));
+  assert.ok(after.includes('Access key'));
+  assert.ok(after.includes('Remedy vial'));
+  saves[4].complete = true;
+  assert.deepEqual(questItems(saves), []);
+});
+
 test('items stay until used, including after a failed rune sequence and across saves', () => {
   const names = (house) => questItems([house, null, null, null, { hasKey: true }]).map((item) => item.name);
   let state = { ...newHouseState(), hasKey: true };

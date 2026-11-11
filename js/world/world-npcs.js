@@ -47,7 +47,7 @@ export const WORLD_NPCS = Object.freeze([
     name: 'Holly the Pumpkin Keeper', x: QUEST_LOCATIONS[4].x + 190, y: QUEST_LOCATIONS[4].y - 85, color: '#a97144',
     dialogue: [
       'Mind the corn! This maze has more turns than my pumpkin patch.',
-      'Find the lantern key before you look for the way out.'
+      'There are seven clues to find in the maze, and seven mechanisms to solve.'
     ]
   }
 ]);

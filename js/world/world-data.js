@@ -33,7 +33,7 @@ export const QUEST_LOCATIONS = Object.freeze([
     y: 920 * WORLD_SCALE,
     entrance: Object.freeze({ x: 1020 * WORLD_SCALE - 85, y: 920 * WORLD_SCALE - 95, name: 'Lucky Chucks entrance' }),
     guide: 'Chuck the Innkeeper',
-    introduction: 'The regulars have set up a birthday challenge at the pool table. A careful aim and a little luck should settle the match.'
+    introduction: 'My Love is waiting inside. Gather the drinks and pool equipment, then help with a surprise under the cabinet.'
   }),
   Object.freeze({
     name: 'Thirteen',
@@ -43,7 +43,7 @@ export const QUEST_LOCATIONS = Object.freeze([
     y: 330 * WORLD_SCALE,
     entrance: Object.freeze({ x: 1510 * WORLD_SCALE - 180, y: 330 * WORLD_SCALE - 60, name: 'Thirteen entrance' }),
     guide: 'Pippa the Ride Keeper',
-    introduction: 'A mysterious lift hill leads to a sudden drop. Keep your nerve and react when the signal appears.'
+    introduction: 'Board with Meu Amor, control the carriage and stop at the right place for the mysterious drop.'
   }),
   Object.freeze({
     name: 'GoApe After Dark',
@@ -53,7 +53,7 @@ export const QUEST_LOCATIONS = Object.freeze([
     y: 900 * WORLD_SCALE,
     entrance: Object.freeze({ x: 1540 * WORLD_SCALE - 35, y: 900 * WORLD_SCALE - 120, name: 'GoApe entrance' }),
     guide: 'Ash the Tree Guide',
-    introduction: 'The forest platforms glow beneath the evening sky. Cross the canopy and reach the waiting zip-line.'
+    introduction: 'Follow the lanterns across platforms, nets and ropes. Find four forest treasures before taking the zip-wire.'
   }),
   Object.freeze({
     name: 'Fright Nights',
@@ -63,6 +63,6 @@ export const QUEST_LOCATIONS = Object.freeze([
     y: 900 * WORLD_SCALE,
     entrance: Object.freeze({ x: 390 * WORLD_SCALE - 175, y: 900 * WORLD_SCALE - 175, name: 'Fright Nights entrance' }),
     guide: 'Dr. Fright',
-    introduction: 'The corn maze is full of wrong turns and one restless ghost. Find the lantern key before heading for the exit.'
+    introduction: 'Seven unsettling corners hide seven objects. Find the clues and recover them all to open the maze gate.'
   })
 ]);

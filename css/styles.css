@@ -517,7 +517,7 @@ button:focus-visible,
   color: #f2ead8;
 }
 
-.game-slider > span:first-child {
+.game-slider>span:first-child {
   display: flex;
   justify-content: space-between;
   color: #f0d998;
@@ -729,10 +729,21 @@ kbd {
   touch-action: manipulation;
 }
 
-.maze-pad [data-move="up"] { grid-area: up; }
-.maze-pad [data-move="left"] { grid-area: left; }
-.maze-pad [data-move="down"] { grid-area: down; }
-.maze-pad [data-move="right"] { grid-area: right; }
+.maze-pad [data-move="up"] {
+  grid-area: up;
+}
+
+.maze-pad [data-move="left"] {
+  grid-area: left;
+}
+
+.maze-pad [data-move="down"] {
+  grid-area: down;
+}
+
+.maze-pad [data-move="right"] {
+  grid-area: right;
+}
 
 .game-complete {
   justify-items: center;
@@ -778,8 +789,15 @@ kbd {
 }
 
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 16px rgba(215, 184, 111, 0.2); }
-  50% { box-shadow: 0 0 28px rgba(215, 184, 111, 0.48); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 16px rgba(215, 184, 111, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 28px rgba(215, 184, 111, 0.48);
+  }
 }
 
 .level-up-glow {
@@ -787,6 +805,7 @@ kbd {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -853,7 +872,7 @@ kbd {
   font-size: 1.65rem;
 }
 
-.login-card > p:not(.eyebrow) {
+.login-card>p:not(.eyebrow) {
   color: #c4d2ce;
   line-height: 1.5;
 }
@@ -954,7 +973,7 @@ kbd {
 }
 
 .client-brand__copy,
-.client-profile > span:last-child {
+.client-profile>span:last-child {
   display: grid;
   gap: 2px;
 }
@@ -1045,9 +1064,17 @@ kbd {
   gap: 7px;
 }
 
-.client-sidebar--left { grid-area: left; }
-.client-world-panel { grid-area: center; }
-.client-sidebar--right { grid-area: right; }
+.client-sidebar--left {
+  grid-area: left;
+}
+
+.client-world-panel {
+  grid-area: center;
+}
+
+.client-sidebar--right {
+  grid-area: right;
+}
 
 .client-panel {
   min-width: 0;
@@ -1212,9 +1239,17 @@ kbd {
   text-align: right;
 }
 
-.quest-row__status--complete { color: #9cce88; }
-.quest-row__status--available { color: #e7ce83; }
-.quest-row__status--locked { color: #83909a; }
+.quest-row__status--complete {
+  color: #9cce88;
+}
+
+.quest-row__status--available {
+  color: #e7ce83;
+}
+
+.quest-row__status--locked {
+  color: #83909a;
+}
 
 .client-chat {
   margin-top: auto;
@@ -1501,7 +1536,7 @@ kbd {
   box-shadow: 0 0 6px #8bc37a;
 }
 
-.danwell-avatar {
+.character-avatar {
   position: absolute;
   z-index: 3;
   bottom: 6%;
@@ -1512,14 +1547,14 @@ kbd {
   animation: avatarIdle 2.8s ease-in-out infinite;
 }
 
-.danwell-avatar svg {
+.character-avatar svg {
   display: block;
   width: 100%;
   height: auto;
   overflow: visible;
 }
 
-.danwell-avatar__name {
+.character-avatar__name {
   position: absolute;
   top: -16px;
   left: 50%;
@@ -1538,7 +1573,7 @@ kbd {
   transform: translateX(-50%);
 }
 
-.danwell-avatar__name b {
+.character-avatar__name b {
   color: #a4d388;
 }
 
@@ -1779,6 +1814,128 @@ kbd {
   position: relative;
 }
 
+.fright-world__interact {
+  position: absolute;
+  right: 12px;
+  bottom: 88px;
+  z-index: 4;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+}
+
+.adventure-world__pad [data-adventure-move="up"] {
+  grid-area: up;
+}
+
+.adventure-world__pad [data-adventure-move="left"] {
+  grid-area: left;
+}
+
+.adventure-world__pad [data-adventure-move="down"] {
+  grid-area: down;
+}
+
+.adventure-world__pad [data-adventure-move="right"] {
+  grid-area: right;
+}
+
+.adventure-world__actions {
+  position: absolute;
+  right: 8px;
+  bottom: 88px;
+  z-index: 4;
+  display: flex;
+  gap: 5px;
+}
+
+.adventure-world__actions button,
+.adventure-world__ride button {
+  padding: 7px;
+  font-size: 0.7rem;
+}
+.adventure-world__ride button { min-height: 42px; }
+
+.adventure-world__ride {
+  position: absolute;
+  z-index: 5;
+  right: 8px;
+  bottom: 76px;
+  width: min(320px, calc(100% - 24px));
+  padding: 10px;
+  border: 1px solid #827657;
+  border-radius: 5px;
+  background: rgba(15, 23, 24, 0.95);
+  color: #eee3c9;
+}
+
+.adventure-world__ride[hidden] {
+  display: none;
+}
+
+.adventure-world__track {
+  position: relative;
+  height: 14px;
+  margin: 10px 0;
+  background: #39434a;
+  border-radius: 6px;
+}
+
+.adventure-world__track span {
+  position: absolute;
+  left: 64%;
+  width: 8%;
+  height: 100%;
+  background: #d3b663;
+}
+
+.adventure-world__track i {
+  position: absolute;
+  top: -4px;
+  width: 4px;
+  height: 22px;
+  background: #fff;
+}
+
+.adventure-world__track .ride-signal {
+  position: absolute;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  background: #8bcac2;
+}
+.adventure-world__track .ride-signal--one { left: 22%; }
+.adventure-world__track .ride-signal--two { left: 48%; }
+
+.adventure-world__crossing {
+  position: absolute;
+  z-index: 5;
+  right: 8px;
+  bottom: 88px;
+  width: min(265px, calc(100% - 24px));
+  padding: 10px;
+  border: 1px solid #827657;
+  border-radius: 5px;
+  background: rgba(15, 23, 24, 0.96);
+  color: #eee3c9;
+  font-size: 0.7rem;
+}
+.adventure-world__crossing p { margin: 4px 0; }
+.adventure-world__crossing-meter { position: relative; height: 12px; margin: 10px 0; background: #725247; }
+.adventure-world__crossing-meter span { position: absolute; left: 35%; width: 30%; height: 100%; background: #71ac7a; }
+.adventure-world__crossing-meter i { position: absolute; top: -4px; width: 4px; height: 20px; background: #fff; }
+.adventure-world__crossing button { min-height: 42px; padding: 7px 16px; }
+
+.adventure-world__ride-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.adventure-world__ride small {
+  display: block;
+  margin-top: 6px;
+}
+
 .quest-item:hover::after,
 .quest-item:focus-visible::after,
 .quest-item--show-name::after {
@@ -1900,8 +2057,15 @@ kbd {
 }
 
 @keyframes avatarIdle {
-  0%, 100% { transform: translate(-50%, 0); }
-  50% { transform: translate(-50%, -2px); }
+
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+
+  50% {
+    transform: translate(-50%, -2px);
+  }
 }
 
 @media (max-width: 1050px) {
@@ -2117,7 +2281,7 @@ kbd {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .danwell-avatar {
+  .character-avatar {
     animation: none;
   }
 }
@@ -2256,10 +2420,21 @@ kbd {
   -webkit-user-select: none;
 }
 
-.world-move-pad [data-world-direction="up"] { grid-area: up; }
-.world-move-pad [data-world-direction="left"] { grid-area: left; }
-.world-move-pad [data-world-direction="down"] { grid-area: down; }
-.world-move-pad [data-world-direction="right"] { grid-area: right; }
+.world-move-pad [data-world-direction="up"] {
+  grid-area: up;
+}
+
+.world-move-pad [data-world-direction="left"] {
+  grid-area: left;
+}
+
+.world-move-pad [data-world-direction="down"] {
+  grid-area: down;
+}
+
+.world-move-pad [data-world-direction="right"] {
+  grid-area: right;
+}
 
 .world-interact {
   position: absolute;
@@ -2451,7 +2626,7 @@ kbd {
   padding: 8px 2px;
 }
 
-.quest-npc-card > div {
+.quest-npc-card>div {
   display: grid;
   gap: 3px;
 }
@@ -2690,10 +2865,25 @@ kbd {
   z-index: 2;
 }
 
-.abigail-world__pad [data-abigail-move="up"] { grid-area: up; }
-.abigail-world__pad [data-abigail-move="left"] { grid-area: left; }
-.abigail-world__pad [data-abigail-move="down"] { grid-area: down; }
-.abigail-world__pad [data-abigail-move="right"] { grid-area: right; }
+.abigail-world__pad [data-abigail-move="up"],
+.abigail-world__pad [data-fright-move="up"] {
+  grid-area: up;
+}
+
+.abigail-world__pad [data-abigail-move="left"],
+.abigail-world__pad [data-fright-move="left"] {
+  grid-area: left;
+}
+
+.abigail-world__pad [data-abigail-move="down"],
+.abigail-world__pad [data-fright-move="down"] {
+  grid-area: down;
+}
+
+.abigail-world__pad [data-abigail-move="right"],
+.abigail-world__pad [data-fright-move="right"] {
+  grid-area: right;
+}
 
 .abigail-world__dialogue {
   right: 8px;
@@ -2740,6 +2930,66 @@ kbd {
 
 .abigail-world__puzzle p {
   margin: 0;
+}
+
+.adventure-world__shot {
+  position: absolute;
+  z-index: 3;
+  right: 8px;
+  bottom: 76px;
+  display: grid;
+  gap: 6px;
+  width: min(285px, calc(100% - 24px));
+  padding: 10px;
+  border: 1px solid #a48c56;
+  border-radius: 5px;
+  background: rgba(15, 23, 24, 0.96);
+  color: #eee3c9;
+  font-size: 0.7rem;
+}
+
+.adventure-world__shot label {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  align-items: center;
+  gap: 6px;
+}
+
+.adventure-world__shot input {
+  width: 100%;
+  min-height: 32px;
+}
+
+.adventure-world__shot>div:last-child {
+  display: flex;
+  gap: 6px;
+}
+
+.adventure-world__shot button {
+  min-height: 42px;
+  padding-inline: 12px;
+}
+
+.adventure-world__power {
+  position: relative;
+  height: 7px;
+  background: #815444;
+}
+
+.adventure-world__power span {
+  position: absolute;
+  left: 55%;
+  width: 20%;
+  height: 100%;
+  background: #79b980;
+}
+
+.adventure-world__power i {
+  position: absolute;
+  top: -3px;
+  width: 3px;
+  height: 13px;
+  background: #fff3cc;
 }
 
 .abigail-world__complete {
@@ -2823,7 +3073,7 @@ kbd {
   min-width: 0;
 }
 
-.quest-game-root > .mini-game {
+.quest-game-root>.mini-game {
   width: 100%;
   gap: 10px;
   margin: 0;
@@ -2974,7 +3224,7 @@ kbd {
     padding: 7px;
   }
 
-  .quest-game-root > .mini-game {
+  .quest-game-root>.mini-game {
     gap: 7px;
     padding: 8px;
   }
