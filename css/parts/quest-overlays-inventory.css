@@ -1,0 +1,280 @@
+.fright-world__interact {
+  position: absolute;
+  right: 12px;
+  bottom: 88px;
+  z-index: 4;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+}
+
+.adventure-world__pad [data-adventure-move="up"] {
+  grid-area: up;
+}
+
+.adventure-world__pad [data-adventure-move="left"] {
+  grid-area: left;
+}
+
+.adventure-world__pad [data-adventure-move="down"] {
+  grid-area: down;
+}
+
+.adventure-world__pad [data-adventure-move="right"] {
+  grid-area: right;
+}
+
+.abigail-world__pad [data-trophy-move="up"] { grid-area: up; }
+.abigail-world__pad [data-trophy-move="left"] { grid-area: left; }
+.abigail-world__pad [data-trophy-move="down"] { grid-area: down; }
+.abigail-world__pad [data-trophy-move="right"] { grid-area: right; }
+.trophy-room .trophy-room__header {
+  max-width: min(65%, 275px);
+  gap: 4px;
+  padding: 10px 13px;
+  border: 1px solid #aa9260;
+  border-radius: 4px;
+  background: linear-gradient(135deg, rgba(38, 42, 33, .96), rgba(15, 23, 24, .94));
+  box-shadow: inset 0 0 0 2px rgba(208, 183, 124, .12), 0 3px 12px rgba(0, 0, 0, .35);
+}
+.trophy-room__header strong {
+  color: #f0d99d;
+  font-family: Cinzel, Georgia, serif;
+  letter-spacing: .06em;
+}
+.trophy-room__header small { color: #c9c4af; font-size: .6rem; }
+.trophy-room .trophy-room__dialogue {
+  border-color: #968359;
+  background: linear-gradient(120deg, rgba(34, 39, 31, .96), rgba(15, 23, 24, .96));
+  box-shadow: inset 0 0 0 2px rgba(208, 183, 124, .08);
+}
+.trophy-room .adventure-world__actions button { min-height: 42px; }
+
+.adventure-world__actions {
+  position: absolute;
+  right: 8px;
+  bottom: 88px;
+  z-index: 4;
+  display: flex;
+  gap: 5px;
+}
+
+.adventure-world__actions button,
+.adventure-world__ride button {
+  padding: 7px;
+  font-size: 0.7rem;
+}
+.adventure-world__ride button { min-height: 42px; }
+
+.adventure-world__ride {
+  position: absolute;
+  z-index: 5;
+  right: 8px;
+  bottom: 76px;
+  width: min(320px, calc(100% - 24px));
+  padding: 10px;
+  border: 1px solid #827657;
+  border-radius: 5px;
+  background: rgba(15, 23, 24, 0.95);
+  color: #eee3c9;
+}
+
+.adventure-world__ride[hidden] {
+  display: none;
+}
+
+.adventure-world__track {
+  position: relative;
+  height: 14px;
+  margin: 10px 0;
+  background: #39434a;
+  border-radius: 6px;
+}
+
+.adventure-world__track span {
+  position: absolute;
+  left: 64%;
+  width: 8%;
+  height: 100%;
+  background: #d3b663;
+}
+
+.adventure-world__track i {
+  position: absolute;
+  top: -4px;
+  width: 4px;
+  height: 22px;
+  background: #fff;
+}
+
+.adventure-world__track .ride-signal {
+  position: absolute;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  background: #8bcac2;
+}
+.adventure-world__track .ride-signal--one { left: 22%; }
+.adventure-world__track .ride-signal--two { left: 48%; }
+
+.adventure-world__crossing {
+  position: absolute;
+  z-index: 5;
+  right: 8px;
+  bottom: 88px;
+  width: min(265px, calc(100% - 24px));
+  padding: 10px;
+  border: 1px solid #827657;
+  border-radius: 5px;
+  background: rgba(15, 23, 24, 0.96);
+  color: #eee3c9;
+  font-size: 0.7rem;
+}
+.adventure-world__crossing p { margin: 4px 0; }
+.adventure-world__crossing-meter { position: relative; height: 12px; margin: 10px 0; background: #725247; }
+.adventure-world__crossing-meter span { position: absolute; left: 35%; width: 30%; height: 100%; background: #71ac7a; }
+.adventure-world__crossing-meter i { position: absolute; top: -4px; width: 4px; height: 20px; background: #fff; }
+.adventure-world__crossing button { min-height: 42px; padding: 7px 16px; }
+
+.adventure-world__ride-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.adventure-world__ride small {
+  display: block;
+  margin-top: 6px;
+}
+
+.quest-item:hover::after,
+.quest-item:focus-visible::after,
+.quest-item--show-name::after {
+  position: absolute;
+  z-index: 20;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  padding: 5px 8px;
+  border: 1px solid #bca572;
+  border-radius: 3px;
+  background: #19252b;
+  color: #f5ebd2;
+  content: attr(data-tooltip);
+  font-size: 0.7rem;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.quest-activity-inventory {
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid #45535d;
+  border-radius: 3px;
+}
+
+.quest-activity-inventory h3 {
+  margin: 0;
+  color: #e7ce83;
+  font-size: 0.75rem;
+}
+
+.inventory-slot {
+  display: grid;
+  min-width: 0;
+  min-height: 42px;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid #45535d;
+  border-radius: 3px;
+  background: linear-gradient(145deg, #25323b, #151e26);
+  color: #d5c57f;
+  font-size: 1.13rem;
+  cursor: pointer;
+}
+
+.inventory-slot--collected {
+  border-color: #92804b;
+  background: linear-gradient(145deg, #44412e, #1d292c);
+  box-shadow: inset 0 0 9px rgba(224, 192, 106, 0.13);
+}
+
+.inventory-slot--locked {
+  color: #64737b;
+  filter: saturate(0.4);
+  cursor: not-allowed;
+}
+
+.inventory-slot:disabled {
+  opacity: 0.68;
+}
+
+.inventory-hint {
+  margin: 7px 0 0;
+  color: #788c96;
+  font-size: 0.56rem;
+}
+
+.client-actionbar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 9px;
+  border-radius: 4px;
+}
+
+.actionbar-label {
+  color: #cdb977;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  white-space: nowrap;
+}
+
+.actionbar-shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.actionbar-shortcuts span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid #4e5e69;
+  border-radius: 3px;
+  background: linear-gradient(145deg, #293945, #18232c);
+  color: #c5b578;
+  font-size: 0.85rem;
+}
+
+.actionbar-shortcuts span:last-child {
+  color: #e5cf7a;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.actionbar-audio {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px;
+  border-radius: 3px;
+  font-size: 0.62rem;
+}
+
+@keyframes avatarIdle {
+
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+
+  50% {
+    transform: translate(-50%, -2px);
+  }
+}
+

@@ -1,0 +1,104 @@
+.quest-activity {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+}
+
+.quest-activity[hidden],
+.quest-briefing[hidden],
+.quest-window__footer [hidden] {
+  display: none !important;
+}
+
+.quest-objective {
+  padding: 8px 10px;
+  border: 1px solid rgba(215, 184, 111, 0.28);
+  background: rgba(8, 15, 19, 0.6);
+}
+
+.quest-objective .eyebrow {
+  margin: 0;
+  font-size: 0.54rem !important;
+}
+
+.quest-objective p {
+  margin: 4px 0 0;
+  color: #f0e5c7;
+  font-size: 0.73rem;
+  line-height: 1.45;
+}
+
+.quest-game-root {
+  min-width: 0;
+}
+
+.quest-game-root>.mini-game {
+  width: 100%;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #56616a;
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(43, 58, 65, 0.85), rgba(19, 29, 35, 0.96));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.quest-game-root .mini-game__header h3,
+.quest-game-root .game-complete h3 {
+  font-size: clamp(0.9rem, 2vw, 1.2rem);
+}
+
+.quest-game-root .mini-game__header p,
+.quest-game-root .game-complete p {
+  font-size: 0.72rem;
+}
+
+.quest-game-root .rune-tile {
+  min-height: 62px;
+}
+
+.quest-game-root .pool-table,
+.quest-game-root .canopy-world {
+  height: clamp(160px, 26vh, 250px);
+}
+
+.quest-game-root .maze-grid {
+  width: min(100%, 300px);
+}
+
+.quest-game-root .maze-cell {
+  font-size: clamp(0.55rem, 2vw, 0.95rem);
+}
+
+.quest-window__footer {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 7px 2px;
+  border-top: 1px solid rgba(215, 184, 111, 0.32);
+  color: #9eacb4;
+  font-size: 0.65rem;
+}
+
+.quest-window__footer .game-control {
+  min-height: 38px;
+  padding: 6px 12px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
+
+.world-stage-badge--active {
+  border-color: #c5a95f;
+  background: rgba(111, 86, 39, 0.4);
+  color: #f1dd9b;
+}
+
+.world-stage-badge--complete {
+  border-color: #74a76f;
+  background: rgba(58, 100, 54, 0.42);
+  color: #bbdf9e;
+}
+

@@ -11,13 +11,15 @@ The character begins at level 29. Each distinct quest awards 20 birthday XP, rea
 .
 ├── index.html
 ├── css/
-│   └── styles.css       # Game-client theme and responsive layout
+│   ├── styles.css       # Ordered stylesheet entry point
+│   └── parts/           # Theme, game, world, journal and responsive styles
 ├── js/
 │   ├── app.js           # Quest state, navigation, and UI
 │   ├── audio.js         # Music and sound effects
 │   ├── chapter-maps.js  # Illustrated quest field maps
 │   ├── games/           # One module per mini-game
 │   └── world/           # Walkable overworld, map, and movement rules
+│       └── scenery/     # Reusable overworld nature models and fallback artwork
 ├── tests/               # Node test-runner unit tests
 ├── package.json
 ├── tailwind.config.js
@@ -39,6 +41,28 @@ npm run dev
 ```
 
 Before starting Vite, set `VITE_APP_PASSWORD` in `.env.local` to your shared password. Restart the development server after changing it. The app asks for a character name and this password on each page load; names are displayed in the world and interface. Quest progress continues to be shared by both players on the same browser and device.
+
+### Editing styles
+
+The app loads `css/styles.css`, which imports the files in `css/parts/` in cascade order. Keep that order when adding or moving rules: later rules intentionally override earlier ones.
+
+- `foundation.css` contains Tailwind directives, theme variables and shared controls.
+- `mini-games.css`, `chapter-maps.css` and `mini-game-scenes.css` cover the original game and map components.
+- `client-shell-journal.css`, `world-and-sidebars.css` and `quest-overlays-inventory.css` style the game client, quest journal, world and inventory.
+- `client-responsive.css` contains the first group of client layout overrides; `world-controls.css` and `quest-dialog.css` contain later world and dialog rules.
+- `quest-interiors.css` and `quest-activity.css` cover walkable quests and their controls; their later compact-screen overrides live in `compact-layout.css`.
+
+Responsive rules are kept at their original positions in the cascade. When editing a component, check its later responsive module as well. Vite resolves the imports for development and bundles them into the production stylesheet.
+
+### Editing overworld scenery
+
+The overworld's repeated natural objects are in `js/world/scenery/`: `trees.js` builds the leafy, pine and dead 3D trees using the procedural leaf clusters in `foliage.js`, `rocks.js` loads their companion rocks, and `corn.js` builds the maze corn. They use `instances.js` to share meshes efficiently across the world; the renderer owns and disposes their geometries, materials and textures.
+
+The rocks use the locally bundled [Rock Moss Set 01](https://polyhaven.com/a/rock_moss_set_01) by Poly Haven, licensed [CC0](https://polyhaven.com/license). Six scanned shapes and their 1K textures are in `public/scenery/rock-moss/`; no online connection is needed. Procedural rocks remain visible while the asset loads and if loading fails (the browser console reports the error).
+
+The overworld lamps and paths use Poly Haven's CC0 [Street Lamp 01](https://polyhaven.com/a/street_lamp_01) and [Cobblestone Floor 01](https://polyhaven.com/a/cobblestone_floor_01), bundled locally under `public/scenery/`. Their previous artwork remains visible until loading succeeds; errors are reported in the browser console.
+
+`nature-art.js` contains the separate illustrated tree, rock and corn versions used when WebGL is unavailable. Update these too when a visual change should appear in both renderers. Tree and corn placement and solid footprints remain in `world-collision.js`, while tree shadows are in `world-3d.js`; revisit those if changing an object's size or placement. Other landmarks and quest interiors have their own scenery and are not yet part of these modules.
 
 **Privacy:** This is a casual client-side gate, not real authentication. The password and game files are included in the site and can be inspected or bypassed by visitors. Do not reuse a sensitive password or rely on this gate to protect private content. `.env.local` is ignored by Git, but its value is still embedded in the built site. Set `VITE_APP_PASSWORD` in the build environment before running `npm run build`, and rebuild whenever it changes. Without a configured password, the login remains disabled.
 

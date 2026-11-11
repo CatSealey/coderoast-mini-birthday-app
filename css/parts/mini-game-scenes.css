@@ -1,0 +1,335 @@
+.pool-table {
+  width: 100%;
+  height: clamp(190px, 30vw, 280px);
+  overflow: hidden;
+  border: 1px solid rgba(215, 184, 111, 0.45);
+  border-radius: 12px;
+  background: #172d29;
+}
+
+.pool-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.game-slider {
+  display: grid;
+  gap: 8px;
+  color: #f2ead8;
+}
+
+.game-slider>span:first-child {
+  display: flex;
+  justify-content: space-between;
+  color: #f0d998;
+  font-weight: 700;
+}
+
+.game-slider output {
+  color: #73c3b0;
+  font-variant-numeric: tabular-nums;
+}
+
+.game-slider__hint,
+.game-hint {
+  color: rgba(242, 234, 216, 0.64);
+  font-size: 0.75rem;
+}
+
+.game-hint {
+  margin: 0;
+  text-align: center;
+}
+
+.coaster-scene {
+  position: relative;
+  display: grid;
+  min-height: 180px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid rgba(215, 184, 111, 0.38);
+  border-radius: 14px;
+  background:
+    radial-gradient(ellipse at 70% 100%, rgba(119, 89, 160, 0.32), transparent 50%),
+    linear-gradient(180deg, #17242c, #1d3134);
+}
+
+.coaster-skyline {
+  position: absolute;
+  top: 16px;
+  color: #f0d998;
+  letter-spacing: 1.8rem;
+}
+
+.coaster-track {
+  position: absolute;
+  inset: auto -5% 28px 20%;
+  height: 65px;
+  border-top: 5px solid #bc9d5d;
+  border-radius: 50% 50% 0 0;
+  transform: rotate(-10deg);
+  transition: transform 450ms ease;
+}
+
+.coaster-track span {
+  position: absolute;
+  top: -13px;
+  left: 0;
+  width: 100%;
+  border-top: 2px solid rgba(247, 234, 196, 0.62);
+}
+
+.coaster-cart {
+  z-index: 1;
+  font-size: 2.7rem;
+  transform: translate(-75px, 20px);
+  transition: transform 400ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.coaster-callout {
+  z-index: 2;
+  margin-top: 60px;
+  color: #f0d998;
+  font-family: 'Cinzel', Georgia, serif;
+  font-weight: 700;
+}
+
+.coaster-scene--drop {
+  background:
+    radial-gradient(ellipse at 50% 70%, rgba(231, 173, 78, 0.23), transparent 40%),
+    linear-gradient(180deg, #392b36, #17242c);
+}
+
+.coaster-scene--drop .coaster-track {
+  transform: rotate(12deg) translateY(28px);
+}
+
+.coaster-cart--drop {
+  transform: translate(95px, 58px) rotate(16deg) scale(1.15);
+}
+
+.coaster-timer {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  left: 12px;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.coaster-timer span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #e3c56d, #f8eee0);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.coaster-button {
+  width: min(100%, 360px);
+  min-height: 52px;
+  font-weight: 700;
+}
+
+kbd {
+  padding: 2px 6px;
+  border: 1px solid rgba(240, 217, 152, 0.38);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.3);
+  color: #f0d998;
+  font: inherit;
+}
+
+.canopy-world {
+  width: 100%;
+  height: clamp(200px, 31vw, 280px);
+  overflow: hidden;
+  border: 1px solid rgba(215, 184, 111, 0.42);
+  border-radius: 12px;
+  background: #142333;
+}
+
+.canopy-controls {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.touch-pad {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.touch-pad button {
+  min-width: 56px;
+  min-height: 50px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.touch-pad .canopy-jump {
+  min-width: 90px;
+  background: linear-gradient(180deg, #76623b, #55472b);
+}
+
+.maze-grid {
+  display: grid;
+  width: min(100%, 390px);
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 3px;
+  justify-self: center;
+  padding: 7px;
+  border: 1px solid rgba(215, 184, 111, 0.45);
+  border-radius: 12px;
+  background: rgba(5, 14, 15, 0.62);
+}
+
+.maze-cell {
+  display: grid;
+  aspect-ratio: 1;
+  min-width: 0;
+  place-items: center;
+  border-radius: 4px;
+  font-size: clamp(0.65rem, 3.2vw, 1.15rem);
+}
+
+.maze-cell--wall {
+  border: 1px solid rgba(94, 123, 80, 0.48);
+  background: linear-gradient(145deg, #334a39, #203b33);
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.38);
+}
+
+.maze-cell--path {
+  background: rgba(90, 75, 52, 0.52);
+  box-shadow: inset 0 0 0 1px rgba(215, 184, 111, 0.08);
+}
+
+.maze-pad {
+  display: grid;
+  grid-template:
+    'up up up' 44px
+    'left down right' 44px / 52px 52px 52px;
+  justify-content: center;
+  gap: 5px;
+}
+
+.maze-pad button {
+  min-height: 42px;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  touch-action: manipulation;
+}
+
+.maze-pad [data-move="up"] {
+  grid-area: up;
+}
+
+.maze-pad [data-move="left"] {
+  grid-area: left;
+}
+
+.maze-pad [data-move="down"] {
+  grid-area: down;
+}
+
+.maze-pad [data-move="right"] {
+  grid-area: right;
+}
+
+.game-complete {
+  justify-items: center;
+  text-align: center;
+}
+
+.game-complete__icon {
+  display: grid;
+  width: 78px;
+  height: 78px;
+  place-items: center;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  background: rgba(215, 184, 111, 0.1);
+  box-shadow: 0 0 32px rgba(215, 184, 111, 0.18);
+  font-size: 2.5rem;
+}
+
+
+
+.chelsea-blue {
+  color: #78a8ff;
+  text-shadow: 0 0 8px rgba(0, 85, 255, 0.55);
+}
+
+.arsenal-red {
+  color: #ff7777;
+  text-shadow: 0 0 8px rgba(255, 77, 77, 0.5);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #111b1c;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #49675f;
+  border: 1px solid var(--gold);
+  border-radius: 99px;
+}
+
+@keyframes pulseGlow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 16px rgba(215, 184, 111, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 28px rgba(215, 184, 111, 0.48);
+  }
+}
+
+.level-up-glow {
+  animation: pulseGlow 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .game-canvas {
+    min-height: 300px;
+  }
+
+  .chapter-map {
+    padding: 9px;
+  }
+
+  .chapter-map__legend {
+    gap: 6px 12px;
+    font-size: 0.62rem;
+  }
+}
+

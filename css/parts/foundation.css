@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --night: #10191c;
+  --deep-green: #122a29;
+  --panel: rgba(26, 40, 40, 0.96);
+  --panel-light: rgba(37, 56, 53, 0.94);
+  --gold: #d7b86f;
+  --gold-bright: #f0d998;
+  --teal: #73c3b0;
+  --text: #f2ead8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  background:
+    radial-gradient(ellipse at 50% -18%, rgba(107, 171, 152, 0.2), transparent 54%),
+    radial-gradient(ellipse at 8% 38%, rgba(190, 163, 91, 0.08), transparent 35%),
+    linear-gradient(155deg, #101719 0%, #142222 52%, #10191c 100%);
+}
+
+.rune-font {
+  font-family: 'Cinzel', Georgia, serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.rs3-panel {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.035), transparent 38%),
+    linear-gradient(145deg, var(--panel-light), var(--panel));
+  border: 1px solid rgba(215, 184, 111, 0.53);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.07),
+    0 14px 34px rgba(0, 0, 0, 0.27);
+}
+
+.rs3-dialogue {
+  background: linear-gradient(130deg, rgba(34, 61, 58, 0.96), rgba(24, 42, 42, 0.97));
+  border: 1px solid rgba(115, 195, 176, 0.45);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.055);
+}
+
+.rs3-btn {
+  color: #f5e8c1;
+  background: linear-gradient(180deg, #42675d, #29463f);
+  border: 1px solid rgba(215, 184, 111, 0.72);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.1), 0 3px 8px rgba(0, 0, 0, 0.2);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.72);
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.rs3-btn:hover:not(:disabled) {
+  color: #fff9e8;
+  background: linear-gradient(180deg, #548174, #345d51);
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 18px rgba(115, 195, 176, 0.17);
+  transform: translateY(-2px);
+}
+
+.rs3-btn:active:not(:disabled) {
+  background: #233b36;
+  transform: translateY(0);
+}
+
+.rs3-btn:focus-visible,
+button:focus-visible,
+.inventory-slot:focus-visible {
+  outline: 3px solid var(--gold-bright);
+  outline-offset: 3px;
+}
+
+.rs3-btn:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.55);
+  transform: none;
+}
+
+.birthday-hero {
+  background:
+    radial-gradient(ellipse at 91% 8%, rgba(215, 184, 111, 0.17), transparent 29%),
+    radial-gradient(ellipse at 8% 110%, rgba(76, 158, 133, 0.18), transparent 42%),
+    linear-gradient(112deg, rgba(28, 48, 47, 0.98), rgba(25, 37, 41, 0.97));
+}
+
+.progress-track {
+  height: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(215, 184, 111, 0.52);
+  border-radius: 999px;
+  background: rgba(5, 14, 15, 0.66);
+}
+
+.progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5db59e, #f0d998);
+  box-shadow: 0 0 14px rgba(115, 195, 176, 0.45);
+  transition: width 450ms ease;
+}
+
+.inventory-slot {
+  min-width: 0;
+  aspect-ratio: 1;
+}
+
+.modal-panel {
+  max-height: min(90vh, 760px);
+  overflow-y: auto;
+}
+
+.game-canvas {
+  min-height: 340px;
+}
+
+.game-control {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+.game-range {
+  width: 100%;
+  accent-color: var(--teal);
+}
+
+.game-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+

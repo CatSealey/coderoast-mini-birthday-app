@@ -1,0 +1,258 @@
+.chapter-map {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(215, 184, 111, 0.48);
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(216, 189, 127, 0.1), transparent 70%),
+    linear-gradient(135deg, rgba(38, 48, 41, 0.96), rgba(24, 35, 35, 0.98));
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.28);
+}
+
+.chapter-map__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chapter-map__heading .eyebrow {
+  margin: 0;
+}
+
+.chapter-map__heading h3 {
+  margin: 2px 0 0;
+  color: var(--gold-bright);
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: clamp(0.82rem, 2.6vw, 1rem);
+}
+
+.chapter-map__compass {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-content: center;
+  border: 1px solid rgba(215, 184, 111, 0.55);
+  border-radius: 50%;
+  color: var(--gold-bright);
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 0.9;
+  text-align: center;
+}
+
+.chapter-map__art {
+  display: block;
+  width: 100%;
+  max-height: 230px;
+  border: 1px solid rgba(215, 184, 111, 0.28);
+  border-radius: 8px;
+  background-color: rgba(13, 24, 23, 0.72);
+}
+
+.chapter-map__art text {
+  user-select: none;
+}
+
+.map-room {
+  fill: rgba(57, 75, 61, 0.72);
+  stroke: rgba(215, 184, 111, 0.74);
+  stroke-width: 3;
+}
+
+.map-room--goal {
+  fill: rgba(103, 78, 42, 0.58);
+  stroke: #f0d998;
+}
+
+.map-wall {
+  fill: none;
+  stroke: rgba(215, 184, 111, 0.85);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.map-route {
+  fill: none;
+  stroke: #f0d998;
+  stroke-dasharray: 8 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+  filter: drop-shadow(0 0 4px rgba(240, 217, 152, 0.6));
+}
+
+.map-label,
+.map-map-label {
+  fill: #f2ead8;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-anchor: middle;
+}
+
+.map-map-label {
+  fill: #f0d998;
+  font-size: 10px;
+}
+
+.map-caption {
+  fill: rgba(242, 234, 216, 0.67);
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-anchor: middle;
+}
+
+.map-landmark {
+  fill: #183c34;
+  stroke: #f0d998;
+  stroke-width: 3;
+}
+
+.map-icon {
+  fill: #f0d998;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+.map-pin {
+  fill: #c77956;
+  stroke: #ffe4a3;
+  stroke-width: 2;
+}
+
+.map-pin-center {
+  fill: #fff3cc;
+}
+
+.map-park-path {
+  fill: none;
+  stroke: rgba(102, 133, 87, 0.42);
+  stroke-linecap: round;
+  stroke-width: 37;
+}
+
+.map-track {
+  fill: none;
+  stroke: #8d5b45;
+  stroke-linecap: round;
+  stroke-width: 14;
+}
+
+.map-track-line {
+  fill: none;
+  stroke: #e8c976;
+  stroke-dasharray: 3 8;
+  stroke-linecap: round;
+  stroke-width: 3;
+}
+
+.map-tree {
+  fill: rgba(61, 103, 75, 0.48);
+  stroke: rgba(128, 164, 112, 0.58);
+  stroke-width: 2;
+}
+
+.map-bridge {
+  fill: none;
+  stroke: #a88c58;
+  stroke-linecap: round;
+  stroke-width: 9;
+}
+
+.map-platform {
+  fill: #c8a75e;
+  stroke: #f5df9f;
+  stroke-width: 2;
+}
+
+.map-ball {
+  fill: #f4eedc;
+  stroke: #332b22;
+  stroke-width: 2;
+}
+
+.map-ball--gold {
+  fill: #d5b25e;
+}
+
+.map-maze-wall {
+  fill: #35523b;
+  stroke: #668056;
+  stroke-width: 1;
+}
+
+.map-maze-path {
+  fill: rgba(144, 117, 70, 0.38);
+  stroke: rgba(215, 184, 111, 0.14);
+  stroke-width: 1;
+}
+
+.map-maze-start {
+  fill: #3c7d67;
+  stroke: #9de0c2;
+  stroke-width: 2;
+}
+
+.map-maze-key {
+  fill: #c49a43;
+  stroke: #ffe19a;
+  stroke-width: 2;
+}
+
+.map-maze-exit {
+  fill: #9a5c4c;
+  stroke: #ffd1a0;
+  stroke-width: 2;
+}
+
+.chapter-map__legend {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 0;
+  color: rgba(242, 234, 216, 0.75);
+  font-size: 0.68rem;
+}
+
+.chapter-map__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chapter-map__legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.map-legend__start {
+  background: #3c7d67;
+  border: 1px solid #9de0c2;
+}
+
+.map-legend__route {
+  width: 18px !important;
+  height: 3px !important;
+  border-radius: 0 !important;
+  background: #f0d998;
+}
+
+.map-legend__goal {
+  background: #c77956;
+  border: 1px solid #ffe4a3;
+}
+

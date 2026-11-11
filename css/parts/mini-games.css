@@ -1,0 +1,93 @@
+.mini-game {
+  display: grid;
+  width: min(100%, 760px);
+  gap: 14px;
+  margin: auto;
+}
+
+.mini-game__header {
+  text-align: center;
+}
+
+.mini-game__header h3,
+.game-complete h3 {
+  margin: 4px 0;
+  color: #f0d998;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: clamp(1.05rem, 3vw, 1.4rem);
+  font-weight: 700;
+}
+
+.mini-game__header p,
+.game-complete p {
+  margin: 4px 0;
+  color: rgba(242, 234, 216, 0.78);
+  font-size: 0.95rem;
+}
+
+.eyebrow {
+  color: #73c3b0 !important;
+  font-size: 0.72rem !important;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.game-stat-row,
+.maze-status-row,
+.game-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #ead9a6;
+  font-size: 0.875rem;
+}
+
+.rune-sequence {
+  min-height: 36px;
+  color: #f0d998;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+.rune-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.rune-tile {
+  display: grid;
+  min-height: 88px;
+  place-items: center;
+  border-radius: 12px;
+  font-size: 1.8rem;
+}
+
+.rune-tile small {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.rune-tile--lit {
+  color: #fff9dd;
+  background: linear-gradient(145deg, #998248, #47776a);
+  box-shadow: 0 0 28px rgba(240, 217, 152, 0.56);
+}
+
+.game-status {
+  min-height: 1.4em;
+  margin: 0;
+  color: #f0d998;
+  text-align: center;
+}
+
+.game-action {
+  justify-self: center;
+  padding: 10px 18px;
+  border-radius: 10px;
+}
+

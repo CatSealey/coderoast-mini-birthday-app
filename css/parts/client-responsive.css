@@ -1,0 +1,218 @@
+@media (max-width: 1050px) {
+  .game-client-layout {
+    grid-template-columns: minmax(0, 1fr) 245px;
+    grid-template-areas:
+      'center right'
+      'left left';
+  }
+
+  .client-sidebar--left {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .quest-panel {
+    gap: 5px;
+  }
+
+  .quest-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .client-chat {
+    margin-top: 6px;
+  }
+
+  .client-world-panel {
+    min-height: 550px;
+  }
+}
+
+@media (max-width: 680px) {
+  .client-shell {
+    min-height: 100vh;
+    grid-template-rows: 54px auto 43px;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .client-topbar {
+    gap: 7px;
+    padding: 5px 7px;
+  }
+
+  .client-brand {
+    gap: 6px;
+  }
+
+  .client-brand__crest {
+    width: 31px;
+    height: 31px;
+    font-size: 1.05rem;
+  }
+
+  .client-brand__copy strong {
+    font-size: 0.64rem;
+  }
+
+  .client-brand__copy small {
+    font-size: 0.48rem;
+  }
+
+  .client-profile {
+    gap: 5px;
+    padding-left: 0;
+  }
+
+  .client-profile strong {
+    font-size: 0.7rem;
+  }
+
+  .client-profile small {
+    max-width: 118px;
+    font-size: 0.45rem;
+    letter-spacing: 0.04em;
+  }
+
+  .client-topbar__right {
+    gap: 5px;
+  }
+
+  .client-quest-status {
+    display: none;
+  }
+
+  .client-icon-button {
+    width: 31px;
+    height: 31px;
+  }
+
+  .game-client-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'center'
+      'left'
+      'right';
+    gap: 6px;
+  }
+
+  .client-world-panel {
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .world-viewport {
+    min-height: 190px;
+  }
+
+  .world-titlebar h1 {
+    font-size: 0.83rem;
+  }
+
+  .world-titlebar__location {
+    font-size: 0.52rem;
+  }
+
+  .client-game-canvas {
+    min-height: 270px;
+    padding: 8px;
+  }
+
+  .client-sidebar--left {
+    display: flex;
+  }
+
+  .quest-panel {
+    padding: 9px;
+  }
+
+  .quest-list {
+    grid-template-columns: 1fr;
+  }
+
+  .quest-row {
+    min-height: 48px;
+  }
+
+  .client-sidebar--right {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+
+  .minimap-panel {
+    grid-row: span 2;
+  }
+
+  .inventory-panel {
+    grid-column: 1 / -1;
+    min-height: 155px;
+  }
+
+  .quest-inventory-panel {
+    grid-column: 1 / -1;
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .inventory-slot {
+    min-height: 36px;
+  }
+
+  .client-actionbar {
+    position: static;
+    gap: 5px;
+    padding: 4px 6px;
+    background: rgba(13, 21, 28, 0.97);
+  }
+
+  .actionbar-label {
+    max-width: 95px;
+    font-size: 0.45rem;
+    line-height: 1.25;
+    white-space: normal;
+  }
+
+  .actionbar-shortcuts {
+    gap: 3px;
+  }
+
+  .actionbar-shortcuts span {
+    width: 25px;
+    height: 27px;
+  }
+
+  .actionbar-audio {
+    min-height: 30px;
+    gap: 5px;
+    padding: 4px 6px;
+    font-size: 0.54rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .client-brand__copy strong {
+    font-size: 0.56rem;
+  }
+
+  .client-profile small {
+    max-width: 95px;
+  }
+
+  .actionbar-label {
+    max-width: 72px;
+  }
+
+  .actionbar-shortcuts span {
+    width: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .character-avatar {
+    animation: none;
+  }
+}
+

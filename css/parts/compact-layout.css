@@ -1,0 +1,104 @@
+@media (max-width: 680px) {
+  .world-viewport {
+    height: clamp(350px, 60svh, 580px);
+    min-height: 330px;
+  }
+
+  .world-hud span {
+    max-width: 57%;
+    font-size: 0.46rem;
+  }
+
+  .world-move-pad {
+    bottom: 9px;
+    left: 9px;
+    grid-template: ' . up . ' 35px 'left down right' 35px / 39px 39px 39px;
+  }
+
+  .world-move-pad button {
+    min-width: 39px;
+    min-height: 35px;
+  }
+
+  .world-interact {
+    right: 9px;
+    bottom: 10px;
+    max-width: 52%;
+    min-height: 40px;
+    padding: 6px 8px;
+    font-size: 0.61rem;
+  }
+
+  .quest-dialog {
+    width: calc(100vw - 12px);
+    max-height: calc(100dvh - 12px);
+  }
+
+  .quest-window {
+    min-height: 0;
+    padding: 6px;
+  }
+
+  .quest-window__body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+    padding: 7px 0;
+  }
+
+  .quest-briefing {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+    padding: 7px;
+  }
+
+  .quest-briefing .chapter-map {
+    max-width: 620px;
+    margin: 0 auto;
+  }
+
+  .quest-briefing .chapter-map__art {
+    max-height: 150px;
+  }
+
+  .quest-npc-card {
+    padding: 3px 1px;
+  }
+
+  .quest-npc-card__portrait {
+    width: 38px;
+    height: 38px;
+    font-size: 1.3rem;
+  }
+
+  .quest-introduction {
+    font-size: 0.68rem;
+  }
+
+  .quest-activity {
+    padding: 7px;
+  }
+
+  .quest-game-root>.mini-game {
+    gap: 7px;
+    padding: 8px;
+  }
+
+  .quest-game-root .rune-tile {
+    min-height: 52px;
+  }
+
+  .quest-window__footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .quest-window__footer .game-control {
+    width: 100%;
+  }
+
+  .client-sidebar--right {
+    grid-template-columns: 1fr 1fr;
+  }
+}
