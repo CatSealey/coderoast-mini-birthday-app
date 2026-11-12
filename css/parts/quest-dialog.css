@@ -39,6 +39,19 @@
   gap: 8px;
 }
 
+.settings-options {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.settings-options p {
+  margin: 0;
+  color: #ffbf9b;
+}
+
 .quest-window {
   min-height: 460px;
   padding: 10px;
@@ -191,4 +204,3 @@
   border-bottom-color: rgba(115, 195, 176, 0.7);
   content: '';
 }
-

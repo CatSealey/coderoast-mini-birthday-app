@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createAudioController } from '../js/audio.js';
+import { AREA_TRACKS, createAudioController } from '../js/audio.js';
 
-function audioFixture({ failResume = false, resumePromise = null } = {}) {
-  const notes = [], timers = new Map(), voices = [], contexts = [];
+function audioFixture({ failResume = false, resumePromise = null, play = () => Promise.resolve() } = {}) {
+  const notes = [], timers = new Map(), voices = [], contexts = [], media = [], statuses = [];
   let nextTimer = 1;
   const icon = {}, label = {};
   const button = {
@@ -33,12 +33,24 @@ function audioFixture({ failResume = false, resumePromise = null } = {}) {
   }
   const environment = {
     AudioContext,
+    Audio: class {
+      constructor() { this._src = ''; this.loads = []; this.plays = []; this.paused = true; media.push(this); }
+      set src(value) { this._src = value; this.loads.push(value); }
+      get src() { return this._src; }
+      play() { this.paused = false; this.plays.push(this.src); return play(this.src); }
+      pause() { this.paused = true; }
+      addEventListener(type, handler) { if (type === 'error') this.onError = handler; }
+      removeEventListener() { this.onError = null; }
+    },
     setTimeout(callback, delay) { const id = nextTimer++; timers.set(id, { callback, delay }); return id; },
     clearTimeout(id) { timers.delete(id); }
   };
-  const audio = createAudioController(button, environment);
+  const settingsButton = { attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } };
+  const audio = createAudioController(button, environment, {
+    settingsButton, onStatus(message, error, title) { statuses.push({ message, error, title }); }
+  });
   return {
-    audio, button, label, notes, voices, timers, contexts,
+    audio, button, settingsButton, label, notes, voices, timers, contexts, media: media[0], statuses,
     nextNote() {
       const [id, timer] = timers.entries().next().value;
       timers.delete(id);
@@ -73,28 +85,30 @@ test('cake arrival plays Happy Birthday once and restores initially silent music
 });
 
 test('the melody finishes after dialogue ends and restores previously enabled music', async () => {
-  const { audio, notes, button, nextNote } = audioFixture();
+  const { audio, notes, button, media, nextNote } = audioFixture();
   await audio.toggleMusic();
   await audio.prepareBirthdayCelebration();
   audio.startBirthdayCelebration();
   audio.finishBirthdayCelebration();
   assert.equal(button.attributes['aria-pressed'], 'true');
   for (let i = 0; i < 25; i += 1) nextNote();
-  assert.equal(notes.length, 27);
-  assert.equal(notes.at(-1), 523);
+  assert.equal(notes.length, 25);
+  assert.equal(media.plays.length, 2);
+  assert.equal(media.paused, false);
   assert.equal(button.attributes['aria-pressed'], 'true');
   audio.dispose();
 });
 
 test('celebration temporarily replaces enabled music and respects an explicit mute', async () => {
-  const { audio, button, notes, timers } = audioFixture();
+  const { audio, button, notes, timers, media } = audioFixture();
   await audio.toggleMusic();
-  assert.equal(notes.at(-1), 523);
+  assert.equal(media.plays.at(-1), AREA_TRACKS.home.file);
   await audio.prepareBirthdayCelebration();
   audio.startBirthdayCelebration();
   assert.equal(notes.at(-1), 392);
+  assert.equal(media.paused, true);
   audio.stopBirthdayCelebration();
-  assert.equal(notes.at(-1), 523);
+  assert.equal(media.plays.at(-1), AREA_TRACKS.home.file);
   assert.equal(button.attributes['aria-pressed'], 'true');
   await audio.toggleMusic();
   const count = notes.length;
@@ -106,7 +120,102 @@ test('celebration temporarily replaces enabled music and respects an explicit mu
   await audio.toggleMusic();
   assert.equal(notes.at(-1), 392);
   audio.stopBirthdayCelebration();
-  assert.equal(notes.at(-1), 523);
+  assert.equal(media.plays.at(-1), AREA_TRACKS.home.file);
+  audio.dispose();
+});
+
+test('area music switches tracks and both music controls stay in sync', async () => {
+  const { audio, button, settingsButton, media } = audioFixture();
+  assert.equal(button.attributes['aria-pressed'], 'false');
+  assert.equal(settingsButton.textContent, 'Music: Off');
+  await audio.toggleMusic();
+  assert.equal(media.loop, true);
+  assert.equal(media.plays.at(-1), AREA_TRACKS.home.file);
+  assert.equal(button.attributes['aria-pressed'], 'true');
+  assert.equal(settingsButton.attributes['aria-pressed'], 'true');
+  for (const area of ['escape', 'town', 'park', 'forest', 'harvest', 'home']) {
+    audio.setArea(area);
+    assert.equal(media.plays.at(-1), AREA_TRACKS[area].file);
+  }
+  const count = media.plays.length;
+  audio.setArea('home');
+  assert.equal(media.plays.length, count);
+  await audio.toggleMusic();
+  assert.equal(media.paused, true);
+  assert.equal(settingsButton.textContent, 'Music: Off');
+  audio.setArea('town');
+  assert.equal(media.plays.length, count);
+  await audio.toggleMusic();
+  assert.equal(media.plays.at(-1), AREA_TRACKS.town.file);
+  assert.throws(() => audio.setArea('unknown'), /Unknown music area/);
+  audio.dispose();
+});
+
+test('now-playing title follows playback, area changes, celebration and mute', async () => {
+  const { audio, statuses } = audioFixture();
+  await audio.toggleMusic();
+  assert.equal(statuses.at(-1).title, AREA_TRACKS.home.title);
+  for (const area of ['escape', 'town', 'park', 'forest', 'harvest']) {
+    audio.setArea(area);
+    await Promise.resolve();
+    assert.equal(statuses.at(-1).title, AREA_TRACKS[area].title);
+  }
+  await audio.prepareBirthdayCelebration();
+  audio.startBirthdayCelebration();
+  assert.equal(statuses.at(-1).title, 'Happy Birthday');
+  audio.stopBirthdayCelebration();
+  await Promise.resolve();
+  assert.equal(statuses.at(-1).title, AREA_TRACKS.harvest.title);
+  await audio.toggleMusic();
+  assert.equal(statuses.at(-1).title, undefined);
+  audio.dispose();
+});
+
+test('missing tracks report an error and stale playback failures do not replace the current status', async () => {
+  let rejectOld;
+  const firstPlay = new Promise((resolve, reject) => { rejectOld = reject; });
+  const { audio, statuses } = audioFixture({
+    play: (src) => src === AREA_TRACKS.home.file ? firstPlay : Promise.reject(new Error('File unavailable'))
+  });
+  await audio.toggleMusic();
+  audio.setArea('town');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(statuses.at(-1).message, /Could not play Addicted/);
+  assert.match(statuses.at(-1).error.message, /File unavailable/);
+  assert.equal(statuses.at(-1).title, undefined);
+  rejectOld(new Error('Old playback failed'));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(statuses.at(-1).error.message, /File unavailable/);
+  await audio.toggleMusic();
+  assert.equal(statuses.at(-1).message, 'Music is off.');
+  audio.dispose();
+});
+
+test('changing area during the birthday melody resumes the new area afterwards', async () => {
+  const { audio, media } = audioFixture();
+  await audio.toggleMusic();
+  await audio.prepareBirthdayCelebration();
+  audio.startBirthdayCelebration();
+  audio.setArea('forest');
+  assert.equal(media.paused, true);
+  assert.equal(media.plays.length, 1);
+  audio.stopBirthdayCelebration();
+  assert.equal(media.plays.at(-1), AREA_TRACKS.forest.file);
+  audio.dispose();
+});
+
+test('a later media error is reported without falsely showing the track as playing', async () => {
+  const { audio, media, statuses } = audioFixture();
+  await audio.toggleMusic();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(statuses.at(-1).message, /Playing Footloose/);
+  media.error = { code: 3, message: 'Decoding failed' };
+  media.onError();
+  assert.match(statuses.at(-1).message, /Could not play Footloose/);
+  assert.match(statuses.at(-1).error.message, /Decoding failed/);
+  await audio.toggleMusic();
+  await audio.toggleMusic();
+  assert.deepEqual(media.loads, [AREA_TRACKS.home.file, AREA_TRACKS.home.file]);
   audio.dispose();
 });
 

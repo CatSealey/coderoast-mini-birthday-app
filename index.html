@@ -217,10 +217,14 @@
         <span title="Quest journal">☷</span><span title="World map">◎</span><span title="Keepsakes">▦</span><span
           title="Character level" id="actionbarLevel">29</span>
       </div>
-      <button id="toggleAudioBtn" type="button" data-action="toggle-audio" aria-pressed="false"
-        class="rs3-btn actionbar-audio">
-        <span id="audioIcon" aria-hidden="true">♫</span><span id="audioText">Birthday music off</span>
-      </button>
+      <div class="actionbar-music">
+        <button id="toggleAudioBtn" type="button" data-action="toggle-audio" aria-pressed="false"
+          class="rs3-btn actionbar-audio">
+          <span id="audioIcon" aria-hidden="true">♫</span><span id="audioText">Music off</span>
+        </button>
+        <span id="nowPlaying" class="actionbar-now-playing" aria-live="polite" aria-atomic="true" hidden></span>
+        <span id="musicError" role="alert" hidden></span>
+      </div>
     </footer>
   </div>
 
@@ -233,13 +237,16 @@
     </div>
   </dialog>
 
-  <dialog id="settingsDialog" data-game-modal class="quest-dialog quest-remove-dialog" aria-labelledby="settingsTitle" aria-describedby="settingsDescription">
+  <dialog id="settingsDialog" data-game-modal class="quest-dialog quest-remove-dialog" aria-labelledby="settingsTitle">
     <section id="settingsMain">
       <h2 id="settingsTitle">Settings</h2>
-      <p id="settingsDescription">Start the adventure again from the beginning.</p>
+      <div class="settings-options">
+        <button id="settingsMusicBtn" type="button" class="rs3-btn game-control" data-action="toggle-audio" aria-pressed="false">Music: Off</button>
+        <p id="musicStatus" role="alert" hidden></p>
+        <button type="button" class="rs3-btn game-control" data-action="request-restart">Restart game</button>
+      </div>
       <div class="quest-remove-dialog__actions">
         <button type="button" class="rs3-btn game-control" data-action="close-settings" autofocus>Close</button>
-        <button type="button" class="rs3-btn game-control" data-action="request-restart">Restart game</button>
       </div>
     </section>
     <section id="restartConfirmation" hidden aria-labelledby="restartTitle">

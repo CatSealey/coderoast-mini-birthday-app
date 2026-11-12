@@ -9,14 +9,24 @@ const loginScreen = document.querySelector('#loginScreen');
 const client = document.querySelector('#clientShell');
 const submit = document.querySelector('#loginSubmit');
 const configuredPassword = import.meta.env.VITE_APP_PASSWORD;
+let startGame;
 
+submit.disabled = true;
 if (!configuredPassword) {
   errorMessage.textContent = 'The app password has not been configured. See the project README for setup.';
-  submit.disabled = true;
+} else {
+  import('./app.js').then((module) => {
+    startGame = module.startGame;
+    submit.disabled = false;
+  }).catch((error) => {
+    console.error('Could not load the birthday adventure.', error);
+    errorMessage.textContent = 'The game could not load. Please reload the page and try again.';
+  });
 }
 
-form.addEventListener('submit', async (event) => {
+form.addEventListener('submit', (event) => {
   event.preventDefault();
+  if (!startGame || submit.disabled) return;
   const result = validateLogin(username.value, password.value, configuredPassword);
   if (result.error) {
     errorMessage.textContent = result.error;
@@ -27,7 +37,6 @@ form.addEventListener('submit', async (event) => {
   errorMessage.textContent = '';
   password.value = '';
   try {
-    const { startGame } = await import('./app.js');
     loginScreen.hidden = true;
     client.hidden = false;
     startGame(result.characterName);

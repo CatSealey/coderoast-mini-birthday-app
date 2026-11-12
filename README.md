@@ -12,6 +12,23 @@ The character begins at level 29. Each of the five keepsake quests awards 15 bir
 
 When Gran arrives with the cake, a Happy Birthday melody plays once. The music button can mute it; if music was explicitly turned off, it stays off. After the melody, the previous music setting is restored.
 
+## Area music
+
+The soundtrack changes with the overworld region and its quest interior. Music starts when you enter the game, and the current song and artist appear beside the action-bar music button. Use **Settings → Music** or that button to mute or re-enable it. The setting lasts for the current session. If a track cannot play, the game reports the problem in Settings and on the action bar.
+
+The soundtrack uses these MP3 files in `public/music/`:
+
+| File | Area | Track |
+| --- | --- | --- |
+| `home.mp3` | Home and the trophy room | Footloose — Kenny Loggins |
+| `abigail.mp3` | Abigail's | Talking Body — Tove Lo |
+| `lucky-chucks.mp3` | Lucky Chucks | Addicted — Haley Joelle |
+| `thirteen.mp3` | Thirteen | Ocean Eyes — Billie Eilish |
+| `goape.mp3` | GoApe | Stay — Rihanna |
+| `fright-nights.mp3` | Fright Nights | Take on the World — You Me At Six |
+
+Vite copies these files into the production build. They can be committed with the project, and anyone who can access a deployed site can download them, so only share recordings where you have the necessary rights. Restart the development server after adding files if they are not picked up.
+
 ## Project structure
 
 ```text

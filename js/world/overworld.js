@@ -64,7 +64,7 @@ function label(ctx, text, y, color = '#f2e3b1') {
   ctx.fillStyle = color; ctx.fillText(text, 0, y);
 }
 
-export function mountOverworld({ characterName, worldCanvas, mapCanvas, interactButton, messageElement, locationElement, targetElement, onGuide, onAcceptQuest, onEntrance, onCastle, onTrophyGuide, onAcceptTrophy, onSideQuest, onMessage, onQuestSelected }) {
+export function mountOverworld({ characterName, worldCanvas, mapCanvas, interactButton, messageElement, locationElement, targetElement, onGuide, onAcceptQuest, onEntrance, onCastle, onTrophyGuide, onAcceptTrophy, onSideQuest, onMessage, onQuestSelected, onRegionChange }) {
   const mapContext = mapCanvas.getContext('2d');
   if (!mapContext) throw new Error('The browser could not initialize the game world map.');
   const art = createWorldArt();
@@ -94,6 +94,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   let zoom = 1;
   let camera = { x: 0, y: 0 };
   let animationFrame = 0;
+  let currentRegion = null;
   const npcPosition = (npc) => npc.sideQuest === undefined ? npc : { ...npc, ...sideQuestPosition(npc, state.frame) };
   const npcPositions = () => WORLD_NPCS.map(npcPosition);
 
@@ -215,8 +216,12 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       && (!nearCastle || distanceBetween(state.player, npcs[nearbyNpc]) < distanceBetween(state.player, CASTLE_ENTRANCE)) ? nearbyNpc : null);
     const npc = npcIndex === null ? null : npcs[npcIndex];
     const nearNpc = npc && isNearQuest(state.player, npc.prop === 'pace' ? WORLD_NPCS[npcIndex] : npc);
-    const location = regionBlendAt(state.player).region.name;
-    if (locationElement.textContent !== location) locationElement.textContent = location;
+    const region = regionBlendAt(state.player).region;
+    if (locationElement.textContent !== region.name) locationElement.textContent = region.name;
+    if (currentRegion !== region.id) {
+      currentRegion = region.id;
+      onRegionChange?.(region.id);
+    }
     interactButton.disabled = false;
     const buttonText = npc
       ? `${nearNpc ? 'Speak to' : 'Walk to'} ${npc.name}`

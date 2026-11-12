@@ -10,6 +10,7 @@ import { restoreHouseState } from './games/abigail-house.js';
 import { questItems } from './quest-items.js';
 import { mountOverworld } from './world/overworld.js';
 import { QUEST_LOCATIONS } from './world/world-data.js';
+import { WORLD_REGIONS } from './world/world-regions.js';
 import { areAllQuestsComplete, isQuestAvailable } from './world/world-logic.js';
 import { birthdayProgress, XP_PER_QUEST } from './progression.js';
 import { freshGameProgress, normalizeQuestProgress, questGuideSpeech, removeQuestProgress } from './quest-progress.js';
@@ -128,7 +129,40 @@ export function startGame(characterName) {
   const journalStepSignatures = Array(chapters.length + 1).fill(null);
   let activeChapter = 0;
   let disposeGame = () => { };
-  const audio = createAudioController(document.querySelector('#toggleAudioBtn'));
+  const musicError = document.querySelector('#musicError');
+  const musicStatus = document.querySelector('#musicStatus');
+  const nowPlaying = document.querySelector('#nowPlaying');
+  function showMusicError(message) {
+    nowPlaying.hidden = true;
+    nowPlaying.textContent = '';
+    musicStatus.textContent = message;
+    musicStatus.hidden = false;
+    musicError.textContent = 'Music unavailable. Check Settings.';
+    musicError.hidden = false;
+  }
+  const audio = createAudioController(document.querySelector('#toggleAudioBtn'), window, {
+    settingsButton: document.querySelector('#settingsMusicBtn'),
+    onStatus: (message, error, title) => {
+      nowPlaying.textContent = title || '';
+      nowPlaying.hidden = !title;
+      if (error) {
+        console.error(message, error);
+        showMusicError(message);
+      } else {
+        musicStatus.hidden = true;
+        musicStatus.textContent = '';
+        musicError.hidden = true;
+        musicError.textContent = '';
+      }
+    }
+  });
+  function toggleAudio() {
+    audio.toggleMusic().catch((error) => {
+      console.error('Music could not be started.', error);
+      showMusicError('Music could not start. Please try again.');
+    });
+  }
+  let overworldRegion = 'home';
   const worldLocation = document.querySelector('#worldLocation');
   const stageTitle = document.querySelector('#stageTitle');
   const stageBadge = document.querySelector('#stageBadge');
@@ -465,6 +499,7 @@ export function startGame(characterName) {
     disposeGame = () => { };
     activeChapter = index;
     worldQuestIndex = index;
+    audio.setArea(WORLD_REGIONS[index + 1].id);
     abigailRoot.hidden = false;
     obscuredWorldControls.forEach((element) => { element.inert = true; });
     document.querySelector('.world-map-hint').textContent = 'The world map shows your location outside the quest.';
@@ -500,6 +535,7 @@ export function startGame(characterName) {
     abigailRoot.replaceChildren();
     abigailRoot.hidden = true;
     worldQuestIndex = null;
+    audio.setArea(overworldRegion);
     obscuredWorldControls.forEach((element) => { element.inert = false; });
     document.querySelector('.world-map-hint').textContent = 'Tap a marker to travel. The house marks Lumbridge Castle.';
     world.setPaused(false);
@@ -512,6 +548,7 @@ export function startGame(characterName) {
     if (!inTrophyRoom) return;
     disposeGame(); disposeGame = () => { };
     abigailRoot.replaceChildren(); abigailRoot.hidden = true; inTrophyRoom = false;
+    audio.setArea(overworldRegion);
     obscuredWorldControls.forEach((element) => { element.inert = false; });
     document.querySelector('.world-map-hint').textContent = 'Tap a marker to travel. The house marks Lumbridge Castle.';
     world.setPaused(false);
@@ -528,6 +565,7 @@ export function startGame(characterName) {
       return;
     }
     inTrophyRoom = true;
+    audio.setArea('home');
     abigailRoot.hidden = false;
     obscuredWorldControls.forEach((element) => { element.inert = true; });
     document.querySelector('.world-map-hint').textContent = 'The world map shows your location outside the trophy room.';
@@ -553,7 +591,7 @@ export function startGame(characterName) {
         }
         audio.prepareBirthdayCelebration().catch((error) => {
           console.error('Birthday music could not be started.', error);
-          document.querySelector('#audioText').textContent = 'Audio could not start';
+          showMusicError('Birthday music could not start. Please try again.');
         });
         return true;
       },
@@ -712,7 +750,7 @@ export function startGame(characterName) {
     restartConfirmation.hidden = true;
     restartError.hidden = true;
     settingsDialog.setAttribute('aria-labelledby', 'settingsTitle');
-    settingsDialog.setAttribute('aria-describedby', 'settingsDescription');
+    settingsDialog.removeAttribute('aria-describedby');
     if (worldQuestIndex === null && !inTrophyRoom) world.setPaused(true);
     settingsDialog.showModal();
   }
@@ -727,7 +765,8 @@ export function startGame(characterName) {
     restartConfirmation.hidden = !show;
     restartError.hidden = true;
     settingsDialog.setAttribute('aria-labelledby', show ? 'restartTitle' : 'settingsTitle');
-    settingsDialog.setAttribute('aria-describedby', show ? 'restartDescription' : 'settingsDescription');
+    if (show) settingsDialog.setAttribute('aria-describedby', 'restartDescription');
+    else settingsDialog.removeAttribute('aria-describedby');
     settingsDialog.querySelector(show ? '[data-action="cancel-restart"]' : '[data-action="request-restart"]').focus();
   }
 
@@ -792,6 +831,10 @@ export function startGame(characterName) {
       renderSideQuests();
       return true;
     },
+    onRegionChange: (region) => {
+      overworldRegion = region;
+      if (worldQuestIndex === null && !inTrophyRoom) audio.setArea(region);
+    },
     onMessage: (message) => { dialogue.textContent = message; },
     onQuestSelected: (index) => {
       activeChapter = index;
@@ -842,10 +885,7 @@ export function startGame(characterName) {
     } else if (button.dataset.action === 'open-birthday-ticket') {
       showBirthdayTicket();
     } else if (button.dataset.action === 'toggle-audio') {
-      audio.toggleMusic().catch((error) => {
-        console.error('Birthday music could not be started.', error);
-        document.querySelector('#audioText').textContent = 'Audio could not start';
-      });
+      toggleAudio();
     } else if (button.dataset.action === 'abigail-leave') {
       leaveWorldQuest();
     } else if (button.dataset.action === 'open-settings') {
@@ -905,4 +945,5 @@ export function startGame(characterName) {
   renderInventory();
   renderChapterNavigation();
   world.setQuestStates(completed, accepted, trophyQuest.completed);
+  toggleAudio();
 }

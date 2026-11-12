@@ -198,6 +198,7 @@
 
 .client-actionbar {
   display: flex;
+  flex-wrap: wrap;
   min-width: 0;
   align-items: center;
   justify-content: space-between;
@@ -240,12 +241,36 @@
 
 .actionbar-audio {
   display: flex;
+  flex: 0 0 auto;
   min-height: 32px;
   align-items: center;
   gap: 7px;
   padding: 4px 9px;
   border-radius: 3px;
   font-size: 0.62rem;
+}
+
+.actionbar-music {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.actionbar-now-playing {
+  max-width: 250px;
+  color: #e8ddb9;
+  font-size: 0.65rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+#musicError:not([hidden]) {
+  color: #ffbf9b;
+  font-size: 0.62rem;
+  line-height: 1.2;
 }
 
 @keyframes avatarIdle {

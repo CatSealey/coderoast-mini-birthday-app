@@ -1,8 +1,12 @@
-const birthdayNotes = [
-  [523, 0.18], [659, 0.18], [784, 0.28], [659, 0.18],
-  [587, 0.18], [698, 0.18], [880, 0.34], [784, 0.3],
-  [523, 0.18], [659, 0.18], [784, 0.28], [1047, 0.38]
-];
+const musicBase = `${import.meta.env?.BASE_URL || '/'}music/`;
+export const AREA_TRACKS = Object.freeze({
+  home: Object.freeze({ file: `${musicBase}home.mp3`, title: 'Footloose — Kenny Loggins' }),
+  escape: Object.freeze({ file: `${musicBase}abigail.mp3`, title: 'Talking Body — Tove Lo' }),
+  town: Object.freeze({ file: `${musicBase}lucky-chucks.mp3`, title: 'Addicted — Haley Joelle' }),
+  park: Object.freeze({ file: `${musicBase}thirteen.mp3`, title: 'Ocean Eyes — Billie Eilish' }),
+  forest: Object.freeze({ file: `${musicBase}goape.mp3`, title: 'Stay — Rihanna' }),
+  harvest: Object.freeze({ file: `${musicBase}fright-nights.mp3`, title: 'Take on the World — You Me At Six' })
+});
 
 const happyBirthdayNotes = [
   [392, 0.18], [392, 0.18], [440, 0.36], [392, 0.36], [523, 0.36], [494, 0.72],
@@ -11,10 +15,14 @@ const happyBirthdayNotes = [
   [698, 0.18], [698, 0.18], [659, 0.36], [523, 0.36], [587, 0.36], [523, 0.84]
 ];
 
-export function createAudioController(button, environment = window) {
+export function createAudioController(button, environment = window, { settingsButton, onStatus = () => {} } = {}) {
   const AudioContextConstructor = environment.AudioContext || environment.webkitAudioContext;
   const icon = button.querySelector('#audioIcon');
   const label = button.querySelector('#audioText');
+  const track = new environment.Audio();
+  track.loop = true;
+  track.preload = 'none';
+  track.volume = 0.35;
   let context = null;
   let timer = 0;
   let playing = false;
@@ -25,12 +33,25 @@ export function createAudioController(button, environment = window) {
   let celebrationGeneration = 0;
   let noteIndex = 0;
   let disposed = false;
+  let area = 'home';
+  let trackArea = null;
+  let musicGeneration = 0;
+  let reportedFailureGeneration = -1;
   const musicVoices = new Set();
 
-  if (!AudioContextConstructor) {
-    button.disabled = true;
-    label.textContent = 'Audio unavailable';
+  function reportTrackFailure(generation, error) {
+    if (disposed || generation !== musicGeneration || reportedFailureGeneration === generation) return;
+    reportedFailureGeneration = generation;
+    trackArea = null;
+    onStatus(`Could not play ${AREA_TRACKS[area].title}. Check the music file and try again.`, error);
   }
+
+  function handleTrackError() {
+    if (playing && !celebrationActive && track.error) {
+      reportTrackFailure(musicGeneration, new Error(track.error.message || `Media error ${track.error.code}`));
+    }
+  }
+  track.addEventListener('error', handleTrackError);
 
   function tone(frequency, duration, waveform = 'sine', volume = 0.07, delay = 0, music = false) {
     if (!context || context.state !== 'running') return;
@@ -71,10 +92,16 @@ export function createAudioController(button, environment = window) {
   function updateButton() {
     button.setAttribute('aria-pressed', String(playing));
     icon.textContent = playing ? '🔊' : '🎵';
-    label.textContent = playing ? (celebrationActive ? 'Happy Birthday playing' : 'Birthday tune playing') : 'Play birthday tune';
+    label.textContent = playing ? (celebrationActive ? 'Happy Birthday playing' : 'Music on') : 'Music off';
+    if (settingsButton) {
+      settingsButton.setAttribute('aria-pressed', String(playing));
+      settingsButton.textContent = playing ? 'Music: On' : 'Music: Off';
+    }
   }
 
   function stopMusic() {
+    musicGeneration += 1;
+    track.pause();
     environment.clearTimeout(timer);
     timer = 0;
     for (const oscillator of musicVoices) oscillator.stop();
@@ -84,45 +111,84 @@ export function createAudioController(button, environment = window) {
   function startMusic() {
     stopMusic();
     noteIndex = 0;
-    if (!playing || !context || context.state !== 'running') return;
+    if (!playing || disposed) {
+      onStatus('Music is off.');
+      return;
+    }
+    if (!celebrationActive) {
+      const current = AREA_TRACKS[area];
+      const generation = musicGeneration;
+      if (trackArea !== area) {
+        track.src = current.file;
+        trackArea = area;
+      }
+      onStatus(`Starting ${current.title}…`);
+      let playback;
+      try {
+        playback = track.play();
+      } catch (error) {
+        reportTrackFailure(generation, error);
+        return;
+      }
+      Promise.resolve(playback).then(() => {
+        if (!disposed && generation === musicGeneration && reportedFailureGeneration !== generation) {
+          onStatus(`Playing ${current.title}.`, null, current.title);
+        }
+      }).catch((error) => {
+        reportTrackFailure(generation, error);
+      });
+      return;
+    }
+    onStatus('Starting Happy Birthday…');
+    if (!context || context.state !== 'running') return;
+    onStatus('Playing Happy Birthday.', null, 'Happy Birthday');
     const playNext = () => {
       if (!playing || !context || context.state !== 'running') return;
       if (celebrationActive && noteIndex === happyBirthdayNotes.length) {
         stopBirthdayCelebration();
         return;
       }
-      const notes = celebrationActive ? happyBirthdayNotes : birthdayNotes;
-      const [frequency, duration] = notes[noteIndex % notes.length];
+      const [frequency, duration] = happyBirthdayNotes[noteIndex];
       tone(frequency, duration * 0.9, 'triangle', 0.045, 0, true);
       noteIndex += 1;
-      timer = environment.setTimeout(playNext, (celebrationActive ? duration : 0.22) * 1000);
+      timer = environment.setTimeout(playNext, duration * 1000);
     };
     playNext();
   }
 
   async function ensureContext() {
+    if (!AudioContextConstructor) throw new Error('The audio context is unavailable.');
     if (!context) context = new AudioContextConstructor();
     if (context.state === 'suspended') await context.resume();
     if (context.state !== 'running') throw new Error('The audio context could not be started.');
   }
 
   async function toggleMusic() {
-    if (!AudioContextConstructor) return;
     userChoseMusic = true;
     playing = !playing;
     updateButton();
     if (playing) {
+      if (!celebrationActive) startMusic();
       try {
         await ensureContext();
       } catch (error) {
         playing = false;
+        stopMusic();
         updateButton();
         throw error;
       }
-      if (!disposed && playing) startMusic();
+      if (!disposed && playing && celebrationActive) startMusic();
     } else {
       stopMusic();
+      onStatus('Music is off.');
     }
+  }
+
+  function setArea(nextArea) {
+    if (!Object.hasOwn(AREA_TRACKS, nextArea)) throw new Error(`Unknown music area: ${nextArea}`);
+    if (area === nextArea) return;
+    area = nextArea;
+    if (playing && !celebrationActive) startMusic();
   }
 
   async function prepareBirthdayCelebration() {
@@ -168,8 +234,11 @@ export function createAudioController(button, environment = window) {
   function dispose() {
     disposed = true;
     stopMusic();
+    track.removeEventListener('error', handleTrackError);
     if (context && context.state !== 'closed') void context.close();
   }
 
-  return { playSound, toggleMusic, prepareBirthdayCelebration, startBirthdayCelebration, finishBirthdayCelebration, stopBirthdayCelebration, dispose };
+  updateButton();
+  onStatus('Music is off.');
+  return { playSound, toggleMusic, setArea, prepareBirthdayCelebration, startBirthdayCelebration, finishBirthdayCelebration, stopBirthdayCelebration, dispose };
 }
