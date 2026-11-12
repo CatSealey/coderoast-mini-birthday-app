@@ -7,6 +7,104 @@
   padding: 8px 16px;
 }
 
-.trophy-room__continue[hidden] {
+.trophy-room__continue[hidden],
+.trophy-room__ticket-open[hidden],
+.trophy-room__ticket[hidden] {
   display: none;
+}
+
+.trophy-room__ticket-open {
+  position: absolute;
+  z-index: 3;
+  top: 56px;
+  right: 12px;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.trophy-room__ticket {
+  position: absolute;
+  z-index: 4;
+  top: 60px;
+  right: 12px;
+  display: grid;
+  gap: 9px;
+  width: min(280px, calc(100% - 24px));
+  max-height: calc(100% - 130px);
+  overflow-y: auto;
+  padding: 11px;
+  border: 2px solid #c9a860;
+  border-radius: 7px;
+  background: linear-gradient(145deg, #293b33, #101d1c);
+  color: #f6e8c3;
+  box-shadow: 0 8px 24px #000a, inset 0 0 0 3px #cfb77924;
+  text-align: center;
+  font-size: .72rem;
+}
+
+.trophy-room__ticket-art {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  padding: 14px 12px 0;
+  border: 1px solid #a48a55;
+  border-radius: 3px;
+  background: radial-gradient(ellipse at top, #435644, #1d2b28 70%);
+}
+
+.trophy-room__ticket-eyebrow,
+.trophy-room__ticket-stub {
+  color: #edcc7d;
+  font-family: Cinzel, Georgia, serif;
+  font-size: .58rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.trophy-room__ticket-ornament {
+  color: #edcd88;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.trophy-room__ticket-art strong {
+  color: #f5dca0;
+  font: 700 1rem Cinzel, Georgia, serif;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.trophy-room__ticket-intro {
+  color: #d7ceae;
+  font-style: italic;
+}
+
+.trophy-room__ticket-art b {
+  color: #d3ecbc;
+  font: 700 1.2rem Cinzel, Georgia, serif;
+}
+
+.trophy-room__ticket-details {
+  max-width: 190px;
+  color: #f2ddb2;
+  line-height: 1.45;
+}
+
+.trophy-room__ticket-signature {
+  color: #eebbb7;
+  font: italic 1rem Georgia, serif;
+}
+
+.trophy-room__ticket-stub {
+  align-self: stretch;
+  margin-top: 5px;
+  padding: 9px 0;
+  border-top: 1px dashed #c9ac71;
+  font-size: .52rem;
+}
+
+.trophy-room__ticket button {
+  min-height: 40px;
+  padding: 6px 12px;
 }

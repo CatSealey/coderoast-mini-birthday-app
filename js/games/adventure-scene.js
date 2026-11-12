@@ -3,6 +3,7 @@ import { CANOPY_CROSSINGS, CANOPY_PLATFORMS, CANOPY_ZIPLINE, OBJECTS, POOL_TABLE
 import { COASTER_PLATFORM, COASTER_RAIL_OFFSET, COASTER_REJOIN_PROGRESS, COASTER_TREATS, coasterDirection, coasterHeading, coasterLanePosition, coasterPosition, coasterRailPosition } from './coaster-course.js';
 import { drawCoasterItem } from './coaster-art.js';
 import { createCharacterLegs } from './character-legs.js';
+import { CAT_OUTFIT, CHARACTER_HAIR, PLAYER_OUTFIT, drawCharacterMarker } from '../character-appearance.js';
 
 export function createAdventureScene(canvas, index, onSelect, characterName) {
   const probe = document.createElement('canvas').getContext('webgl2');
@@ -81,11 +82,12 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     const sprite = new THREE.Sprite(mat); sprite.position.set(x, y, z); sprite.scale.set(130, 32, 1); scene.add(sprite);
     return sprite;
   }
-  function person(color, name, x, z, parent = scene) {
+  function person(color, name, x, z, parent = scene, longHair = false) {
     const group = new THREE.Group(); group.position.set(x, 0, z); parent.add(group);
     box(0, 39, 0, 26, 38, 17, color, group);
     box(0, 70, 0, 19, 20, 19, '#dfb38c', group);
     box(0, 82, 0, 21, 6, 21, '#47372e', group);
+    if (longHair) box(0, 70, -11, 21, 27, 5, CHARACTER_HAIR, group);
     group.userData.legs = createCharacterLegs(group, box, 7, '#594336');
     box(0, 27, 9, 26, 4, 2, '#a98e60', group);
     box(-5, 71, 10, 3, 3, 2, '#47372e', group); box(5, 71, 10, 3, 3, 2, '#47372e', group);
@@ -102,8 +104,8 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     for (const x of [-25, 25]) for (const z of [-24, 24]) {
       round(cylinderGeometry, x, 9, z, 15, 7, 15, '#252f2c', group).rotation.z = Math.PI / 2;
     }
-    if (withRiders) for (const [x, color] of [[-17, '#315d4a'], [17, '#a56a7c']]) {
-      const rider = person(color, null, x, 0, group); rider.position.y = 18; rider.scale.set(0.7, 0.7, 0.7);
+    if (withRiders) for (const [x, color] of [[-17, PLAYER_OUTFIT], [17, CAT_OUTFIT]]) {
+      const rider = person(color, null, x, 0, group, true); rider.position.y = 18; rider.scale.set(0.7, 0.7, 0.7);
       rider.userData.legs.forEach((leg) => { leg.rotation.x = -Math.PI / 2; });
     }
     return group;
@@ -152,7 +154,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     const { x, y: z, kind } = object, h = object.height || 0;
     let mesh;
     if (kind === 'npc') {
-      mesh = person('#a56a7c', object.name, x, z);
+      mesh = person(CAT_OUTFIT, object.name, x, z, scene, object.id === 'amor' || object.id === 'love');
       if (object.id === 'amor') platformAmor = mesh;
       if (index === 1 && object.id === 'love') pubLove = mesh;
     } else {
@@ -395,7 +397,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       lightMarker = box(220, 3, 350, 80, 4, 80, '#e9ca76', scene, true);
     }
     OBJECTS[index].forEach(makeObject);
-    player = person('#315d4a', null, 0, 0);
+    player = person(PLAYER_OUTFIT, null, 0, 0, scene, true);
     const nameLabel = label(characterName, 0, 105, 0);
     player.userData.label = nameLabel;
   }
@@ -579,8 +581,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         return;
       }
       if (index === 2 && object.id === 'amor' && state.pubTogether) {
-        ctx.fillStyle = '#d29caf';
-        ctx.fillRect(sx(state.player.x + PUB_PARTNER_OFFSET) - 13, sy(state.player.y) - 13, 26, 26);
+        drawCharacterMarker(ctx, sx(state.player.x + PUB_PARTNER_OFFSET), sy(state.player.y), CAT_OUTFIT);
         ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
         ctx.fillText(object.name, sx(state.player.x + PUB_PARTNER_OFFSET), sy(state.player.y) - 17);
         return;
@@ -602,6 +603,12 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       if (index === 1 && object.footprint) {
         const objectX = object.id === 'love' && state.pubTogether ? state.player.x + PUB_PARTNER_OFFSET : object.x;
         const objectY = object.id === 'love' && state.pubTogether ? state.player.y : object.y;
+        if (object.id === 'love') {
+          drawCharacterMarker(ctx, sx(objectX), sy(objectY), CAT_OUTFIT);
+          ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
+          ctx.fillText(object.name, sx(objectX), sy(objectY) - 17);
+          return;
+        }
         ctx.fillStyle = object.kind === 'npc' ? '#d29caf' : '#a9895e';
         const { width: w, depth: d, radius } = object.footprint;
         if (radius !== undefined) {
@@ -611,6 +618,12 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
           ctx.fillText(object.name, sx(objectX), sy(objectY) - 17);
         }
+        return;
+      }
+      if (object.id === 'amor') {
+        drawCharacterMarker(ctx, sx(object.x), sy(object.y), CAT_OUTFIT);
+        ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
+        ctx.fillText(object.name, sx(object.x), sy(object.y) - 17);
         return;
       }
       ctx.fillStyle = object.kind === 'npc' ? '#d29caf' : object.kind === 'collectible'
@@ -627,8 +640,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       ctx.stroke();
     }
     if (index !== 2 || !['riding', 'dropping', 'returning'].includes(state.phase)) {
-      ctx.fillStyle = '#e7c198'; ctx.beginPath(); ctx.arc(sx(state.player.x), sy(state.player.y), 8, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#315d4a'; ctx.fillRect(sx(state.player.x) - 8, sy(state.player.y) + 6, 16, 16);
+      drawCharacterMarker(ctx, sx(state.player.x), sy(state.player.y), PLAYER_OUTFIT);
       if ((index === 1 || index === 2) && state.pubTogether) {
         ctx.fillStyle = '#dfb38c';
         ctx.fillRect(sx(state.player.x + PUB_PARTNER_OFFSET), sy(state.player.y) + 5, -PUB_PARTNER_OFFSET * scale, 4);
@@ -641,7 +653,10 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     if (index === 2 && ['riding', 'dropping', 'returning'].includes(state.phase)) {
       ctx.save(); ctx.translate(sx(ridePoint.x), sy(ridePoint.y));
       ctx.rotate(-coasterHeading(state.phase, state.progress));
-      ctx.fillStyle = '#dec181'; ctx.fillRect(-15, -10, 30, 20); ctx.restore();
+      ctx.fillStyle = '#675143'; ctx.fillRect(-22, -13, 44, 26);
+      drawCharacterMarker(ctx, -10, -5, PLAYER_OUTFIT, 0.55);
+      drawCharacterMarker(ctx, 10, -5, CAT_OUTFIT, 0.55);
+      ctx.restore();
     }
   }
   function click(event) {

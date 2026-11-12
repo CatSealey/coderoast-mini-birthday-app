@@ -5,6 +5,7 @@ import { COASTER_DROP_SECONDS, COASTER_GOAL, COASTER_PLATFORM, COASTER_REJOIN_PR
 import { createCollision } from '../js/world/world-collision.js';
 import { createAdventureScene } from '../js/games/adventure-scene.js';
 import { questItems } from '../js/quest-items.js';
+import { CAT_OUTFIT, CHARACTER_HAIR, PLAYER_OUTFIT } from '../js/character-appearance.js';
 
 function visit(index, state, id) {
   const object = OBJECTS[index].find((item) => item.id === id);
@@ -39,8 +40,9 @@ function walkRoute(state, object) {
 test('pub fallback displays character names without furniture labels', () => {
   const previousDocument = globalThis.document, previousWindow = globalThis.window;
   const labels = [];
+  const colors = [];
   const ctx = {
-    setTransform() { }, fillRect() { }, beginPath() { }, arc() { }, fill() { },
+    setTransform() { }, fillRect() { colors.push(this.fillStyle); }, beginPath() { }, arc() { }, ellipse() { }, fill() { colors.push(this.fillStyle); },
     fillText(text) { labels.push(text); }
   };
   const canvas = {
@@ -55,6 +57,9 @@ test('pub fallback displays character names without furniture labels', () => {
     scene.resize(1000, 700);
     scene.draw(newAdventureState(1));
     assert.deepEqual(labels, ['Cat', 'Dani']);
+    assert.ok(colors.includes(PLAYER_OUTFIT));
+    assert.ok(colors.includes(CAT_OUTFIT));
+    assert.ok(colors.includes(CHARACTER_HAIR));
     scene.dispose();
   } finally {
     if (previousDocument === undefined) delete globalThis.document;
@@ -69,7 +74,7 @@ test('Thirteen fallback keeps the locker visible without its floating label', ()
   const labels = [];
   const ctx = {
     setTransform() { }, fillRect() { }, beginPath() { }, moveTo() { }, lineTo() { }, stroke() { },
-    arc() { }, fill() { }, save() { }, translate() { }, rotate() { }, restore() { }, drawImage() { },
+    arc() { }, ellipse() { }, fill() { }, save() { }, translate() { }, rotate() { }, restore() { }, drawImage() { },
     fillText(text) { labels.push(text); }
   };
   const iconCtx = {
@@ -100,7 +105,7 @@ test('Thirteen fallback keeps missed items visible through each ride phase', () 
   const drawn = [];
   const ctx = {
     setTransform() { }, fillRect() { }, beginPath() { }, moveTo() { }, lineTo() { }, stroke() { },
-    arc() { }, fill() { }, save() { }, translate() { }, rotate() { }, restore() { }, fillText() { },
+    arc() { }, ellipse() { }, fill() { }, save() { }, translate() { }, rotate() { }, restore() { }, fillText() { },
     drawImage(image) { drawn.push(image); }
   };
   const iconCtx = {

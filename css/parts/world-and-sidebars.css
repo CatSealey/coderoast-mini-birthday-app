@@ -503,18 +503,21 @@
 
 .inventory-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 5px;
   margin-top: 9px;
 }
 
 .inventory-grid.keepsake-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 52px));
 }
 
-.keepsake-grid .inventory-slot {
-  height: 44px;
-  aspect-ratio: auto;
+.keepsake-grid .inventory-slot,
+.quest-items .inventory-slot {
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  aspect-ratio: 1;
 }
 
 .inventory-slot img {
@@ -531,14 +534,9 @@
 
 .quest-items {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 52px));
+  grid-template-columns: repeat(6, minmax(0, 52px));
   gap: 6px;
   margin-top: 8px;
-}
-
-.quest-items .inventory-slot {
-  height: 44px;
-  aspect-ratio: auto;
 }
 
 .quest-item {

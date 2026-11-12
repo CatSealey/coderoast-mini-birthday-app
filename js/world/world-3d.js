@@ -6,6 +6,7 @@ import { roadDistance } from './world-art.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { CANOPY_LINKS, CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, placeQuestDecorations } from './world-scenery-data.js';
 import { worldCornWalls, worldTrees } from './world-collision.js';
+import { CHARACTER_HAIR, PLAYER_OUTFIT } from '../character-appearance.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -229,11 +230,12 @@ export function createWorld3D(canvas, ground, characterName) {
       }
     }
   }
-  function character(color) {
+  function character(color, longHair = false) {
     const g = new THREE.Group();
     box(g, 20, 30, 12, color, 0, 37, 0);
     box(g, 14, 14, 14, '#d7aa83', 0, 60, 0);
     box(g, 15, 5, 15, '#48372c', 0, 69, 0);
+    if (longHair) box(g, 15, 22, 5, CHARACTER_HAIR, 0, 60, -8);
     box(g, 16, 25, 3, '#725443', 0, 37, -8);
     box(g, 20, 4, 14, '#aa9160', 0, 25, 0);
     box(g, 3, 3, 2, '#4d4036', -3, 61, 8);
@@ -248,7 +250,7 @@ export function createWorld3D(canvas, ground, characterName) {
     scene.add(g);
     return g;
   }
-  const player = character('#315d4a');
+  const player = character(PLAYER_OUTFIT, true);
   const playerLabel = textSprite(`${characterName.toUpperCase()} · 29`, 'rgba(24, 35, 29, .9)');
   let playerLevel = 29;
   playerLabel.position.y = 95; player.add(playerLabel);

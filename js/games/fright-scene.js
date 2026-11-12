@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CELL, FRIGHT_MAZE, FRIGHT_OBJECTS, FRIGHT_THEMES, SIZE } from './fright-logic.js';
+import { CHARACTER_HAIR, PLAYER_OUTFIT, drawCharacterMarker } from '../character-appearance.js';
 
 export function createFrightScene(canvas, onSelect, characterName = 'Adventurer') {
   const probe = document.createElement('canvas').getContext('webgl2');
@@ -296,12 +297,13 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
       mesh.scale.set(w, h, d); mesh.position.set(x, y, z); player.add(mesh);
       return mesh;
     };
-    person(25, 36, 17, '#315d4a', 0, 42, 0);
+    person(25, 36, 17, PLAYER_OUTFIT, 0, 42, 0);
     person(18, 19, 18, '#dfb38c', 0, 70, 0);
     person(20, 6, 20, '#40342d', 0, 82, 0);
+    person(20, 25, 5, CHARACTER_HAIR, 0, 71, -10);
     const legs = [person(9, 24, 10, '#342f2b', -7, 12, 0), person(9, 24, 10, '#342f2b', 7, 12, 0)];
-    person(7, 28, 8, '#315d4a', -16, 43, 0);
-    person(7, 28, 8, '#315d4a', 16, 43, 0);
+    person(7, 28, 8, PLAYER_OUTFIT, -16, 43, 0);
+    person(7, 28, 8, PLAYER_OUTFIT, 16, 43, 0);
     player.userData.legs = legs;
     scene.add(player);
     const torch = new THREE.PointLight('#ffd9a0', 4.5, 330, 1.3);
@@ -384,8 +386,7 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
         context.textAlign = 'center'; context.fillText(`${theme.name} ${object.kind}`, p.x, p.y - 20 * scale);
       }
     });
-    context.fillStyle = '#e8cb9f'; context.beginPath(); context.arc(width / 2, height / 2, 9 * scale, 0, Math.PI * 2); context.fill();
-    context.fillStyle = '#315d4a'; context.fillRect(width / 2 - 9 * scale, height / 2 + 5 * scale, 18 * scale, 20 * scale);
+    drawCharacterMarker(context, width / 2, height / 2, PLAYER_OUTFIT, scale);
   }
   function handleClick(event) {
     if (!state) return;

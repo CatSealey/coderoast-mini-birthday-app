@@ -3,7 +3,8 @@ import { nearTrophyExit, placeKeepsake, presentAvailable, TROPHY_EXIT } from './
 import { createTrophyModel } from './trophy-models.js';
 import { createCollision, findWorldPath } from '../world/world-collision.js';
 import { createCharacterLegs } from './character-legs.js';
-import { BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, birthdayArrivalPath, birthdayFamilyPaths, createBirthdayEnding } from './birthday-ending.js';
+import { BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, birthdayArrivalPath, birthdayFamilyPaths, createBirthdayEnding } from './birthday-ending.js';
+import { CAT_OUTFIT, CHARACTER_HAIR, PLAYER_OUTFIT, drawCharacterMarker } from '../character-appearance.js';
 
 const slots = [
   { x: 110, z: 120 }, { x: 255, z: 120 }, { x: 400, z: 120 },
@@ -20,7 +21,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   let placed = [...displays], player = { x: 400, z: 490 }, disposed = false, frame = 0, last = 0;
   let width = 1, height = 1, target = null, path = [], pendingExit = false, walkPhase = 0, facing = 0;
   let endingPhase = 'idle', endingLine = null, lovePosition = { ...BIRTHDAY_ENTRANCE }, lovePath = [], loveFacing = 0, loveWalk = 0;
-  let familyElapsed = 0;
+  let familyElapsed = 0, endingPlayerPath = [], ticketReceived = false;
   const keys = new Set(), held = new Set(), textures = [], materials = [];
   const furniture = [
     ...slots.map((slot) => ({ x: slot.x, y: slot.z, width: 108, depth: 87 })),
@@ -47,9 +48,15 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     <div class="abigail-world__dialogue trophy-room__dialogue" data-trophy-message role="status"></div>
     <div class="abigail-world__speech" data-birthday-speech aria-hidden="true" hidden></div>
     <button type="button" class="rs3-btn trophy-room__continue" data-birthday-continue hidden>Continue</button>
+    <button type="button" class="rs3-btn trophy-room__ticket-open" data-ticket-open hidden>View ticket</button>
+    <section class="trophy-room__ticket" aria-label="Birthday ticket" data-birthday-ticket hidden>
+      ${BIRTHDAY_TICKET_MARKUP}
+      <button type="button" class="rs3-btn" data-ticket-close>Close ticket</button>
+    </section>
   </div>`;
   const canvas = root.querySelector('canvas'), message = root.querySelector('[data-trophy-message]');
   const speech = root.querySelector('[data-birthday-speech]'), continueButton = root.querySelector('[data-birthday-continue]');
+  const ticketCard = root.querySelector('[data-birthday-ticket]'), ticketButton = root.querySelector('[data-ticket-open]');
   const probe = document.createElement('canvas').getContext('webgl2');
   const available = Boolean(probe);
   probe?.getExtension('WEBGL_lose_context')?.loseContext();
@@ -227,7 +234,8 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
       round(orb, slot.x + dx, 154, slot.z + 8, 6, 6, 6, '#e8cd8e');
       round(orb, slot.x + dx, 92, slot.z + 8, 6, 6, 6, '#e8cd8e');
     }
-    const halo = round(orb, slot.x, 140, slot.z - 4, 60, 60, 16, accent, scene, true);
+    const halo = round(cylinder, slot.x, 123, slot.z + 8.5, 44, 1, 44, accent, scene, true);
+    halo.rotation.x = Math.PI / 2;
     displayLights.push(halo);
     const nameTexture = paintedTexture(256, 64, (c) => {
       c.fillStyle = '#342e29'; c.fillRect(0, 0, 256, 64);
@@ -305,33 +313,32 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   }
   const person = new THREE.Group(); scene.add(person);
   addShadow(person, 0, 2, 65, 45);
-  box(0, 37, 0, 24, 36, 17, '#315a49', person);
+  box(0, 37, 0, 24, 36, 17, PLAYER_OUTFIT, person);
   box(0, 37, -10, 20, 30, 3, '#745440', person);
   box(0, 24, 1, 25, 4, 19, '#bd9e68', person);
   box(0, 66, 0, 18, 18, 18, '#dfb38c', person);
   box(0, 77, 0, 20, 6, 20, '#47372e', person);
+  box(0, 66, -10, 20, 25, 5, CHARACTER_HAIR, person);
   for (const x of [-4, 4]) box(x, 68, 10, 3, 3, 2, '#49382f', person);
-  for (const x of [-16, 16]) box(x, 40, 0, 7, 28, 8, '#315a49', person);
+  for (const x of [-16, 16]) box(x, 40, 0, 7, 28, 8, PLAYER_OUTFIT, person);
   const legs = createCharacterLegs(person, box, 6, '#5a4434');
   const love = new THREE.Group(); scene.add(love);
   addShadow(love, 0, 2, 65, 45);
-  box(0, 37, 0, 24, 36, 17, '#a56a7c', love);
+  box(0, 37, 0, 24, 36, 17, CAT_OUTFIT, love);
   box(0, 24, 1, 25, 4, 19, '#d6b696', love);
   box(0, 66, 0, 18, 18, 18, '#dfb38c', love);
   box(0, 77, 0, 20, 6, 20, '#47372e', love);
+  box(0, 66, -10, 20, 25, 5, CHARACTER_HAIR, love);
   for (const x of [-4, 4]) box(x, 68, 10, 3, 3, 2, '#49382f', love);
   for (const x of [-16, 16]) {
-    box(x, 40, 4, 7, 24, 8, '#a56a7c', love);
-    box(x / 2, 30, 14, 17, 7, 7, '#a56a7c', love);
+    box(x, 40, 4, 7, 24, 8, CAT_OUTFIT, love);
+    box(x / 2, 30, 14, 17, 7, 7, CAT_OUTFIT, love);
   }
   const loveLegs = createCharacterLegs(love, box, 6, '#5a4434');
-  round(cylinder, 0, 35, 18, 36, 3, 36, '#e1cda8', love);
-  round(cylinder, 0, 42, 18, 30, 12, 30, '#b77964', love);
-  round(cylinder, 0, 49, 18, 31, 3, 31, '#f3debd', love);
-  for (const x of [-7, 0, 7]) {
-    round(cylinder, x, 54, 18, 2, 8, 2, '#e9b86c', love);
-    round(cone, x, 60, 18, 4, 6, 4, '#ffe1a0', love, true);
-  }
+  const ticket = new THREE.Group(); love.add(ticket);
+  box(0, 0, 0, 30, 20, 2, '#f2c56b', ticket);
+  for (const x of [-10, 10]) for (const y of [-5, 0, 5]) box(x, y, 2, 2, 2, 1, '#9b6739', ticket);
+  ticket.position.set(0, 34, 20);
   const family = BIRTHDAY_FAMILY.map((member) => {
     const model = new THREE.Group(); scene.add(model); model.scale.setScalar(member.size);
     addShadow(model, 0, 2, 65, 45);
@@ -341,7 +348,22 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     box(0, 77, 0, 20, 6, 20, member.hair, model);
     if (['gran', 'mum', 'sister'].includes(member.id)) box(0, 61, -8, 20, 24, 5, member.hair, model);
     for (const x of [-4, 4]) box(x, 68, 10, 3, 3, 2, '#49382f', model);
-    for (const x of [-16, 16]) box(x, 40, 0, 7, 28, 8, member.outfit, model);
+    for (const x of [-16, 16]) {
+      box(x, 40, 0, 7, 28, 8, member.outfit, model);
+      if (member.id === 'gran') {
+        box(x, 35, 12, 7, 7, 24, member.outfit, model);
+        box(x, 35, 25, 7, 6, 8, '#dfb38c', model);
+      }
+    }
+    if (member.id === 'gran') {
+      round(cylinder, 0, 40, 25, 36, 3, 36, '#e1cda8', model);
+      round(cylinder, 0, 47, 25, 30, 12, 30, '#b77964', model);
+      round(cylinder, 0, 54, 25, 31, 3, 31, '#f3debd', model);
+      for (const x of [-7, 0, 7]) {
+        round(cylinder, x, 59, 25, 2, 8, 2, '#e9b86c', model);
+        round(cone, x, 65, 25, 4, 6, 4, '#ffe1a0', model, true);
+      }
+    }
     return {
       member, model, legs: createCharacterLegs(model, box, 6, '#5a4434'),
       position: { ...BIRTHDAY_ENTRANCE }, route: [], visible: false, facing: 0, walk: 0
@@ -350,12 +372,18 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   const ending = createBirthdayEnding((phase, line) => {
     endingPhase = phase; endingLine = line;
     speech.hidden = !line; continueButton.hidden = !line;
-    root.querySelector('.abigail-world__pad').hidden = phase === 'arriving' || phase === 'dialogue';
-    root.querySelector('.adventure-world__actions').hidden = phase === 'arriving' || phase === 'dialogue';
+    const active = ['positioning', 'arriving', 'dialogue'].includes(phase);
+    root.querySelector('.abigail-world__pad').hidden = active;
+    root.querySelector('.adventure-world__actions').hidden = active;
     if (line) {
+      if (line.gift === 'ticket') {
+        ticketReceived = true; ticketCard.hidden = false; ticketButton.hidden = true;
+      }
       speech.textContent = line.message;
       say(`${line.speaker === 'player' ? characterName : line.speaker}: ${line.message}`);
       continueButton.focus();
+    } else if (phase === 'positioning') {
+      say('Get ready for your birthday surprise!');
     } else if (phase === 'arriving') {
       say('Your girlfriend and your family are arriving with a birthday surprise!');
     } else if (phase === 'finished') {
@@ -370,7 +398,8 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     root.querySelector('[data-trophy-status]').textContent = `${placed.filter(Boolean).length}/5 keepsakes displayed${ready ? ' · A present has appeared!' : ''}`;
     const nearest = slots.map((slot, index) => ({ index, distance: Math.hypot(player.x - slot.x, player.z - slot.z) }))
       .sort((a, b) => a.distance - b.distance)[0];
-    root.querySelector('[data-trophy-hint]').textContent = endingPhase === 'arriving' ? 'Your birthday guests are arriving'
+    root.querySelector('[data-trophy-hint]').textContent = endingPhase === 'positioning' ? 'Getting ready for the celebration'
+      : endingPhase === 'arriving' ? 'Your birthday guests are arriving'
       : endingPhase === 'dialogue' ? 'Continue the conversation'
         : nearTrophyExit(player) ? 'Castle door · E to leave'
           : ready && Math.hypot(player.x - gift.x, player.z - gift.z) < 70
@@ -381,9 +410,10 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
       displayLights[i].visible = placed[i];
     });
     present.visible = ready;
-    love.visible = endingPhase !== 'idle';
+    love.visible = !['idle', 'positioning'].includes(endingPhase);
+    ticket.visible = love.visible && !ticketReceived;
     family.forEach((guest) => {
-      guest.model.visible = endingPhase !== 'idle' && guest.visible;
+      guest.model.visible = !['idle', 'positioning'].includes(endingPhase) && guest.visible;
       guest.model.position.set(guest.position.x, 0, guest.position.y);
       guest.model.rotation.y = guest.facing;
     });
@@ -418,12 +448,13 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
         }
       });
       if (ready) { ctx.fillStyle = '#b8495d'; ctx.fillRect(gift.x - 25, gift.z - 25, 50, 50); ctx.fillStyle = '#e8c879'; ctx.fillRect(gift.x - 5, gift.z - 25, 10, 50); }
-      ctx.fillStyle = '#315a49'; ctx.beginPath(); ctx.arc(player.x, player.z, 16, 0, Math.PI * 2); ctx.fill();
+      drawCharacterMarker(ctx, player.x, player.z, PLAYER_OUTFIT);
       if (love.visible) {
-        ctx.fillStyle = '#a56a7c'; ctx.beginPath(); ctx.arc(lovePosition.x, lovePosition.y, 16, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#f3debd'; ctx.beginPath(); ctx.arc(lovePosition.x, lovePosition.y + 13, 10, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#b77964'; ctx.beginPath(); ctx.arc(lovePosition.x, lovePosition.y + 13, 7, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#ffe1a0'; ctx.fillRect(lovePosition.x - 1, lovePosition.y + 9, 2, 4);
+        drawCharacterMarker(ctx, lovePosition.x, lovePosition.y, CAT_OUTFIT);
+        if (ticket.visible) {
+          ctx.fillStyle = '#f2c56b'; ctx.fillRect(lovePosition.x - 8, lovePosition.y + 8, 16, 9);
+          ctx.fillStyle = '#9b6739'; ctx.fillRect(lovePosition.x - 4, lovePosition.y + 10, 2, 5);
+        }
       }
       family.forEach((guest) => {
         if (!guest.model.visible) return;
@@ -431,6 +462,11 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
         ctx.arc(guest.position.x, guest.position.y, 16 * guest.member.size, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = guest.member.hair; ctx.beginPath();
         ctx.arc(guest.position.x, guest.position.y - 3 * guest.member.size, 6 * guest.member.size, 0, Math.PI * 2); ctx.fill();
+        if (guest.member.id === 'gran') {
+          ctx.fillStyle = '#f3debd'; ctx.beginPath(); ctx.arc(guest.position.x, guest.position.y + 13, 10, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#b77964'; ctx.beginPath(); ctx.arc(guest.position.x, guest.position.y + 13, 7, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffe1a0'; ctx.fillRect(guest.position.x - 1, guest.position.y + 9, 2, 4);
+        }
       });
       ctx.restore();
     }
@@ -452,18 +488,24 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   }
   function interact() {
     if (endingPhase === 'dialogue') { ending.advance(); return; }
-    if (endingPhase === 'arriving') return;
+    if (endingPhase === 'positioning' || endingPhase === 'arriving') return;
     target = null; path = []; pendingExit = false;
     if (nearTrophyExit(player)) { onLeave(); return; }
     const nearby = slots.map((slot, index) => ({ index, distance: Math.hypot(player.x - slot.x, player.z - slot.z) }))
       .sort((a, b) => a.distance - b.distance)[0];
     if (presentAvailable(placed, completed) && Math.hypot(player.x - gift.x, player.z - gift.z) < 70) {
-      const arrival = birthdayArrivalPath(player, currentCollision());
+      const stagingTarget = { x: BIRTHDAY_PLAYER_POSITION.x, y: BIRTHDAY_PLAYER_POSITION.z };
+      const stagingPath = findWorldPath({ x: player.x, y: player.z }, stagingTarget, currentCollision());
+      if (!stagingPath?.length || Math.hypot(stagingPath.at(-1).x - stagingTarget.x, stagingPath.at(-1).y - stagingTarget.y) > 1) {
+        say('There is no clear route to the celebration. Move clear of the furniture and try again.'); return;
+      }
+      const arrival = birthdayArrivalPath(BIRTHDAY_PLAYER_POSITION, currentCollision());
       if (!arrival) { say('Cat cannot reach you from the door. Move to another side of the present and try again.'); return; }
-      const familyPaths = birthdayFamilyPaths(player, arrival.at(-1), currentCollision());
+      const familyPaths = birthdayFamilyPaths(BIRTHDAY_PLAYER_POSITION, arrival.at(-1), currentCollision());
       if (!familyPaths) { say('Your family cannot reach the celebration. Move to another side of the present and try again.'); return; }
       if (onPresent() !== true) return;
-      clearInput(); lovePosition = { ...BIRTHDAY_ENTRANCE }; lovePath = arrival;
+      clearInput(); lovePosition = { ...BIRTHDAY_ENTRANCE }; lovePath = arrival; endingPlayerPath = stagingPath;
+      ticketReceived = false; ticketCard.hidden = true; ticketButton.hidden = true;
       familyElapsed = 0;
       family.forEach((guest, index) => {
         guest.position = { ...BIRTHDAY_ENTRANCE }; guest.route = [...familyPaths[index].path];
@@ -483,7 +525,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     if (event.altKey || event.ctrlKey || event.metaKey
       || document.querySelector('[data-modal-backdrop]:not(.hidden), #removeQuestDialog[open]')
       || (event.target instanceof Element && event.target.closest('input, textarea, select, [role="dialog"]'))) return;
-    if (endingPhase === 'arriving' || endingPhase === 'dialogue') {
+    if (['positioning', 'arriving', 'dialogue'].includes(endingPhase)) {
       if (!event.repeat && (event.code === 'KeyE' || (event.code === 'Space'
         && !(event.target instanceof Element && event.target.closest('button'))))) {
         event.preventDefault(); interact();
@@ -496,7 +538,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   function keyup(event) { keys.delete(event.code); }
   function clearInput() { keys.clear(); held.clear(); }
   function pointerDown(event) {
-    if (endingPhase === 'arriving' || endingPhase === 'dialogue') return;
+    if (['positioning', 'arriving', 'dialogue'].includes(endingPhase)) return;
     const button = event.target.closest('[data-trophy-move]');
     if (!button) return;
     event.preventDefault(); target = null; path = []; pendingExit = false; button.setPointerCapture?.(event.pointerId); held.add(button.dataset.trophyMove);
@@ -504,8 +546,10 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   function pointerUp(event) { const button = event.target.closest('[data-trophy-move]'); if (button) held.delete(button.dataset.trophyMove); }
   function click(event) {
     if (event.target.closest('[data-trophy-leave]')) { onLeave(); return; }
+    if (event.target.closest('[data-ticket-close]')) { ticketCard.hidden = true; ticketButton.hidden = false; ticketButton.focus(); return; }
+    if (event.target.closest('[data-ticket-open]')) { ticketCard.hidden = false; ticketButton.hidden = true; root.querySelector('[data-ticket-close]').focus(); return; }
     if (event.target.closest('[data-birthday-continue]')) { ending.advance(); render(); return; }
-    if (endingPhase === 'arriving' || endingPhase === 'dialogue') return;
+    if (['positioning', 'arriving', 'dialogue'].includes(endingPhase)) return;
     if (event.target.closest('[data-trophy-interact]')) { interact(); return; }
     if (event.target !== canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -546,6 +590,20 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     const dt = last ? Math.min((time - last) / 1000, 0.05) : 0; last = time;
     const modalOpen = document.querySelector('[data-modal-backdrop]:not(.hidden), #removeQuestDialog[open]');
     if (modalOpen) clearInput();
+    let stagingWalk = false;
+    if (endingPhase === 'positioning' && !modalOpen) {
+      const waypoint = endingPlayerPath[0];
+      if (waypoint) {
+        const dx = waypoint.x - player.x, dz = waypoint.y - player.z;
+        const distance = Math.hypot(dx, dz), step = Math.min(175 * dt, distance);
+        if (distance > 0) {
+          player = { x: player.x + dx / distance * step, z: player.z + dz / distance * step };
+          facing = Math.atan2(dx, dz); walkPhase += dt * 10; stagingWalk = true;
+        }
+        if (distance <= step + 0.001) endingPlayerPath.shift();
+      }
+      if (!endingPlayerPath.length) ending.positioned();
+    }
     if (endingPhase === 'arriving' && !modalOpen) {
       const waypoint = lovePath[0];
       if (waypoint) {
@@ -557,13 +615,13 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
         }
         if (distance <= step + 0.001) lovePath.shift();
       }
-      if (!lovePath.length) {
+      if (!lovePath.length && family[0].visible && !family[0].route.length) {
         loveFacing = Math.atan2(player.x - lovePosition.x, player.z - lovePosition.y);
         facing = Math.atan2(lovePosition.x - player.x, lovePosition.y - player.z);
         ending.arrive();
       }
     }
-    if (endingPhase !== 'idle' && !modalOpen) {
+    if (!['idle', 'positioning'].includes(endingPhase) && !modalOpen) {
       familyElapsed += dt;
       family.forEach((guest, index) => {
         if (familyElapsed < (index + 1) * 0.65) return;
@@ -589,7 +647,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     for (const direction of [...keys].map((key) => directions[key]).concat([...held].map((key) => padDirections[key]))) {
       dx += direction[0]; dz += direction[1];
     }
-    if (!modalOpen && endingPhase !== 'arriving' && endingPhase !== 'dialogue' && !dx && !dz && target) {
+    if (!modalOpen && !['positioning', 'arriving', 'dialogue'].includes(endingPhase) && !dx && !dz && target) {
       const waypoint = path[0];
       if (waypoint) { dx = waypoint.x - player.x; dz = waypoint.y - player.z; }
       if (!waypoint || Math.hypot(dx, dz) < 1) {
@@ -607,7 +665,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
       facing = Math.atan2(dx, dz);
       walkPhase += dt * 10;
     }
-    legs[0].rotation.x = distance ? Math.sin(walkPhase) * 0.4 : 0;
+    legs[0].rotation.x = distance || stagingWalk ? Math.sin(walkPhase) * 0.4 : 0;
     legs[1].rotation.x = -legs[0].rotation.x;
     flames.forEach((flame, i) => { flame.scale.y = 18 + Math.sin(time / 180 + i) * 3; });
     sparkles.forEach((sparkle) => { sparkle.position.y = 75 + sparkle.userData.phase % 3 * 10 + Math.sin(time / 500 + sparkle.userData.phase) * 6; });

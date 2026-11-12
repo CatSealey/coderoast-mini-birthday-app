@@ -14,6 +14,7 @@ import { areAllQuestsComplete, isQuestAvailable } from './world/world-logic.js';
 import { birthdayProgress, XP_PER_QUEST } from './progression.js';
 import { normalizeQuestProgress, questGuideSpeech, removeQuestProgress } from './quest-progress.js';
 import { questJournalSteps, trophyJournalSteps } from './quest-journal.js';
+import { BIRTHDAY_TICKET_MARKUP } from './games/birthday-ending.js';
 
 export function startGame(characterName) {
   const STORAGE_KEY = 'rs3-birthday-adventure-progress';
@@ -52,6 +53,7 @@ export function startGame(characterName) {
     new URL('../assets/keepsakes/goape.svg', import.meta.url).href,
     new URL('../assets/keepsakes/frights.svg', import.meta.url).href
   ];
+  const birthdayTicketImage = new URL('../assets/keepsakes/birthday-ticket.svg', import.meta.url).href;
 
   const chapters = [
     {
@@ -142,6 +144,7 @@ export function startGame(characterName) {
   let worldQuestIndex = null;
   let questToRemove = null;
   let removingTrophyQuest = false;
+  let itemModalTrigger = null;
 
   document.querySelector('#characterName').textContent = characterName;
   document.querySelector('#characterAdventure').textContent = `${characterName.toUpperCase()}'S ADVENTURE`;
@@ -180,6 +183,22 @@ export function startGame(characterName) {
       if (completed[index]) slot.dataset.memory = String(index);
       grid.append(slot);
     });
+    const slot = document.createElement('button');
+    slot.type = 'button';
+    slot.className = `inventory-slot ${trophyQuest.completed ? 'inventory-slot--collected' : 'inventory-slot--locked'}`;
+    slot.disabled = !trophyQuest.completed;
+    if (trophyQuest.completed) {
+      slot.dataset.action = 'open-birthday-ticket';
+      slot.setAttribute('aria-label', 'Open birthday ticket keepsake');
+      const image = document.createElement('img');
+      image.src = birthdayTicketImage;
+      image.alt = '';
+      slot.append(image);
+    } else {
+      slot.textContent = '?';
+      slot.setAttribute('aria-label', 'Mystery keepsake not yet collected');
+    }
+    grid.append(slot);
     renderQuestItems();
 
     const { questsCompleted: count, xp, targetXp, level } = birthdayProgress(completed, trophyQuest.completed);
@@ -224,7 +243,7 @@ export function startGame(characterName) {
         entry.append(icon);
         container.append(entry);
       });
-      const emptyCount = Math.max(0, 5 - items.length);
+      const emptyCount = Math.max(0, 6 - items.length);
       for (let index = 0; index < emptyCount; index += 1) {
         const empty = document.createElement('div');
         empty.className = 'inventory-slot inventory-slot--locked';
@@ -528,12 +547,20 @@ export function startGame(characterName) {
   }
 
   function showModal(id) {
-    document.querySelector(`#${id}`).classList.remove('hidden');
+    const modal = document.querySelector(`#${id}`);
+    if (id === 'itemModal') itemModalTrigger = document.activeElement;
+    modal.classList.remove('hidden');
+    if (id === 'itemModal') modal.querySelector('[data-action="close-item"]').focus();
   }
 
   function closeModal(id) {
     const modal = document.querySelector(`#${id}`);
+    if (modal.classList.contains('hidden')) return;
     modal.classList.add('hidden');
+    if (id === 'itemModal') {
+      if (itemModalTrigger?.isConnected) itemModalTrigger.focus();
+      itemModalTrigger = null;
+    }
   }
 
   function showMemory(index) {
@@ -544,7 +571,20 @@ export function startGame(characterName) {
     image.alt = '';
     document.querySelector('#itemModalIcon').replaceChildren(image);
     document.querySelector('#itemModalTitle').textContent = `Keepsake ${index + 1}: ${memory.icon} ${memory.title}`;
+    document.querySelector('#itemModalType').textContent = 'Quest Memory Item';
     document.querySelector('#itemModalDesc').textContent = memory.description;
+    showModal('itemModal');
+  }
+
+  function showBirthdayTicket() {
+    if (!trophyQuest.completed) return;
+    const image = document.createElement('img');
+    image.src = birthdayTicketImage;
+    image.alt = '';
+    document.querySelector('#itemModalIcon').replaceChildren(image);
+    document.querySelector('#itemModalTitle').textContent = 'Birthday ticket';
+    document.querySelector('#itemModalType').textContent = 'Birthday keepsake';
+    document.querySelector('#itemModalDesc').innerHTML = BIRTHDAY_TICKET_MARKUP;
     showModal('itemModal');
   }
 
@@ -686,6 +726,8 @@ export function startGame(characterName) {
       selectChapter(Number(button.dataset.level));
     } else if (button.dataset.memory !== undefined) {
       showMemory(Number(button.dataset.memory));
+    } else if (button.dataset.action === 'open-birthday-ticket') {
+      showBirthdayTicket();
     } else if (button.dataset.action === 'toggle-audio') {
       audio.toggleMusic().catch((error) => {
         console.error('Birthday music could not be started.', error);

@@ -7,6 +7,7 @@ import { WORLD_NPCS } from './world-npcs.js';
 import { birthdayProgress } from '../progression.js';
 import { speechBubblePosition } from './speech-bubble.js';
 import { createCollision, findWorldPath, worldObstacles } from './world-collision.js';
+import { CHARACTER_HAIR, PLAYER_OUTFIT } from '../character-appearance.js';
 
 const WALK_SPEED = 220;
 const PLAYER_RADIUS = 12;
@@ -21,7 +22,7 @@ function entranceLabelOffset(index) {
   return index === 3 ? { x: -90, y: -50 } : { x: 0, y: -35 };
 }
 
-function drawPerson(ctx, color, moving, time) {
+function drawPerson(ctx, color, moving, time, longHair = false) {
   const stride = moving ? Math.sin(time / 120) * 5 : 0;
   ctx.fillStyle = 'rgba(10, 20, 15, .38)';
   ctx.beginPath(); ctx.ellipse(4, 2, 19, 7, 0, 0, Math.PI * 2); ctx.fill();
@@ -36,6 +37,7 @@ function drawPerson(ctx, color, moving, time) {
   ctx.strokeStyle = '#dbbd79'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -36); ctx.lineTo(0, -19); ctx.stroke();
   ctx.strokeStyle = color; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(-10, -37); ctx.lineTo(-15, -23);
   ctx.moveTo(10, -37); ctx.lineTo(15, -23); ctx.stroke();
+  if (longHair) { ctx.fillStyle = CHARACTER_HAIR; ctx.fillRect(-8, -54, 16, 23); }
   ctx.fillStyle = '#e1b58d'; ctx.beginPath(); ctx.arc(0, -50, 8, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#46342a'; ctx.beginPath(); ctx.arc(0, -54, 8, Math.PI, 0); ctx.lineTo(8, -51); ctx.lineTo(-8, -51); ctx.fill();
 }
@@ -276,7 +278,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     actors.push({
       ...state.player,
       draw(ctx) {
-        drawPerson(ctx, '#315a49', Boolean(state.target || state.keys.size || state.heldDirections.size), state.frame);
+        drawPerson(ctx, PLAYER_OUTFIT, Boolean(state.target || state.keys.size || state.heldDirections.size), state.frame, true);
         label(ctx, `${characterName.toUpperCase()} · ${birthdayProgress(state.completed, state.finaleCompleted).level}`, -70);
       }
     });

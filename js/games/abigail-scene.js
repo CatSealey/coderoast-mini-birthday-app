@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { HOUSE_BOUNDS, HOUSE_OBJECTS, HOUSE_WALLS } from './abigail-house.js';
+import { CHARACTER_HAIR, PLAYER_OUTFIT, drawCharacterMarker } from '../character-appearance.js';
 
 export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer') {
   const probe = document.createElement('canvas').getContext('webgl2');
@@ -98,13 +99,14 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     parent.add(mesh);
   }
 
-  function person(parent, x, z, color) {
+  function person(parent, x, z, color, longHair = false) {
     const group = new THREE.Group();
     group.position.set(x, 0, z);
     shadow(group, 66, 45);
     box(group, 25, 38, 15, color, 0, 40, 0);
     box(group, 17, 18, 17, '#dfb38c', 0, 68, 0);
     box(group, 19, 6, 19, '#40342d', 0, 79, 0);
+    if (longHair) box(group, 19, 25, 5, CHARACTER_HAIR, 0, 68, -10);
     box(group, 18, 30, 3, '#725443', 0, 40, -8);
     box(group, 25, 4, 17, '#aa9160', 0, 25, 0);
     box(group, 3, 3, 2, '#4d4036', -4, 69, 9);
@@ -328,7 +330,7 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
       hill.rotation.z = 0.35;
     }
     HOUSE_OBJECTS.forEach(furniture);
-    player = person(roomGroup, 0, 0, '#315d4a');
+    player = person(roomGroup, 0, 0, PLAYER_OUTFIT, true);
     label(player, characterName);
   }
 
@@ -409,7 +411,8 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     HOUSE_OBJECTS.filter((item) => item.id !== 'chamberDoor' || !state.chamberUnlocked).forEach((item) => {
       const p = fallbackPoint(item.x, item.y); context.fillText(item.icon, p.x, p.y);
     });
-    const p = fallbackPoint(state.player.x, state.player.y); context.fillText('🧙', p.x, p.y);
+    const p = fallbackPoint(state.player.x, state.player.y);
+    drawCharacterMarker(context, p.x, p.y, PLAYER_OUTFIT, Math.max(0.7, scale));
   }
 
   function handleClick(event) {

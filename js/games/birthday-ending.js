@@ -2,6 +2,18 @@ import { findWorldPath } from '../world/world-collision.js';
 import { TROPHY_EXIT } from './trophy-logic.js';
 
 export const BIRTHDAY_ENTRANCE = Object.freeze({ x: TROPHY_EXIT.x, y: TROPHY_EXIT.z - 55 });
+export const BIRTHDAY_PLAYER_POSITION = Object.freeze({ x: 400, z: 390 });
+
+export const BIRTHDAY_TICKET_MARKUP = `<div class="trophy-room__ticket-art">
+  <span class="trophy-room__ticket-eyebrow">Special birthday reward unlocked</span>
+  <span class="trophy-room__ticket-ornament" aria-hidden="true">✦ &nbsp; ♡ &nbsp; ✦</span>
+  <strong>Admit one</strong>
+  <span class="trophy-room__ticket-intro">This ticket is good for</span>
+  <b>Cuddles &amp; films</b>
+  <span class="trophy-room__ticket-details">Redeem any time with your favourite Arsenal fan.</span>
+  <span class="trophy-room__ticket-signature">Love, Cat ♡</span>
+  <span class="trophy-room__ticket-stub">HAPPY BIRTHDAY · VALID ALWAYS</span>
+</div>`;
 
 export function birthdayArrivalPath(player, collision) {
   const angle = Math.atan2(BIRTHDAY_ENTRANCE.y - player.z, BIRTHDAY_ENTRANCE.x - player.x);
@@ -29,9 +41,9 @@ export const BIRTHDAY_FAMILY = Object.freeze([
 export function birthdayFamilyPaths(player, loveDestination, collision) {
   const positions = [{ x: player.x, y: player.z }, loveDestination];
   const paths = [];
-  const angle = Math.PI / 2;
   for (const member of BIRTHDAY_FAMILY) {
     let path = null;
+    const angle = member.id === 'gran' ? 0 : Math.PI / 2;
     for (const radius of [125, 180, 235]) {
       for (let i = 0; i < 24 && !path; i += 1) {
         const direction = angle + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * Math.PI / 12;
@@ -51,18 +63,19 @@ export function birthdayFamilyPaths(player, loveDestination, collision) {
 }
 
 export const BIRTHDAY_DIALOGUE = Object.freeze([
-  Object.freeze({ speaker: 'Cat', message: 'Happy birthday, meu amor! We brought you a cake.' }),
+  Object.freeze({ speaker: 'Cat', message: 'Happy birthday, meu amor! Gran brought you a cake.' }),
   Object.freeze({ speaker: 'Cat', message: 'Your family are all here to celebrate with you!' }),
   Object.freeze({ speaker: 'Cat', message: 'You made it to level 30!' }),
   Object.freeze({ speaker: 'player', message: 'Thank you, my love!' }),
-  Object.freeze({ speaker: 'Cat', message: 'And your ticket for cuddles and films is ready whenever you are.' })
+  Object.freeze({ speaker: 'Cat', message: 'And here is your ticket for cuddles and films, whenever you are ready.', gift: 'ticket' })
 ]);
 
 export function createBirthdayEnding(onChange) {
   let phase = 'idle', line = 0;
   const notify = () => onChange(phase, phase === 'dialogue' ? BIRTHDAY_DIALOGUE[line] : null);
   return {
-    start() { phase = 'arriving'; line = 0; notify(); },
+    start() { phase = 'positioning'; line = 0; notify(); },
+    positioned() { if (phase === 'positioning') { phase = 'arriving'; notify(); } },
     arrive() { if (phase === 'arriving') { phase = 'dialogue'; notify(); } },
     advance() {
       if (phase !== 'dialogue') return;
