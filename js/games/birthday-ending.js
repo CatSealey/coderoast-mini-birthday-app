@@ -1,4 +1,4 @@
-import { findWorldPath } from '../world/world-collision.js';
+import { createCollision, findWorldPath } from '../world/world-collision.js';
 import { TROPHY_EXIT } from './trophy-logic.js';
 
 export const BIRTHDAY_ENTRANCE = Object.freeze({ x: TROPHY_EXIT.x, y: TROPHY_EXIT.z - 55 });
@@ -10,7 +10,7 @@ export const BIRTHDAY_TICKET_MARKUP = `<div class="trophy-room__ticket-art">
   <strong>Admit one</strong>
   <span class="trophy-room__ticket-intro">This ticket is good for</span>
   <b>Cuddles &amp; films</b>
-  <span class="trophy-room__ticket-details">Redeem any time with your favourite Arsenal fan.</span>
+  <span class="trophy-room__ticket-details">Redeem any time <br>with your person.</span>
   <span class="trophy-room__ticket-signature">Love, Cat ♡</span>
   <span class="trophy-room__ticket-stub">HAPPY BIRTHDAY · VALID ALWAYS</span>
 </div>`;
@@ -37,6 +37,20 @@ export const BIRTHDAY_FAMILY = Object.freeze([
   Object.freeze({ id: 'nephew-2', outfit: '#a18956', hair: '#513c32', size: 0.68 }),
   Object.freeze({ id: 'cousin', outfit: '#657a64', hair: '#47372e', size: 1 })
 ]);
+
+export function birthdayGuestObstacles(phase, lovePosition, family) {
+  if (phase !== 'finished') return [];
+  return [
+    { x: lovePosition.x, y: lovePosition.y, radius: 16 },
+    ...family.filter((guest) => guest.visible).map((guest) => ({
+      x: guest.position.x, y: guest.position.y, radius: 16 * guest.member.size
+    }))
+  ];
+}
+
+export function birthdayGuestPlayerCollision(player, member) {
+  return createCollision([{ x: player.x, y: player.z, radius: 10 }], 16 * member.size);
+}
 
 export function birthdayFamilyPaths(player, loveDestination, collision) {
   const positions = [{ x: player.x, y: player.z }, loveDestination];

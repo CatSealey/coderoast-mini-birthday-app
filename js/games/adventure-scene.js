@@ -1,10 +1,13 @@
 import * as THREE from 'three';
-import { CANOPY_CROSSINGS, CANOPY_PLATFORMS, CANOPY_ZIPLINE, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_PARTNER_OFFSET, PUB_STOOLS, adventureObjectDistance } from './adventure-logic.js';
+import { CANOPY_CROSSINGS, CANOPY_PLATFORMS, CANOPY_ZIPLINE, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_PARTNER_OFFSET, PUB_STOOLS, adventureObjectDistance, couplePartnerPosition } from './adventure-logic.js';
 import { COASTER_PLATFORM, COASTER_RAIL_OFFSET, COASTER_REJOIN_PROGRESS, COASTER_TREATS, coasterDirection, coasterHeading, coasterLanePosition, coasterPosition, coasterRailPosition } from './coaster-course.js';
 import { drawCoasterItem } from './coaster-art.js';
 import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
-import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker } from '../character-appearance.js';
+import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
 import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
+
+const BARTENDER_OUTFIT = '#536c67';
+const BARTENDER_STYLE = Object.freeze({ trousers: '#332f2b', belt: '#1e201e', hairLength: 'short' });
 
 export function createAdventureScene(canvas, index, onSelect, characterName) {
   const probe = document.createElement('canvas').getContext('webgl2');
@@ -25,7 +28,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   const collectibles = new Map(), beacons = new Map(), rideTreats = new Map(), rideItemImages = new Map();
   let state, player, train, ball, lightMarker, platformAmor, width = 1, height = 1, scale = 1, ballAnimation = 0, lastBallLost = false;
   let platformCarriage, pubLove, joinedHands, pubExitMarker, dropTrack;
-  let cueGuide, poolBalls, placedCues, placedDrinks, previousPlayer, walkPhase = 0;
+  let cueGuide, poolBalls, placedCues, placedDrinks, previousPlayer, walkPhase = 0, facing = 0;
   const theme = index === 1 ? '#342f28' : index === 2 ? '#20272f' : '#152b29';
   scene.background = new THREE.Color(theme);
 
@@ -160,7 +163,14 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     const { x, y: z, kind } = object, h = object.height || 0;
     let mesh;
     if (kind === 'npc') {
-      mesh = person(CAT_OUTFIT, object.name, x, z, scene, CAT_STYLE);
+      const bartender = object.id === 'bartender';
+      mesh = person(bartender ? BARTENDER_OUTFIT : CAT_OUTFIT, object.name, x, z, scene,
+        bartender ? BARTENDER_STYLE : CAT_STYLE);
+      if (bartender) {
+        // A raised service floor keeps the bartender visible behind the counter.
+        mesh.position.y = 50;
+        mesh.userData.label.position.y = 153;
+      }
       if (object.id === 'amor') platformAmor = mesh;
       if (index === 1 && object.id === 'love') pubLove = mesh;
     } else {
@@ -214,6 +224,19 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         box(x, 48, z + 20, 66, 75, 3, '#936a48');
         for (const dx of [-18, 18]) box(x + dx, 48, z + 22, 3, 65, 3, '#d0b988');
         box(x + 27, 45, z + 23, 5, 5, 3, '#d6b66e');
+      } else if (kind === 'locker') {
+        mesh = new THREE.Group();
+        mesh.position.set(x, h, z);
+        scene.add(mesh);
+        const depth = object.footprint.depth - 2;
+        const front = depth / 2;
+        box(0, 51, 0, 60, 102, depth, '#59686b', mesh);
+        for (const dx of [-15, 15]) {
+          box(dx, 51, front + 0.5, 27, 94, 2, '#829395', mesh);
+          for (const dy of [77, 82, 87]) box(dx, dy, front + 2, 16, 2, 1, '#3c4c50', mesh);
+          box(dx + 8, 48, front + 2.5, 3, 11, 2, '#303e42', mesh);
+        }
+        box(0, 103, 0, 62, 3, depth + 2, '#9ba6a2', mesh);
       } else if (kind === 'note') {
         mesh = box(x, 36, z, 62, 70, 32, '#70503b');
         box(x, 75, z, 40, 3, 25, '#e1d2aa');
@@ -248,10 +271,10 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         round(cylinderGeometry, x, h + 9, z, 30, 18, 30, '#644c35');
         round(cylinderGeometry, x, h + 20, z, 36, 4, 36, '#b79a5f');
       } else {
-        const color = kind === 'collectible' ? '#e5d18a' : kind === 'locker' ? '#6d7f80' : '#805c40';
+        const color = kind === 'collectible' ? '#e5d18a' : '#805c40';
         mesh = box(x, h + 28, z, kind === 'collectible' ? 20 : 60, kind === 'collectible' ? 20 : 56,
           kind === 'collectible' ? 20 : 45, color, scene, kind === 'collectible');
-        if (kind === 'cabinet' || kind === 'locker') box(x, h + 30, z + 24, 48, 42, 4, '#a78c67');
+        if (kind === 'cabinet') box(x, h + 30, z + 24, 48, 42, 4, '#a78c67');
       }
       if (kind === 'collectible') collectibles.set(object.id, mesh);
       if (index === 2 && kind === 'carriage') {
@@ -309,13 +332,16 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       box(PUB_EXIT.x, 7, PUB_EXIT.y, 65, 3, 5, '#d7c58c', pubExitMarker);
       joinedHands = box(0, 27, 0, 10, 7, 8, '#dfb38c');
     } else if (index === 2) {
-      box(500, -8, 350, 1000, 16, 700, '#384736');
-      for (let x = 30; x < 1000; x += 65) for (let z = 25; z < 700; z += 65) {
-        box(x, 1, z, 38 + (x * z % 23), 2, 28, (x + z) % 3 ? '#40533b' : '#4b5c40');
-      }
+      box(500, -8.1, 350, 1000, 16, 700, '#384736');
       const { left, right, top: platformTop, bottom: platformBottom } = COASTER_PLATFORM;
-      box((left + right) / 2, 3, (platformTop + platformBottom) / 2, right - left, 6, platformBottom - platformTop, '#807768');
-      for (let x = left + 15; x < right; x += 42) box(x, 7, (platformTop + platformBottom) / 2, 2, 2, platformBottom - platformTop - 5, '#5e584d');
+      for (let x = 30; x < 1000; x += 65) for (let z = 25; z < 700; z += 65) {
+        const grassWidth = 38 + (x * z % 23);
+        if (x + grassWidth / 2 > left && x - grassWidth / 2 < right
+          && z + 14 > platformTop && z - 14 < platformBottom) continue;
+        box(x, 1, z, grassWidth, 2, 28, (x + z) % 3 ? '#40533b' : '#4b5c40');
+      }
+      box((left + right) / 2, -3, (platformTop + platformBottom) / 2, right - left, 6, platformBottom - platformTop, '#807768');
+      for (let x = left + 15; x < right; x += 42) box(x, 0, (platformTop + platformBottom) / 2, 2, 0.2, platformBottom - platformTop - 5, '#5e584d');
       joinedHands = box(0, 27, 0, 10, 7, 8, '#dfb38c');
       for (const x of [65, 245, 410, 590, 760, 935]) {
         const z = 40;
@@ -421,9 +447,16 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     }
     if (state) draw(state);
   }
+  function positionJoinedHands(position, partner, angle) {
+    joinedHands.position.set((position.x + partner.x) / 2, 27, (position.y + partner.y) / 2);
+    joinedHands.rotation.y = angle;
+    joinedHands.scale.x = Math.max(10, Math.abs(PUB_PARTNER_OFFSET) - 32);
+  }
   function draw(next, dt = 0, aim = 0) {
     state = next;
-    const distance = previousPlayer && dt > 0
+    facing = state.pubTogether && Number.isFinite(state.coupleFacing)
+      ? state.coupleFacing : facingForMovement(previousPlayer, state.player, facing);
+    const distance = previousPlayer && dt > 0 && !(index === 3 && state.zipline)
       ? Math.hypot(state.player.x - previousPlayer.x, state.player.y - previousPlayer.y) : 0;
     walkPhase += distance * 0.08;
     const swing = distance > 0.1 ? Math.sin(walkPhase) * 0.45 : 0;
@@ -434,25 +467,29 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     const riding = index === 2 && ['riding', 'dropping', 'returning'].includes(state.phase);
     const ridePoint = riding ? coasterPosition(state.phase, state.progress) : null;
     const followRide = renderer && riding && width < 520;
+    const playerHeldArm = 0, catHeldArm = 1;
+    const partner = couplePartnerPosition(state.player, facing);
     const targetX = followRide ? ridePoint.x : targetXForClick();
     const targetY = followRide ? ridePoint.y
       : state.pubTogether || (index === 3 && state.zipline) ? state.player.y : 350;
     if (renderer) {
       player.visible = !riding; player.position.set(state.player.x, state.player.height, state.player.y);
+      player.rotation.y = facing;
       player.userData.legs[0].rotation.x = swing; player.userData.legs[1].rotation.x = -swing;
-      swingCharacterArms(player.userData.arms, swing, state.pubTogether ? 1 : -1);
-      player.userData.label.visible = !riding;
+      swingCharacterArms(player.userData.arms, swing, state.pubTogether ? playerHeldArm : -1);
+      player.userData.label.visible = !riding && !state.pubTogether;
       if (platformAmor) {
         platformAmor.visible = !riding;
-        platformAmor.userData.label.visible = !riding;
-        const amorX = state.pubTogether ? state.player.x + PUB_PARTNER_OFFSET : OBJECTS[2].find((item) => item.id === 'amor').x;
-        const amorY = state.pubTogether ? state.player.y : OBJECTS[2].find((item) => item.id === 'amor').y;
+        platformAmor.userData.label.visible = !riding && !state.pubTogether;
+        const amorX = state.pubTogether ? partner.x : OBJECTS[2].find((item) => item.id === 'amor').x;
+        const amorY = state.pubTogether ? partner.y : OBJECTS[2].find((item) => item.id === 'amor').y;
         platformAmor.position.set(amorX, 0, amorY);
+        platformAmor.rotation.y = state.pubTogether ? facing : 0;
         platformAmor.userData.label.position.set(amorX, 103, amorY);
         platformAmor.userData.legs.forEach((leg, i) => { leg.rotation.x = state.pubTogether ? player.userData.legs[i].rotation.x : 0; });
-        swingCharacterArms(platformAmor.userData.arms, state.pubTogether ? swing : 0, state.pubTogether ? 0 : -1);
+        swingCharacterArms(platformAmor.userData.arms, state.pubTogether ? swing : 0, state.pubTogether ? catHeldArm : -1);
         joinedHands.visible = Boolean(state.pubTogether);
-        joinedHands.position.set(state.player.x + PUB_PARTNER_OFFSET / 2, 27, state.player.y);
+        positionJoinedHands(state.player, partner, facing);
       }
       if (platformCarriage) {
         platformCarriage.mesh.visible = !riding;
@@ -460,22 +497,26 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       }
       if (pubLove) {
         const together = Boolean(state.pubTogether);
-        const loveX = together ? state.player.x + PUB_PARTNER_OFFSET : OBJECTS[1].find((item) => item.id === 'love').x;
-        const loveY = together ? state.player.y : OBJECTS[1].find((item) => item.id === 'love').y;
+        const loveX = together ? partner.x : OBJECTS[1].find((item) => item.id === 'love').x;
+        const loveY = together ? partner.y : OBJECTS[1].find((item) => item.id === 'love').y;
         pubLove.position.set(loveX, 0, loveY);
+        pubLove.rotation.y = together ? facing : 0;
+        pubLove.userData.label.visible = !together;
         pubLove.userData.label.position.set(loveX, 103, loveY);
         pubLove.userData.legs.forEach((leg, i) => { leg.rotation.x = together ? player.userData.legs[i].rotation.x : 0; });
-        swingCharacterArms(pubLove.userData.arms, together ? swing : 0, together ? 0 : -1);
+        swingCharacterArms(pubLove.userData.arms, together ? swing : 0, together ? catHeldArm : -1);
         joinedHands.visible = together;
-        joinedHands.position.set(state.player.x + PUB_PARTNER_OFFSET / 2, 27, state.player.y);
+        positionJoinedHands(state.player, partner, facing);
         pubExitMarker.visible = state.pubEnding === 'ready';
       }
       player.userData.label.position.set(state.player.x, state.player.height + (state.pubTogether ? 145 : 105), state.player.y);
-      camera.position.set(targetX + 500, 1100, targetY + 950); camera.lookAt(targetX, 0, targetY); camera.updateMatrixWorld();
+      camera.position.set(targetX + 500, 1100, targetY + 950);
+      camera.lookAt(targetX, 0, targetY); camera.updateMatrixWorld();
       if (ball) {
         const t = state.ballFound || state.pubEnding ? 1 : ballAnimation;
         const offTable = Math.max(0, Math.min(1, (t - 0.2) / 0.15));
-        ball.position.set(512 + 328 * t, 77 - 71 * offTable, 230 + 270 * t);
+        const cabinet = OBJECTS[1].find((item) => item.id === 'cabinet');
+        ball.position.set(512 + (cabinet.x - 512) * t, 77 - 71 * offTable, 230 + (cabinet.y - 230) * t);
         ball.rotation.z = -t * 15;
         ball.visible = state.ballsPlaced && !state.ballFound && t < 1;
       }
@@ -527,6 +568,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     }
     ctx.fillStyle = theme; ctx.fillRect(0, 0, width, height);
     const sx = (x) => width / 2 + (x - targetX) * scale, sy = (y) => height / 2 + (y - targetY) * scale;
+    const partnerScreen = { x: sx(state.player.x) + PUB_PARTNER_OFFSET * scale, y: sy(state.player.y) };
     if (index !== 3) { ctx.fillStyle = index === 1 ? '#71583f' : '#414d3d'; ctx.fillRect(sx(0), sy(0), 1000 * scale, 700 * scale); }
     else for (const [i, p] of CANOPY_PLATFORMS.entries()) {
       ctx.fillStyle = i <= state.checkpoint + 1 ? '#806443' : '#283a32'; ctx.fillRect(sx(p.left), sy(p.top), (p.right - p.left) * scale, (p.bottom - p.top) * scale);
@@ -589,15 +631,22 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         return;
       }
       if (index === 2 && object.id === 'amor' && state.pubTogether) {
-        drawCharacterMarker(ctx, sx(state.player.x + PUB_PARTNER_OFFSET), sy(state.player.y), CAT_OUTFIT, { ...CAT_STYLE, stride: swing, heldArm: 0 });
-        ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
-        ctx.fillText(object.name, sx(state.player.x + PUB_PARTNER_OFFSET), sy(state.player.y) - 17);
+        drawCharacterMarker(ctx, partnerScreen.x, partnerScreen.y, CAT_OUTFIT, { ...CAT_STYLE, stride: swing, heldArm: catHeldArm, facing });
         return;
       }
       if (index === 2 && object.kind === 'locker') {
-        ctx.fillStyle = '#6d7f80';
-        ctx.fillRect(sx(object.x - object.footprint.width / 2), sy(object.y - object.footprint.depth / 2),
-          object.footprint.width * scale, object.footprint.depth * scale);
+        const depth = object.footprint.depth;
+        ctx.fillStyle = '#59686b';
+        ctx.fillRect(sx(object.x - object.footprint.width / 2), sy(object.y - depth / 2),
+          object.footprint.width * scale, depth * scale);
+        ctx.fillStyle = '#829395';
+        for (const offset of [-15, 15]) {
+          ctx.fillRect(sx(object.x + offset - 12), sy(object.y - depth / 2 + 2), 24 * scale, (depth - 4) * scale);
+          ctx.fillStyle = '#3c4c50';
+          for (const dy of [-6, -3, 0]) ctx.fillRect(sx(object.x + offset - 7), sy(object.y + dy), 14 * scale, 1 * scale);
+          ctx.fillRect(sx(object.x + offset + 6), sy(object.y + 3), 3 * scale, 6 * scale);
+          ctx.fillStyle = '#829395';
+        }
         return;
       }
       if (index === 1 && object.kind === 'pool') {
@@ -609,12 +658,20 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         return;
       }
       if (index === 1 && object.footprint) {
-        const objectX = object.id === 'love' && state.pubTogether ? state.player.x + PUB_PARTNER_OFFSET : object.x;
-        const objectY = object.id === 'love' && state.pubTogether ? state.player.y : object.y;
-        if (object.id === 'love') {
-          drawCharacterMarker(ctx, sx(objectX), sy(objectY), CAT_OUTFIT, { ...CAT_STYLE, stride: state.pubTogether ? swing : 0, heldArm: state.pubTogether ? 0 : -1 });
-          ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
-          ctx.fillText(object.name, sx(objectX), sy(objectY) - 17);
+        const objectX = object.id === 'love' && state.pubTogether ? partner.x : object.x;
+        const objectY = object.id === 'love' && state.pubTogether ? partner.y : object.y;
+        if (object.kind === 'npc') {
+          const bartender = object.id === 'bartender';
+          const together = object.id === 'love' && state.pubTogether;
+          const x = together ? partnerScreen.x : sx(objectX);
+          const y = together ? partnerScreen.y : sy(objectY);
+          drawCharacterMarker(ctx, x, y, bartender ? BARTENDER_OUTFIT : CAT_OUTFIT,
+            bartender ? BARTENDER_STYLE
+              : { ...CAT_STYLE, stride: together ? swing : 0, heldArm: together ? catHeldArm : -1, facing: together ? facing : 0 });
+          if (!together) {
+            ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
+            ctx.fillText(object.name, x, y - 17);
+          }
           return;
         }
         ctx.fillStyle = object.kind === 'npc' ? '#d29caf' : '#a9895e';
@@ -648,12 +705,13 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       ctx.stroke();
     }
     if (index !== 2 || !['riding', 'dropping', 'returning'].includes(state.phase)) {
-      drawCharacterMarker(ctx, sx(state.player.x), sy(state.player.y), PLAYER_OUTFIT, { ...PLAYER_STYLE, stride: swing, heldArm: state.pubTogether ? 1 : -1 });
+      drawCharacterMarker(ctx, sx(state.player.x), sy(state.player.y), PLAYER_OUTFIT, { ...PLAYER_STYLE, stride: swing, heldArm: state.pubTogether ? playerHeldArm : -1, facing });
       if ((index === 1 || index === 2) && state.pubTogether) {
-        ctx.fillStyle = '#dfb38c';
-        ctx.fillRect(sx(state.player.x + PUB_PARTNER_OFFSET), sy(state.player.y) + 5, -PUB_PARTNER_OFFSET * scale, 4);
+        ctx.strokeStyle = '#dfb38c'; ctx.lineWidth = Math.max(2, 4 * scale);
+        ctx.beginPath(); ctx.moveTo(partnerScreen.x, partnerScreen.y + 5);
+        ctx.lineTo(sx(state.player.x), sy(state.player.y) + 5); ctx.stroke();
       }
-      if ((index === 1 || index === 3) && characterName) {
+      if ((index === 1 || index === 3) && characterName && !state.pubTogether) {
         ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
         ctx.fillText(characterName, sx(state.player.x), sy(state.player.y) - (state.pubTogether ? 31 : 17));
       }
@@ -680,12 +738,15 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       target = { x: hit.x, y: hit.z };
     } else target = { x: targetXForClick() + (event.clientX - rect.left - width / 2) / scale,
       y: (state.pubTogether ? state.player.y : 350) + (event.clientY - rect.top - height / 2) / scale };
-    const object = OBJECTS[index].find((item) => (index === 1 || index === 2) && item.footprint
+    const bartender = index === 1 && OBJECTS[1].find((item) => item.id === 'bartender'
+      && Math.hypot(item.x - target.x, item.y - target.y) <= item.footprint.radius);
+    const object = bartender || OBJECTS[index].find((item) => (index === 1 || index === 2) && item.footprint
       ? adventureObjectDistance(index, target, item) === 0
       : Math.hypot(item.x - target.x, item.y - target.y) < 40);
     onSelect(object ? { objectId: object.id } : target);
   }
   function targetXForClick() {
+    if (!state) return 500;
     if (state.pubTogether) return state.player.x;
     if (index === 3 && state.zipline) return state.player.x;
     if (index === 3) return Math.max(220, Math.min(1660, state.player.x));
@@ -697,7 +758,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     const object = OBJECTS[index].find((item) => item.id === id);
     if (!object) return null;
     if (renderer) {
-      const position = new THREE.Vector3(object.x, 120, object.y).project(camera);
+      const position = new THREE.Vector3(object.x, object.id === 'bartender' ? 170 : 120, object.y).project(camera);
       return { x: (position.x + 1) * width / 2, y: (1 - position.y) * height / 2 };
     }
     return { x: width / 2 + (object.x - targetXForClick()) * scale, y: height / 2 + (object.y - 350) * scale - 30 };

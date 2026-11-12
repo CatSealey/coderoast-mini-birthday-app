@@ -1,12 +1,10 @@
-import { CANOPY_CROSSINGS, COASTER_JOIN_POINT, OBJECTS, PUB_JOIN_POINT, advanceCanopy, adventureObjectDistance, adventureObjectInRange, canopyMeter, canopyObjectAvailable, canopyTarget, coasterCouplePath, coasterPath, controlCoaster, finishCoasterExit, finishCoasterGoodbye, finishPubExit, finishPubGoodbye, interactAdventure, jumpCanopy, pubCouplePath, pubPath, restoreAdventureState, takePoolShot, tickCanopy, tickCoaster, unlockBallCase, walkAdventure, walkCoasterCouple, walkPubCouple } from './adventure-logic.js';
+import { CANOPY_CROSSINGS, COASTER_JOIN_POINT, COUPLE_GOODBYE_SECONDS, OBJECTS, PUB_JOIN_POINT, advanceCanopy, adventureObjectDistance, adventureObjectInRange, canopyMeter, canopyObjectAvailable, canopyTarget, coasterCouplePath, coasterPath, controlCoaster, finishCoasterExit, finishCoasterGoodbye, finishPubExit, finishPubGoodbye, interactAdventure, jumpCanopy, pubCouplePath, pubPath, restoreAdventureState, takePoolShot, tickCanopy, tickCoaster, unlockBallCase, walkAdventure, walkCoasterCouple, walkPubCouple } from './adventure-logic.js';
 import { COASTER_GOAL, COASTER_TREATS } from './coaster-course.js';
 import { createAdventureScene } from './adventure-scene.js';
 
 const TITLES = { 1: 'LUCKY CHUCKS · POOL NIGHT', 2: 'THIRTEEN · THE RIDE', 3: 'GOAPE · THE NIGHT CANOPY' };
 const keys = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
 const vectors = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-const PUB_SPEECH_SECONDS = 4;
-
 function objective(index, state) {
   if (index === 1) {
     if (state.pubEnding === 'dialogue') return 'Talk with Cat.';
@@ -40,7 +38,7 @@ function objective(index, state) {
 export function mountAdventureWorld(root, { index, characterName, savedState, onProgress, onComplete, onLeave, onMessage, playSound }) {
   let state = restoreAdventureState(index, savedState);
   let disposed = false, frame = 0, lastFrame = 0, saveTime = 0, target = null, path = [], selected = null, objectSignature = '';
-  let exitPhase = null, exitPath = [], couplePath = [], exitFailed = false, goodbyeTime = 0;
+  let exitPhase = null, exitPath = [], couplePath = [], exitFailed = false, goodbyeTime = 0, coupleFacing = 0;
   const held = new Set(), keyHeld = new Set(), rideKeys = new Map(), ridePointers = new Map();
   root.innerHTML = `
     <div class="abigail-world adventure-world">
@@ -120,7 +118,8 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
       root.querySelector('[data-couple-exit]').hidden = state.pubEnding !== 'ready' || !exitFailed;
     }
     const speech = root.querySelector('#adventureSpeech');
-    const speaker = state.message.startsWith('Cat: ') ? 'love' : state.message.startsWith('Cat: ') ? 'amor' : null;
+    const speaker = state.message.startsWith('Cat: ') ? (index === 1 ? 'love' : 'amor')
+      : index === 1 && state.message.startsWith('Jamie: ') ? 'bartender' : null;
     speech.hidden = !speaker;
     if (!speech.hidden) {
       const text = state.message.slice(state.message.indexOf(':') + 2);
@@ -180,7 +179,7 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
         root.querySelector('#crossingMarker').style.left = `${canopyMeter(state.traversal.elapsed) * 100}%`;
       }
     }
-    scene.draw(index === 1 || index === 2 ? { ...state, pubTogether: exitPhase === 'walking' } : state,
+    scene.draw(index === 1 || index === 2 ? { ...state, pubTogether: exitPhase === 'walking', coupleFacing } : state,
       dt, index === 1 ? Number(root.querySelector('#poolAim').value) : 0);
   }
   function update(next, persist = true, renderNow = true) {
@@ -284,7 +283,7 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
     }
   }
   function keyDown(event) {
-    if (state.puzzle || state.shot || exitPhase || document.querySelector('[data-modal-backdrop]:not(.hidden), #removeQuestDialog[open]')
+    if (state.puzzle || state.shot || exitPhase || document.querySelector('[data-modal-backdrop]:not(.hidden), [data-game-modal][open]')
       || event.altKey || event.ctrlKey || event.metaKey || event.target instanceof HTMLInputElement) return;
     if (state.pubEnding === 'dialogue' || state.rideEnding === 'dialogue') return;
     if (index === 2 && ['riding', 'dropping', 'returning'].includes(state.phase)) {
@@ -336,14 +335,14 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
     if (disposed) return;
     const dt = lastFrame ? Math.min((timestamp - lastFrame) / 1000, 0.05) : 0;
     lastFrame = timestamp;
-    if (!state.puzzle && !state.shot && !document.querySelector('[data-modal-backdrop]:not(.hidden), #removeQuestDialog[open]')) {
+    if (!state.puzzle && !state.shot && !document.querySelector('[data-modal-backdrop]:not(.hidden), [data-game-modal][open]')) {
       let dx = 0, dy = 0;
       [...keyHeld].map((key) => keys[key]).concat([...held]).forEach((direction) => {
         if (vectors[direction]) { dx += vectors[direction][0]; dy += vectors[direction][1]; }
       });
       if (state.pubEnding === 'dialogue' || state.rideEnding === 'dialogue') {
         goodbyeTime += dt;
-        if (goodbyeTime >= (index === 2 ? 6 : PUB_SPEECH_SECONDS)) {
+        if (goodbyeTime >= COUPLE_GOODBYE_SECONDS) {
           if (index === 2) { update(finishCoasterGoodbye(state)); startCoasterExit(); }
           else { update(finishPubGoodbye(state)); startPubExit(); }
         }
@@ -354,6 +353,7 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
           exitPath.shift();
           if (!exitPath.length && exitPhase === 'joining') {
             exitPhase = 'walking'; exitPath = couplePath;
+            coupleFacing = Math.atan2(exitPath[0].x - state.player.x, exitPath[0].y - state.player.y);
             update({ ...state, message: `Hand in hand, you leave ${index === 2 ? 'Thirteen' : 'Lucky Chucks'} together.` });
           } else if (!exitPath.length) {
             exitPhase = null;

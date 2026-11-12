@@ -6,7 +6,9 @@ export function mountAbigailWorld(root, { characterName, onComplete, onLeave, on
   let state = restoreHouseState(savedState);
   let disposed = false;
   let frame = 0, lastFrame = 0, path = [], selectedObject = null;
+  let lastAtmosphereFrame = 0;
   let wasMoving = false;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const keysDown = new Set(), heldDirections = new Set();
   root.innerHTML = `
     <div class="abigail-world">
@@ -133,7 +135,7 @@ export function mountAbigailWorld(root, { characterName, onComplete, onLeave, on
   const vectors = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   function handleKey(event) {
     const direction = keys[event.code];
-    if (state.puzzleOpen || document.querySelector('[data-modal-backdrop]:not(.hidden), #removeQuestDialog[open]')
+    if (state.puzzleOpen || document.querySelector('[data-modal-backdrop]:not(.hidden), [data-game-modal][open]')
       || event.altKey || event.ctrlKey || event.metaKey
       || (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]'))) return;
     if ((event.code === 'KeyE' || (event.code === 'Space'
@@ -167,7 +169,7 @@ export function mountAbigailWorld(root, { characterName, onComplete, onLeave, on
     const delta = lastFrame ? Math.min((timestamp - lastFrame) / 1000, 0.05) : 0;
     lastFrame = timestamp;
     const position = state.player;
-    if (!state.puzzleOpen && !document.querySelector('[data-modal-backdrop]:not(.hidden), #removeQuestDialog[open]')) {
+    if (!state.puzzleOpen && !document.querySelector('[data-modal-backdrop]:not(.hidden), [data-game-modal][open]')) {
       let dx = 0, dy = 0;
       [...keysDown].map((key) => keys[key]).concat([...heldDirections]).forEach((direction) => {
         if (vectors[direction]) { dx += vectors[direction][0]; dy += vectors[direction][1]; }
@@ -192,6 +194,10 @@ export function mountAbigailWorld(root, { characterName, onComplete, onLeave, on
     if (!disposed) {
       const moving = position.x !== state.player.x || position.y !== state.player.y;
       if (wasMoving && !moving) scene.draw(state);
+      else if (!moving && scene.hasAtmosphereAnimation && !reducedMotion.matches && timestamp - lastAtmosphereFrame >= 180) {
+        scene.draw(state);
+        lastAtmosphereFrame = timestamp;
+      }
       wasMoving = moving;
       frame = requestAnimationFrame(tick);
     }

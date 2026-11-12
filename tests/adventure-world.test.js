@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CANOPY_PLATFORMS, CANOPY_ZIPLINE, COASTER_EXIT, COASTER_GOODBYE, COASTER_JOIN_POINT, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_GOODBYE, PUB_JOIN_POINT, PUB_OBSTACLES, PUB_PARTNER_OFFSET, advanceCanopy, adventureObjectInRange, canopyMeter, canopyTarget, canopyZipPosition, coasterCouplePath, coasterPath, coasterWalkable, controlCoaster, createCanopyTarget, finishCoasterExit, finishCoasterGoodbye, finishPubExit, finishPubGoodbye, interactAdventure, jumpCanopy, newAdventureState, pubCouplePath, pubPath, pubWalkable, restoreAdventureState, takePoolShot, tickCanopy, tickCoaster, unlockBallCase, walkAdventure, walkCoasterCouple, walkPubCouple } from '../js/games/adventure-logic.js';
+import { CANOPY_PLATFORMS, CANOPY_ZIPLINE, COASTER_EXIT, COASTER_GOODBYE, COASTER_JOIN_POINT, COUPLE_GOODBYE_SECONDS, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_GOODBYE, PUB_JOIN_POINT, PUB_OBSTACLES, PUB_PARTNER_OFFSET, advanceCanopy, adventureObjectInRange, canopyMeter, canopyTarget, canopyZipPosition, coasterCouplePath, coasterPath, coasterWalkable, controlCoaster, couplePartnerPosition, createCanopyTarget, finishCoasterExit, finishCoasterGoodbye, finishPubExit, finishPubGoodbye, interactAdventure, jumpCanopy, newAdventureState, pubCouplePath, pubPath, pubWalkable, restoreAdventureState, takePoolShot, tickCanopy, tickCoaster, unlockBallCase, walkAdventure, walkCoasterCouple, walkPubCouple } from '../js/games/adventure-logic.js';
 import { COASTER_DROP_SECONDS, COASTER_GOAL, COASTER_PLATFORM, COASTER_REJOIN_PROGRESS, COASTER_RETURN_SECONDS, COASTER_RIDE_SECONDS, COASTER_TREATS, coasterDirection, coasterHeading, coasterLanePosition, coasterPosition, coasterRailPosition } from '../js/games/coaster-course.js';
 import { createCollision } from '../js/world/world-collision.js';
 import { createAdventureScene } from '../js/games/adventure-scene.js';
@@ -37,6 +37,60 @@ function walkRoute(state, object) {
   return state;
 }
 
+test('Cat blocks walking at Thirteen but can be reached and joined', () => {
+  const cat = OBJECTS[2].find((item) => item.id === 'amor');
+  const initial = newAdventureState(2);
+  const start = { ...initial, player: { x: cat.x, y: cat.y - 80, height: 0 } };
+  const moved = walkAdventure(2, start, 0, 160, 1);
+  assert.ok(Math.hypot(moved.player.x - cat.x, moved.player.y - cat.y) >= 26);
+  const route = coasterPath(initial.player, cat, cat);
+  assert.ok(route?.length);
+  let state = initial;
+  for (const point of route) {
+    let remaining = 200;
+    while (Math.hypot(point.x - state.player.x, point.y - state.player.y) > 0.01 && remaining-- > 0) {
+      const next = walkAdventure(2, state, point.x - state.player.x, point.y - state.player.y, 0.05);
+      assert.notStrictEqual(next, state);
+      assert.ok(coasterWalkable(next.player));
+      state = next;
+    }
+    assert.ok(remaining > 0);
+  }
+  assert.ok(adventureObjectInRange(2, state.player, cat));
+  assert.ok(coasterPath(state.player, COASTER_JOIN_POINT)?.length);
+  assert.deepEqual(coasterCouplePath(COASTER_JOIN_POINT), [COASTER_EXIT]);
+  const restored = restoreAdventureState(2, { ...initial, player: { x: cat.x, y: cat.y, height: 0 }, bags: true });
+  assert.ok(restored.bags);
+  assert.ok(coasterWalkable(restored.player));
+  assert.ok(Math.hypot(restored.player.x - cat.x, restored.player.y - cat.y) >= 26);
+});
+
+test('walking partners stay shoulder to shoulder through turns', () => {
+  const player = { x: 700, y: 450 };
+  for (const facing of [0, Math.PI / 4, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+    const cat = couplePartnerPosition(player, facing);
+    const dx = cat.x - player.x, dy = cat.y - player.y;
+    assert.ok(Math.abs(Math.hypot(dx, dy) - Math.abs(PUB_PARTNER_OFFSET)) < 1e-10);
+    assert.ok(Math.abs(dx * Math.sin(facing) + dy * Math.cos(facing)) < 1e-10);
+  }
+});
+
+test('both exits take one straight route from Cat without repositioning her', () => {
+  assert.equal(COUPLE_GOODBYE_SECONDS, 3);
+  for (const [index, start, exit, path, catId] of [
+    [1, PUB_JOIN_POINT, PUB_EXIT, pubCouplePath, 'love'],
+    [2, COASTER_JOIN_POINT, COASTER_EXIT, coasterCouplePath, 'amor']
+  ]) {
+    assert.deepEqual(path(start), [exit]);
+    const facing = Math.atan2(exit.x - start.x, exit.y - start.y);
+    assert.ok(Math.abs(facing - Math.atan2(500, 950)) < 1e-10);
+    const partner = couplePartnerPosition(start, facing);
+    const cat = OBJECTS[index].find((item) => item.id === catId);
+    assert.ok(Math.hypot(partner.x - cat.x, partner.y - cat.y) < 1e-10);
+    assert.equal(path({ x: start.x + 10, y: start.y }), null);
+  }
+});
+
 test('pub fallback displays character names without furniture labels', () => {
   const previousDocument = globalThis.document, previousWindow = globalThis.window;
   const labels = [];
@@ -55,11 +109,117 @@ test('pub fallback displays character names without furniture labels', () => {
   try {
     const scene = createAdventureScene(canvas, 1, () => { }, 'Dani');
     scene.resize(1000, 700);
+    assert.ok(scene.objectPosition('love'), 'restored speech can be positioned before the first draw');
     scene.draw(newAdventureState(1));
-    assert.deepEqual(labels, ['Cat', 'Dani']);
+    assert.deepEqual(labels, ['Jamie the Bartender', 'Cat', 'Dani']);
     assert.ok(colors.includes(PLAYER_OUTFIT));
     assert.ok(colors.includes(CAT_OUTFIT));
     assert.ok(colors.includes(CHARACTER_HAIR));
+    scene.dispose();
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
+test('pub fallback selects the bartender separately from the counter', () => {
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const selections = [];
+  let click;
+  const ctx = {
+    setTransform() {}, fillRect() {}, beginPath() {}, arc() {}, ellipse() {}, fill() {}, fillText() {}
+  };
+  const canvas = {
+    getContext: () => ctx,
+    addEventListener(type, handler) { if (type === 'click') click = handler; },
+    removeEventListener() {},
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 1000, height: 700 })
+  };
+  globalThis.document = { createElement: () => ({ getContext: () => null }) };
+  globalThis.window = { devicePixelRatio: 1 };
+  try {
+    const scene = createAdventureScene(canvas, 1, (selection) => selections.push(selection), 'Dani');
+    scene.resize(1000, 700);
+    scene.draw(newAdventureState(1));
+    const scale = 700 / 750;
+    const clickWorld = (x, y) => click({ clientX: 500 + (x - 500) * scale, clientY: 350 + (y - 350) * scale });
+    clickWorld(130, 78);
+    clickWorld(130, 140);
+    assert.deepEqual(selections, [{ objectId: 'bartender' }, { objectId: 'bar' }]);
+    scene.dispose();
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
+test('pub player turns when walking and keeps facing after stopping', () => {
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const eyes = [];
+  const ctx = {
+    setTransform() {}, fillRect(x, y) { if (this.fillStyle === '#49382f') eyes.push({ x, y }); },
+    beginPath() {}, arc() {}, ellipse() {}, fill() {}, fillText() {}
+  };
+  const canvas = { getContext: () => ctx, addEventListener() {}, removeEventListener() {} };
+  globalThis.document = { createElement: () => ({ getContext: () => null }) };
+  globalThis.window = { devicePixelRatio: 1 };
+  try {
+    const scene = createAdventureScene(canvas, 1, () => {}, 'Dani');
+    scene.resize(1000, 700);
+    const state = newAdventureState(1);
+    scene.draw(state);
+    assert.equal(eyes.length, 6);
+    eyes.length = 0;
+    state.player = { ...state.player, x: state.player.x + 5 };
+    scene.draw(state, 0.05);
+    assert.equal(eyes.length, 5);
+    eyes.length = 0;
+    state.player = { ...state.player, y: state.player.y - 5 };
+    scene.draw(state);
+    assert.equal(eyes.length, 4);
+    eyes.length = 0;
+    scene.draw(state, 0.05);
+    assert.equal(eyes.length, 4);
+    eyes.length = 0;
+    state.player = { ...state.player, y: state.player.y + 5 };
+    scene.draw(state, 0.05);
+    assert.equal(eyes.length, 6);
+    scene.dispose();
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
+test('fallback exit shows the pair side by side with a hand link', () => {
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const labels = [], lines = [], characters = [];
+  const ctx = {
+    setTransform() {}, fillRect() {}, beginPath() {}, arc() {}, ellipse(x, y) { characters.push({ x, y }); }, fill() {},
+    fillText(text, x, y) { labels.push({ text, x, y }); },
+    moveTo(x, y) { lines.push({ x, y }); }, lineTo(x, y) { lines.push({ x, y }); }, stroke() {}
+  };
+  const canvas = { getContext: () => ctx, addEventListener() {}, removeEventListener() {} };
+  globalThis.document = { createElement: () => ({ getContext: () => null }) };
+  globalThis.window = { devicePixelRatio: 1 };
+  try {
+    const scene = createAdventureScene(canvas, 1, () => {}, 'Dani');
+    scene.resize(1000, 700);
+    const state = { ...newAdventureState(1), pubTogether: true, coupleFacing: Math.PI / 2 };
+    scene.draw(state);
+    const [, cat, player] = characters;
+    assert.ok(cat.x < player.x);
+    assert.equal(cat.y, player.y);
+    assert.equal(labels.some((label) => label.text === 'Cat' || label.text === 'Dani'), false);
+    assert.equal(lines.length, 2);
+    assert.ok(lines[0].x < lines[1].x);
+    assert.equal(lines[0].y, lines[1].y);
     scene.dispose();
   } finally {
     if (previousDocument === undefined) delete globalThis.document;
@@ -177,6 +337,25 @@ test('every pub quest object can be reached from multiple sides', () => {
     assert.ok(pubWalkable(player));
     walkRoute({ ...newAdventureState(1), player: { ...player, height: 0 } }, object);
   }
+});
+
+test('bartender can be reached across the counter without changing quest progress', () => {
+  const bartender = OBJECTS[1].find((item) => item.id === 'bartender');
+  const bar = OBJECTS[1].find((item) => item.id === 'bar');
+  let state = newAdventureState(1);
+  assert.match(interactAdventure(1, state, 'bartender').message, /Move closer/);
+  state = walkRoute(state, bartender);
+  assert.ok(adventureObjectInRange(1, state.player, bar));
+  assert.ok(pubWalkable(state.player));
+  const before = state;
+  state = interactAdventure(1, state, 'bartender');
+  assert.match(state.message, /^Jamie: Welcome to Lucky Chucks!/);
+  assert.deepEqual({ ...state, message: before.message }, before);
+  state = interactAdventure(1, state, 'bar');
+  assert.equal(state.drinks, true);
+  state = interactAdventure(1, state, 'bartender');
+  assert.match(state.message, /^Jamie: Enjoy your drinks/);
+  assert.equal(state.drinks, true);
 });
 
 test('the entire Lucky Chucks quest is playable by walking to each object', () => {
@@ -326,7 +505,7 @@ test('Lucky Chucks requires drinks, equipment and the recovered ball before spea
 test('the goodbye survives saves and the couple walks safely to the exit before completing', () => {
   let state = {
     ...newAdventureState(1), drinksPlaced: true, ballFound: true,
-    player: { x: 724, y: 460, height: 0 }
+    player: { ...OBJECTS[1].find((item) => item.id === 'love'), height: 0 }
   };
   state = interactAdventure(1, state, 'love');
   assert.equal(state.pubEnding, 'dialogue');
@@ -340,6 +519,7 @@ test('the goodbye survives saves and the couple walks safely to the exit before 
   assert.strictEqual(finishPubExit(state), state);
   state = restoreAdventureState(1, JSON.parse(JSON.stringify(state)));
   assert.equal(state.pubEnding, 'ready');
+  state = { ...state, player: { ...state.player, ...PUB_JOIN_POINT } };
 
   const furniture = createCollision(PUB_OBSTACLES.filter((obstacle) => obstacle.id !== 'love'), 10);
   const route = pubCouplePath(PUB_JOIN_POINT);
@@ -350,7 +530,9 @@ test('the goodbye survives saves and the couple walks safely to the exit before 
       const next = walkPubCouple(state, point, 0.05);
       assert.notStrictEqual(next, state, 'the couple cannot get stuck');
       assert.equal(furniture.blocked(next.player), false);
-      assert.equal(furniture.blocked({ x: next.player.x + PUB_PARTNER_OFFSET, y: next.player.y }), false);
+      const cat = couplePartnerPosition(next.player, Math.atan2(PUB_EXIT.x - PUB_JOIN_POINT.x, PUB_EXIT.y - PUB_JOIN_POINT.y));
+      assert.equal(furniture.blocked(cat), false);
+      assert.ok(cat.x >= 10 && cat.x <= 990 && cat.y >= 10 && cat.y <= 690);
       state = next;
     }
     assert.ok(attempts > 0);
@@ -376,7 +558,8 @@ test('older goodbye saves resume without losing the handed-over eight-ball', () 
 test('the player can rejoin Cat from every accessible side', () => {
   for (let i = 0; i < 16; i += 1) {
     const angle = i * Math.PI / 8;
-    const player = { x: 690 + Math.cos(angle) * 35, y: 460 + Math.sin(angle) * 35, height: 0 };
+    const cat = OBJECTS[1].find((item) => item.id === 'love');
+    const player = { x: cat.x + Math.cos(angle) * 35, y: cat.y + Math.sin(angle) * 35, height: 0 };
     if (!pubWalkable(player)) continue;
     const route = pubPath(player, PUB_JOIN_POINT);
     assert.ok(route?.length, `joining route from angle ${angle}`);
@@ -420,6 +603,7 @@ test('existing version 3 pub saves retain progress when the case puzzle is intro
 
 test('Thirteen station is beside the carriage and boarding and hand-in remain reachable', () => {
   const [carriage, locker, amor] = OBJECTS[2];
+  assert.ok(Math.hypot(locker.x - amor.x, locker.y - amor.y) >= 300, 'the locker is away from Cat');
   const heading = coasterHeading('riding', 0);
   const carriageHalfDepth = 35 * Math.abs(Math.sin(heading)) + 24 * Math.abs(Math.cos(heading));
   assert.ok(carriage.y + carriageHalfDepth < COASTER_PLATFORM.top, 'platform does not overlap carriage or wheels');
@@ -428,7 +612,9 @@ test('Thirteen station is beside the carriage and boarding and hand-in remain re
     assert.ok(point.y >= COASTER_PLATFORM.top && point.y <= COASTER_PLATFORM.bottom);
   }
   let state = newAdventureState(2);
-  state = walkAdventure(2, state, carriage.x - state.player.x, 0, 3);
+  for (const point of coasterPath(state.player, carriage, carriage)) {
+    state = walkAdventure(2, state, point.x - state.player.x, point.y - state.player.y, 5);
+  }
   assert.ok(adventureObjectInRange(2, state.player, carriage));
   state = interactAdventure(2, state, 'carriage');
   assert.equal(state.phase, 'riding');
@@ -442,7 +628,9 @@ test('Thirteen station is beside the carriage and boarding and hand-in remain re
   assert.ok(adventureObjectInRange(2, state.player, locker));
   state = interactAdventure(2, state, 'locker');
   assert.equal(state.bags, true);
-  state = walkAdventure(2, state, amor.x - state.player.x, amor.y - state.player.y, 2);
+  for (const point of coasterPath(state.player, amor, amor)) {
+    state = walkAdventure(2, state, point.x - state.player.x, point.y - state.player.y, 5);
+  }
   assert.ok(adventureObjectInRange(2, state.player, amor));
   state = interactAdventure(2, state, 'amor');
   assert.equal(state.complete, false);
@@ -466,8 +654,13 @@ test('Thirteen station is beside the carriage and boarding and hand-in remain re
 test('Thirteen locker blocks swept movement and remains accessible from both sides', () => {
   const locker = OBJECTS[2].find((item) => item.id === 'locker');
   const collision = createCollision([{ x: locker.x, y: locker.y, ...locker.footprint }], 10);
+  assert.equal(locker.footprint.depth, 24.5);
+  assert.equal(locker.y - locker.footprint.depth / 2, COASTER_PLATFORM.top);
+  assert.ok(locker.x + locker.footprint.width / 2 < 325, 'locker sits left of the platform light');
   assert.ok(locker.y + locker.footprint.depth / 2 <= COASTER_PLATFORM.bottom);
-  for (const player of [{ x: locker.x - 70, y: 655 }, { x: locker.x + 70, y: 655 }, { x: locker.x, y: 590 }]) {
+  assert.ok(collision.clearSegment({ x: locker.x - 70, y: 630 }, { x: locker.x + 70, y: 630 }),
+    'the platform walkway stays clear');
+  for (const player of [{ x: locker.x - 70, y: locker.y }, { x: locker.x + 70, y: locker.y }, { x: locker.x, y: locker.y + 60 }]) {
     let state = { ...newAdventureState(2), phase: 'platform', player: { ...player, height: 0 } };
     const crossed = walkAdventure(2, state, locker.x - player.x, locker.y - player.y, 10);
     assert.ok(!collision.blocked(crossed.player));
@@ -489,7 +682,7 @@ test('Thirteen locker blocks swept movement and remains accessible from both sid
   const allItems = COASTER_TREATS.map((item) => item.id);
   const restored = restoreAdventureState(2, {
     ...newAdventureState(2), phase: 'platform', bags: true,
-    treats: allItems, player: { x: locker.x, y: 655, height: 0 }
+    treats: allItems, player: { x: locker.x, y: locker.y, height: 0 }
   });
   assert.ok(coasterWalkable(restored.player));
   assert.equal(restored.bags, true);
@@ -499,6 +692,8 @@ test('Thirteen locker blocks swept movement and remains accessible from both sid
 test('Thirteen exit route keeps both characters clear of the locker', () => {
   const route = coasterCouplePath(COASTER_JOIN_POINT);
   assert.ok(route?.length);
+  const locker = OBJECTS[2].find((item) => item.id === 'locker');
+  const collision = createCollision([{ x: locker.x, y: locker.y, ...locker.footprint }], 10);
   let state = { ...newAdventureState(2), phase: 'platform', rideEnding: 'ready', player: { ...COASTER_JOIN_POINT, height: 0 } };
   for (const point of route) {
     let attempts = 300;
@@ -506,7 +701,9 @@ test('Thirteen exit route keeps both characters clear of the locker', () => {
       const next = walkCoasterCouple(state, point, 0.05);
       assert.notStrictEqual(next, state);
       assert.ok(coasterWalkable(next.player));
-      assert.ok(coasterWalkable({ x: next.player.x + PUB_PARTNER_OFFSET, y: next.player.y }));
+      const cat = couplePartnerPosition(next.player, Math.atan2(COASTER_EXIT.x - COASTER_JOIN_POINT.x, COASTER_EXIT.y - COASTER_JOIN_POINT.y));
+      assert.equal(collision.blocked(cat), false);
+      assert.ok(cat.x >= 10 && cat.x <= 990 && cat.y >= 10 && cat.y <= 690);
       state = next;
     }
     assert.ok(attempts > 0);
@@ -517,8 +714,8 @@ test('Thirteen exit route keeps both characters clear of the locker', () => {
 
 test('Thirteen click routes go around the locker', () => {
   const locker = OBJECTS[2].find((item) => item.id === 'locker');
-  const destination = { x: locker.x + 70, y: 655 };
-  let state = { ...newAdventureState(2), phase: 'platform', player: { x: locker.x - 70, y: 655, height: 0 } };
+  const destination = { x: locker.x + 70, y: locker.y };
+  let state = { ...newAdventureState(2), phase: 'platform', player: { x: locker.x - 70, y: locker.y, height: 0 } };
   const route = coasterPath(state.player, destination);
   assert.ok(route?.length);
   for (const point of route) {
@@ -770,6 +967,46 @@ test('GoApe timing targets move within bounds and use smaller randomized widths'
       positions.push(zone.start);
     }
     assert.ok(Math.max(...positions) - Math.min(...positions) > 0.5);
+  }
+});
+
+test('GoApe zip-wire stops the walking animation and walking resumes afterwards', () => {
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const shoes = [];
+  const ctx = {
+    setTransform() {}, fillRect(x, y) { if (this.fillStyle === '#594336') shoes.push({ x, y }); },
+    strokeRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, arc() {}, ellipse() {}, fill() {}, fillText() {}
+  };
+  const canvas = { getContext: () => ctx, addEventListener() {}, removeEventListener() {} };
+  globalThis.document = { createElement: () => ({ getContext: () => null }) };
+  globalThis.window = { devicePixelRatio: 1 };
+  try {
+    const scene = createAdventureScene(canvas, 3, () => {}, 'Dani');
+    scene.resize(1000, 700);
+    const state = newAdventureState(3);
+    const drawFeet = (next, dt = 0.05) => {
+      shoes.length = 0;
+      scene.draw(next, dt);
+      assert.equal(shoes.length, 2);
+      return shoes.map(({ y }) => y);
+    };
+    drawFeet(state);
+    const walking = { ...state, player: { ...state.player, x: state.player.x + 5 } };
+    const walkingFeet = drawFeet(walking);
+    assert.notEqual(walkingFeet[0], walkingFeet[1]);
+    for (const progress of [0.2, 0.5, 0.9, 1]) {
+      const feet = drawFeet({ ...state, zipline: true, zipProgress: progress, player: canopyZipPosition(progress) });
+      assert.equal(feet[0], feet[1], `zip-wire progress ${progress}`);
+    }
+    const resumed = { ...state, player: { ...canopyZipPosition(1), x: canopyZipPosition(1).x + 5 } };
+    const resumedFeet = drawFeet(resumed);
+    assert.notEqual(resumedFeet[0], resumedFeet[1]);
+    scene.dispose();
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
   }
 });
 

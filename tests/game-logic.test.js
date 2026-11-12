@@ -88,7 +88,7 @@ test('quest destinations are far enough apart for meaningful travel', () => {
   assert.equal(WORLD_SIZE.height, 3600);
   assert.equal(WORLD_SCALE, 3);
   assert.ok(distanceBetween(WORLD_SPAWN, QUEST_LOCATIONS[0]) > 1200);
-  assert.ok(distanceBetween(WORLD_SPAWN, QUEST_LOCATIONS[1]) > 900, 'the town is separate from the castle home');
+  assert.ok(distanceBetween(WORLD_SPAWN, QUEST_LOCATIONS[1]) > 1250, 'the town is further from the castle home');
   assert.equal(WORLD_ROUTES.length, QUEST_LOCATIONS.length);
   WORLD_ROUTES.forEach((route, index) => {
     const [x, y] = route.at(-1);
@@ -113,11 +113,12 @@ test('world boundaries constrain movement and quest markers have an interaction 
   assert.equal(isNearQuest({ x: quest.x + 120, y: quest.y }, quest), false);
 });
 
-test('local characters have distinct dialogue, valid positions and can be found within interaction range', () => {
+test('local characters and side quest encounters have valid positions and dialogue', () => {
   assert.ok(WORLD_NPCS.length >= 6);
-  assert.equal(new Set(WORLD_NPCS.map((npc) => npc.name)).size, WORLD_NPCS.length);
+  const locals = WORLD_NPCS.filter((npc) => npc.sideQuest === undefined);
+  assert.equal(new Set(locals.map((npc) => npc.name)).size, locals.length);
   WORLD_NPCS.forEach((npc, index) => {
-    assert.ok(npc.dialogue.length >= 2 && npc.dialogue.every((line) => line.length > 0));
+    assert.ok(npc.dialogue.length >= (npc.sideQuest === undefined ? 2 : 1) && npc.dialogue.every((line) => line.length > 0));
     assert.deepEqual(constrainToWorld(npc), { x: npc.x, y: npc.y });
     assert.equal(nearestNpcIndex(npc, WORLD_NPCS), index);
     assert.ok(QUEST_LOCATIONS.every((quest) => distanceBetween(npc, quest) > 74));

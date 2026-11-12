@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CELL, FRIGHT_MAZE, FRIGHT_OBJECTS, FRIGHT_THEMES, SIZE } from './fright-logic.js';
-import { PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker } from '../character-appearance.js';
+import { PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
 import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 import { createPlayerLegs } from './character-legs.js';
 
@@ -22,7 +22,7 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
   const coneGeometry = new THREE.ConeGeometry(0.5, 1, 4);
   const sphereGeometry = new THREE.SphereGeometry(0.5, 14, 10);
   const materials = new Map(), markers = new Map(), textures = [], animations = [], lights = [];
-  let state, player, playerLabel, previousPosition, walkingPhase = 0, width = 1, height = 1, scale = 1, animationFrame = 0;
+  let state, player, playerLabel, previousPosition, walkingPhase = 0, facing = 0, width = 1, height = 1, scale = 1, animationFrame = 0;
   const colors = Object.fromEntries(FRIGHT_THEMES.map((theme) => [theme.id, theme.color]));
   const palettes = {
     disease: ['#4f7a48', '#2f4a32'], ai: ['#1d3c4b', '#12242f'],
@@ -352,14 +352,13 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
   }
   function draw(next) {
     state = next;
+    facing = facingForMovement(previousPosition, state.player, facing);
     const moving = previousPosition && (previousPosition.x !== state.player.x || previousPosition.y !== state.player.y);
     if (moving) walkingPhase += 0.3;
     const stride = moving ? Math.sin(walkingPhase) * 0.4 : 0;
     if (renderer) {
       player.position.set(state.player.x, 0, state.player.y);
-      if (moving) {
-        player.rotation.y = Math.atan2(state.player.x - previousPosition.x, state.player.y - previousPosition.y);
-      }
+      player.rotation.y = facing;
       player.userData.legs[0].rotation.x = stride;
       player.userData.legs[1].rotation.x = -stride;
       swingCharacterArms(player.userData.arms, stride);
@@ -399,7 +398,7 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
         context.textAlign = 'center'; context.fillText(`${theme.name} ${object.kind}`, p.x, p.y - 20 * scale);
       }
     });
-    drawCharacterMarker(context, width / 2, height / 2, PLAYER_OUTFIT, { ...PLAYER_STYLE, scale, stride });
+    drawCharacterMarker(context, width / 2, height / 2, PLAYER_OUTFIT, { ...PLAYER_STYLE, scale, stride, facing });
     previousPosition = { ...state.player };
   }
   function handleClick(event) {

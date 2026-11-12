@@ -1,9 +1,42 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker } from '../js/character-appearance.js';
+import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../js/character-appearance.js';
 import { createCharacterLegs, createPlayerLegs } from '../js/games/character-legs.js';
 import { TATTOO_ACCENT, TATTOO_INK, addJapaneseSleeve, createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../js/character-body.js';
 import * as THREE from 'three';
+
+test('movement determines facing in all directions and idle keeps the last direction', () => {
+  const origin = { x: 10, y: 20 };
+  assert.equal(facingForMovement(null, origin), 0);
+  for (const [position, angle] of [
+    [{ x: 10, y: 21 }, 0], [{ x: 11, y: 20 }, Math.PI / 2],
+    [{ x: 10, y: 19 }, Math.PI], [{ x: 9, y: 20 }, -Math.PI / 2],
+    [{ x: 11, y: 19 }, 3 * Math.PI / 4]
+  ]) {
+    assert.equal(facingForMovement(origin, position), angle);
+  }
+  assert.equal(facingForMovement(origin, origin, -Math.PI / 2), -Math.PI / 2);
+  assert.equal(facingForMovement(origin, { x: 10.001, y: 20 }, Math.PI), Math.PI);
+});
+
+test('fallback character shows a back or profile and keeps the rear tattoo visible', () => {
+  const rectangles = [];
+  const context = {
+    fillRect(x, y, width, height) { rectangles.push({ x, y, color: this.fillStyle }); },
+    beginPath() {}, ellipse() {}, arc() {}, fill() {}
+  };
+  drawCharacterMarker(context, 0, 0, PLAYER_OUTFIT, { ...PLAYER_STYLE, facing: Math.PI });
+  assert.equal(rectangles.filter((part) => part.color === '#49382f').length, 0);
+  assert.ok(rectangles.some((part) => part.color === TATTOO_INK && part.x < 0));
+  rectangles.length = 0;
+  drawCharacterMarker(context, 0, 0, PLAYER_OUTFIT, { ...PLAYER_STYLE, facing: Math.PI / 2 });
+  assert.equal(rectangles.filter((part) => part.color === '#49382f').length, 1);
+  assert.ok(rectangles.some((part) => part.color === '#49382f' && part.x > 0));
+  rectangles.length = 0;
+  drawCharacterMarker(context, 0, 0, CAT_OUTFIT, { ...CAT_STYLE, facing: Math.PI });
+  assert.ok(rectangles.some((part) => part.color === TATTOO_INK && part.x > 0));
+  assert.ok(!rectangles.some((part) => part.color === CAT_STYLE.buckle));
+});
 
 test('heads are proportionate and the player has longer hair than Cat', () => {
   const parts = [];

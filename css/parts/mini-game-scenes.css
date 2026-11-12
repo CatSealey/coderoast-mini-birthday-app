@@ -271,11 +271,6 @@ kbd {
   text-shadow: 0 0 8px rgba(0, 85, 255, 0.55);
 }
 
-.arsenal-red {
-  color: #ff7777;
-  text-shadow: 0 0 8px rgba(255, 77, 77, 0.5);
-}
-
 ::-webkit-scrollbar {
   width: 8px;
 }

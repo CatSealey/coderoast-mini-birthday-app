@@ -1,13 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BIRTHDAY_DIALOGUE, BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, birthdayArrivalPath, birthdayFamilyPaths, createBirthdayEnding } from '../js/games/birthday-ending.js';
+import { BIRTHDAY_DIALOGUE, BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, birthdayArrivalPath, birthdayFamilyPaths, birthdayGuestObstacles, birthdayGuestPlayerCollision, createBirthdayEnding } from '../js/games/birthday-ending.js';
 import { createCollision, findWorldPath } from '../js/world/world-collision.js';
+
+test('visible birthday guests block walking only after the scripted celebration', () => {
+  const love = { x: 400, y: 440 };
+  const family = BIRTHDAY_FAMILY.map((member, index) => ({
+    member, visible: index !== 0, position: { x: 200 + index * 50, y: 300 }
+  }));
+  for (const phase of ['idle', 'positioning', 'arriving', 'dialogue']) {
+    assert.deepEqual(birthdayGuestObstacles(phase, love, family), []);
+  }
+  const obstacles = birthdayGuestObstacles('finished', love, family);
+  assert.equal(obstacles.length, 7);
+  assert.equal(obstacles[4].radius, 16 * BIRTHDAY_FAMILY[4].size);
+  const collision = createCollision(obstacles, 10);
+  for (const guest of obstacles) {
+    const start = { x: guest.x, y: guest.y - 40 };
+    assert.ok(collision.blocked(guest));
+    assert.ok(!collision.clearSegment(start, { x: guest.x, y: guest.y + 40 }));
+    assert.notDeepEqual(collision.move(start, 0, 80), { x: guest.x, y: guest.y + 40 });
+  }
+  for (const member of BIRTHDAY_FAMILY) {
+    const playerCollision = birthdayGuestPlayerCollision({ x: 400, z: 390 }, member);
+    assert.ok(playerCollision.blocked({ x: 400, y: 390 }));
+    assert.ok(!playerCollision.clearSegment({ x: 400, y: 350 }, { x: 400, y: 430 }));
+  }
+});
 
 test('the shared birthday ticket keeps its voucher artwork and message', () => {
   assert.match(BIRTHDAY_TICKET_MARKUP, /trophy-room__ticket-art/);
   assert.match(BIRTHDAY_TICKET_MARKUP, /Admit one/);
   assert.match(BIRTHDAY_TICKET_MARKUP, /Cuddles &amp; films/);
-  assert.match(BIRTHDAY_TICKET_MARKUP, /your favourite Arsenal fan/);
+  assert.match(BIRTHDAY_TICKET_MARKUP, /your person fan/);
   assert.match(BIRTHDAY_TICKET_MARKUP, /Love, Cat/);
 });
 

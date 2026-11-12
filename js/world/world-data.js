@@ -7,9 +7,10 @@ export const WORLD_SIZE = Object.freeze({
 export const WORLD_SPAWN = Object.freeze({ x: 2500, y: 2000 });
 export const CASTLE_ENTRANCE = Object.freeze({ x: WORLD_SPAWN.x + 50, y: WORLD_SPAWN.y - 165 });
 export const INTERACTION_RANGE = 74;
+const TOWN_X = 1120, TOWN_Y = 985;
 export const WORLD_ROUTES = Object.freeze([
   Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [760, 570], [650, 500], [470, 450]]),
-  Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [920, 720], [1020, 800], [1020, 920]]),
+  Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [920, 720], [1080, 850], [TOWN_X, TOWN_Y]]),
   Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [1100, 530], [1270, 400], [1510, 330]]),
   Object.freeze([[1510, 330], [1610, 500], [1650, 690], [1540, 900]]),
   Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [760, 780], [570, 850], [390, 900]])
@@ -30,9 +31,9 @@ export const QUEST_LOCATIONS = Object.freeze([
     name: 'Lucky Chucks',
     region: 'KETTERING · LUCKY CHUCKS',
     icon: '🎱',
-    x: 1020 * WORLD_SCALE,
-    y: 920 * WORLD_SCALE,
-    entrance: Object.freeze({ x: 1020 * WORLD_SCALE - 85, y: 920 * WORLD_SCALE - 95, name: 'Lucky Chucks entrance' }),
+    x: TOWN_X * WORLD_SCALE,
+    y: TOWN_Y * WORLD_SCALE,
+    entrance: Object.freeze({ x: TOWN_X * WORLD_SCALE - 85, y: TOWN_Y * WORLD_SCALE - 95, name: 'Lucky Chucks entrance' }),
     guide: 'Chuck the Innkeeper',
     introduction: 'Cat is waiting inside. Gather the drinks and pool equipment, then help with a surprise under the cabinet.'
   }),

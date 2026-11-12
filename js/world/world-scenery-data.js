@@ -73,8 +73,10 @@ export function placeQuestDecorations(center, region, count, radius, seed) {
       && point.y > 40 && point.y < WORLD_SIZE.height - 40
       && regionBlendAt(point).region.id === region && roadDistance(point) > 85
       && Math.hypot(point.x - center.x, point.y - center.y) > 120
+      && SIDE_QUESTS.every((quest) => Math.hypot(point.x - quest.x, point.y - quest.y) > 95)
   });
 }
 import { WORLD_SIZE } from './world-data.js';
 import { roadDistance } from './world-art.js';
 import { regionBlendAt } from './world-regions.js';
+import { SIDE_QUESTS } from '../side-quests.js';

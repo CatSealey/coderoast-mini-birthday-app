@@ -6,9 +6,10 @@ import { createWorld3D } from './world-3d.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { birthdayProgress } from '../progression.js';
 import { speechBubblePosition } from './speech-bubble.js';
-import { createCollision, findWorldPath, worldObstacles } from './world-collision.js';
-import { CHARACTER_HAIR, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES } from '../character-appearance.js';
+import { createCollision, findCharacterApproach, findWorldPath, worldObstacles } from './world-collision.js';
+import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, drawCharacterMarker } from '../character-appearance.js';
 import { TATTOO_ACCENT, TATTOO_INK } from '../character-body.js';
+import { sideQuestPosition } from '../side-quests.js';
 
 const WALK_SPEED = 220;
 const PLAYER_RADIUS = 12;
@@ -20,7 +21,7 @@ const DIRECTIONS = {
 };
 
 function entranceLabelOffset(index) {
-  return index === 3 ? { x: -90, y: -50 } : { x: 0, y: -35 };
+  return index === 3 ? { x: -90, y: -50 } : { x: 0, y: index === 1 ? 20 : -35 };
 }
 
 function drawPerson(ctx, color, moving, time, longHair = false, hair = CHARACTER_HAIR, belt = '#dbbd79') {
@@ -63,7 +64,7 @@ function label(ctx, text, y, color = '#f2e3b1') {
   ctx.fillStyle = color; ctx.fillText(text, 0, y);
 }
 
-export function mountOverworld({ characterName, worldCanvas, mapCanvas, interactButton, messageElement, locationElement, targetElement, onGuide, onAcceptQuest, onEntrance, onCastle, onTrophyGuide, onAcceptTrophy, onMessage, onQuestSelected }) {
+export function mountOverworld({ characterName, worldCanvas, mapCanvas, interactButton, messageElement, locationElement, targetElement, onGuide, onAcceptQuest, onEntrance, onCastle, onTrophyGuide, onAcceptTrophy, onSideQuest, onMessage, onQuestSelected }) {
   const mapContext = mapCanvas.getContext('2d');
   if (!mapContext) throw new Error('The browser could not initialize the game world map.');
   const art = createWorldArt();
@@ -93,6 +94,8 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   let zoom = 1;
   let camera = { x: 0, y: 0 };
   let animationFrame = 0;
+  const npcPosition = (npc) => npc.sideQuest === undefined ? npc : { ...npc, ...sideQuestPosition(npc, state.frame) };
+  const npcPositions = () => WORLD_NPCS.map(npcPosition);
 
   function say(message) {
     if (messageElement) messageElement.textContent = message;
@@ -112,6 +115,18 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     return true;
   }
 
+  function setCharacterDestination(character) {
+    const path = findCharacterApproach(state.player, character, collision);
+    if (!path) {
+      state.target = null; state.path = []; state.pendingEntrance = null;
+      say(`There is no clear route to ${character.guide || character.name}. Choose another spot.`);
+      return false;
+    }
+    state.target = path.at(-1) || { ...state.player };
+    state.path = path;
+    return true;
+  }
+
   function clearSpeech() {
     if (speechBubble.contains(document.activeElement)) worldCanvas.focus();
     state.speaker = null;
@@ -123,8 +138,9 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   function updateSpeechBubble() {
     if (state.speaker === null || state.paused) return;
     const { kind, index } = state.speaker;
-    const npc = kind === 'guide' ? QUEST_LOCATIONS[index] : WORLD_NPCS[index];
-    if (!isNearQuest(state.player, npc)) {
+    const npc = kind === 'guide' ? QUEST_LOCATIONS[index] : npcPosition(WORLD_NPCS[index]);
+    const conversationTarget = kind === 'npc' && npc.prop === 'pace' ? WORLD_NPCS[index] : npc;
+    if (!isNearQuest(state.player, conversationTarget)) {
       clearSpeech();
       return;
     }
@@ -193,11 +209,12 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     const nearby = nearbyQuest();
     const nearCastle = distanceBetween(state.player, CASTLE_ENTRANCE) < INTERACTION_RANGE;
     const quest = nearby ? QUEST_LOCATIONS[nearby.index] : QUEST_LOCATIONS[state.questIndex];
-    const nearbyNpc = nearestNpcIndex(state.player, WORLD_NPCS);
+    const npcs = npcPositions();
+    const nearbyNpc = nearestNpcIndex(state.player, npcs);
     const npcIndex = state.npcIndex ?? (!nearby && nearbyNpc !== -1
-      && (!nearCastle || distanceBetween(state.player, WORLD_NPCS[nearbyNpc]) < distanceBetween(state.player, CASTLE_ENTRANCE)) ? nearbyNpc : null);
-    const npc = npcIndex === null ? null : WORLD_NPCS[npcIndex];
-    const nearNpc = npc && isNearQuest(state.player, npc);
+      && (!nearCastle || distanceBetween(state.player, npcs[nearbyNpc]) < distanceBetween(state.player, CASTLE_ENTRANCE)) ? nearbyNpc : null);
+    const npc = npcIndex === null ? null : npcs[npcIndex];
+    const nearNpc = npc && isNearQuest(state.player, npc.prop === 'pace' ? WORLD_NPCS[npcIndex] : npc);
     const location = regionBlendAt(state.player).region.name;
     if (locationElement.textContent !== location) locationElement.textContent = location;
     interactButton.disabled = false;
@@ -281,11 +298,40 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
         ctx.restore();
       }
     }));
-    WORLD_NPCS.forEach((npc, index) => actors.push({
+    npcPositions().forEach((npc, index) => actors.push({
       x: npc.x, y: npc.y,
       draw(ctx) {
-        const { longHair, hair } = TOWNSFOLK_HAIRSTYLES[index % TOWNSFOLK_HAIRSTYLES.length];
-        drawPerson(ctx, npc.color, false, state.frame, longHair, hair);
+        if (npc.sideQuest !== undefined) {
+          if (npc.prop === 'doll') {
+            ctx.fillStyle = '#795453'; ctx.fillRect(29, -29, 15, 20);
+            ctx.fillStyle = '#d7bc9d'; ctx.beginPath(); ctx.arc(36, -34, 7, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#4d302c'; ctx.fillRect(28, -42, 16, 5);
+          } else if (npc.prop === 'grave') {
+            ctx.fillStyle = '#49382d'; ctx.beginPath(); ctx.ellipse(45, -2, 34, 10, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#6b665f'; ctx.fillRect(35, -18, 20, 15);
+            ctx.fillStyle = '#d7aa83'; ctx.beginPath(); ctx.arc(45, -22, 7, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#d7c6a1'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('David White', 45, -34);
+          }
+          drawCharacterMarker(ctx, 0, -39, CAT_OUTFIT, {
+            ...CAT_STYLE, scale: 1.5, stride: npc.prop === 'pace' ? Math.sin(state.frame / 120) * 0.4 : 0,
+            facing: npc.prop === 'pace' ? (Math.cos(state.frame / 650) >= 0 ? Math.PI / 2 : -Math.PI / 2)
+              : npc.prop === 'doll' || npc.prop === 'grave' ? Math.PI / 2 : 0
+          });
+          if (npc.prop === 'cup') {
+            ctx.fillStyle = '#e3b15b'; ctx.fillRect(10, -38, 12, 16);
+            ctx.fillStyle = '#f1dfaa'; ctx.fillRect(9, -40, 14, 3);
+          } else if (npc.prop === 'tickets') {
+            ctx.fillStyle = '#cfb783'; ctx.fillRect(5, -40, 17, 10);
+            ctx.fillStyle = '#efd69b'; ctx.fillRect(8, -37, 17, 10);
+            ctx.strokeStyle = '#92704a'; ctx.strokeRect(8, -37, 17, 10);
+          } else if (npc.prop === 'grave') {
+            ctx.strokeStyle = '#a88154'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-14, -30); ctx.lineTo(-23, -2); ctx.stroke();
+            ctx.fillStyle = '#a5aaa1'; ctx.fillRect(-28, -5, 10, 7);
+          }
+        } else {
+          const { longHair, hair } = TOWNSFOLK_HAIRSTYLES[index % TOWNSFOLK_HAIRSTYLES.length];
+          drawPerson(ctx, npc.color, false, state.frame, longHair, hair);
+        }
         label(ctx, npc.name, -78);
       }
     }));
@@ -313,7 +359,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     const { width, height } = mapCanvas.getBoundingClientRect();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     mapContext.setTransform(dpr, 0, 0, dpr, 0, 0);
-    mapContext.drawImage(art.ground, 0, 0, width, height);
+    mapContext.drawImage(art.minimap, 0, 0, width, height);
     const px = (x) => x / WORLD_SIZE.width * width;
     const py = (y) => y / WORLD_SIZE.height * height;
     const active = QUEST_LOCATIONS[state.questIndex];
@@ -351,7 +397,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     state.npcIndex = null;
     const quest = QUEST_LOCATIONS[index];
     const destination = destinationKind === 'entrance' ? quest.entrance : quest;
-    if (walk && !setDestination(destination)) return false;
+    if (walk && !(destinationKind === 'guide' ? setCharacterDestination(quest) : setDestination(destination))) return false;
     if (!walk) { state.target = null; state.path = []; }
     onQuestSelected?.(index);
     say(walk
@@ -365,18 +411,24 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     if (state.paused) return;
     const nearby = nearbyQuest();
     const nearCastle = distanceBetween(state.player, CASTLE_ENTRANCE) < INTERACTION_RANGE;
-    const nearbyNpc = nearestNpcIndex(state.player, WORLD_NPCS);
+    const npcs = npcPositions();
+    const nearbyNpc = nearestNpcIndex(state.player, npcs);
     const npcIndex = state.npcIndex ?? (!nearby && nearbyNpc !== -1
-      && (!nearCastle || distanceBetween(state.player, WORLD_NPCS[nearbyNpc]) < distanceBetween(state.player, CASTLE_ENTRANCE)) ? nearbyNpc : null);
+      && (!nearCastle || distanceBetween(state.player, npcs[nearbyNpc]) < distanceBetween(state.player, CASTLE_ENTRANCE)) ? nearbyNpc : null);
     if (npcIndex !== null) {
-      const npc = WORLD_NPCS[npcIndex];
-      if (!isNearQuest(state.player, npc)) {
+      const npc = npcs[npcIndex];
+      const target = npc.prop === 'pace' ? WORLD_NPCS[npcIndex] : npc;
+      if (!isNearQuest(state.player, target)) {
         clearSpeech();
-        if (!setDestination(moveToward(npc, state.player, 45))) return;
+        if (!setCharacterDestination(target)) return;
         say(`Walking to ${npc.name}. Speak to them when you arrive.`);
       } else {
         state.target = null;
         if (npc.trophyGuide) { onTrophyGuide(); return; }
+        if (npc.sideQuest !== undefined && onSideQuest?.(npc.sideQuest) === false) {
+          say('Could not save this side quest. Please try again.');
+          return;
+        }
         const line = state.npcDialogue[npcIndex] % npc.dialogue.length;
         const words = npc.dialogue[line].replaceAll('{player}', characterName);
         speechName.textContent = npc.name;
@@ -403,7 +455,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       const quest = QUEST_LOCATIONS[state.questIndex];
       const target = state.destinationKind === 'entrance' ? quest.entrance : quest;
       clearSpeech();
-      if (!setDestination(target)) return;
+      if (!(state.destinationKind === 'guide' ? setCharacterDestination(quest) : setDestination(target))) return;
       say(`Keep walking to ${state.destinationKind === 'entrance' ? quest.entrance.name : quest.guide}.`);
     } else {
       say('Find a quest giver marked on the world map.');
@@ -447,7 +499,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       return Math.hypot(screen.x - position.x, screen.y - (position.y - 65 * zoom)) <= 25 * zoom;
     });
     if (markerIndex !== -1) return void chooseQuest(markerIndex, true, 'guide');
-    const npcIndex = world3d ? world3d.npcAt(screen) : WORLD_NPCS.findIndex((npc) => {
+    const npcIndex = world3d ? world3d.npcAt(screen) : npcPositions().findIndex((npc) => {
       const position = projectWorld(npc, camera, zoom);
       return Math.hypot(screen.x - position.x, screen.y - (position.y - 36 * zoom)) <= 25 * zoom;
     });
@@ -601,6 +653,13 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       updateInteraction(); drawWorld(); drawMinimap();
     },
     selectQuest: chooseQuest,
+    selectSideQuest(index) {
+      const npcIndex = WORLD_NPCS.findIndex((npc) => npc.sideQuest === index);
+      if (npcIndex < 0) throw new RangeError('Unknown side quest.');
+      state.questIndex = null; state.pendingEntrance = null; state.npcIndex = npcIndex;
+      state.target = null; state.path = []; clearSpeech();
+      interact(); updateInteraction(); drawWorld(); drawMinimap();
+    },
     showGuideSpeech,
     showTrophySpeech(words, offer) {
       clearSpeech();
@@ -619,6 +678,14 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       if (index !== null && state.questIndex !== index) return;
       state.questIndex = null; state.target = null; state.pendingEntrance = null; state.npcIndex = null;
       clearSpeech(); updateInteraction(); drawWorld(); drawMinimap();
+    },
+    reset() {
+      clearMovement(); clearSpeech();
+      state.player = { ...WORLD_SPAWN };
+      state.target = null; state.path = []; state.questIndex = null;
+      state.destinationKind = 'guide'; state.pendingEntrance = null; state.npcIndex = null;
+      state.npcDialogue.fill(0);
+      updateInteraction(); drawWorld(); drawMinimap();
     },
     setPaused(paused) {
       state.paused = paused;

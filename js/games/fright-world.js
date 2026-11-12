@@ -132,7 +132,7 @@ export function mountFrightWorld(root, { characterName, savedState, onProgress, 
     else if (button.hasAttribute('data-fright-close')) update({ ...state, puzzle: null, stage: 0, message: 'You step away from the mechanism.' });
   }
   function keyDown(event) {
-    if (state.puzzle || document.querySelector('[data-modal-backdrop]:not(.hidden), #removeQuestDialog[open]')
+    if (state.puzzle || document.querySelector('[data-modal-backdrop]:not(.hidden), [data-game-modal][open]')
       || event.altKey || event.ctrlKey || event.metaKey || event.target instanceof HTMLInputElement) return;
     if (event.code === 'KeyE' && !event.repeat) { event.preventDefault(); investigate(); return; }
     if (!keys[event.code]) return;
@@ -153,7 +153,7 @@ export function mountFrightWorld(root, { characterName, savedState, onProgress, 
     if (disposed) return;
     const delta = lastFrame ? Math.min((timestamp - lastFrame) / 1000, 0.05) : 0;
     lastFrame = timestamp;
-    if (!state.puzzle && !document.querySelector('[data-modal-backdrop]:not(.hidden), #removeQuestDialog[open]')) {
+    if (!state.puzzle && !document.querySelector('[data-modal-backdrop]:not(.hidden), [data-game-modal][open]')) {
       let dx = 0, dy = 0;
       [...keysDown].map((key) => keys[key]).concat([...held]).forEach((direction) => {
         if (vectors[direction]) { dx += vectors[direction][0]; dy += vectors[direction][1]; }

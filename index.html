@@ -47,8 +47,8 @@
       <div class="client-topbar__right">
         <span class="client-quest-status"><span class="client-status-dot" aria-hidden="true"></span><span
             id="questProgressText">In progress · 0/6</span></span>
-        <button type="button" data-action="toggle-rivalry" class="rs3-btn client-icon-button"
-          aria-label="Open football rivalry">⚽</button>
+        <button type="button" data-action="open-settings" class="rs3-btn client-icon-button"
+          aria-label="Open settings" title="Settings">⚙</button>
       </div>
     </header>
 
@@ -60,6 +60,7 @@
             <span class="client-panel__count"><span id="heroProgressText">0 of 6</span></span>
           </div>
           <p class="client-panel__intro" id="questJournalHint">Your journal is empty. Find quest givers marked on the world map.</p>
+          <div class="quest-journal__scroll" role="region" aria-label="Quest journal entries" tabindex="0">
           <nav class="quest-list" aria-label="Birthday quest chapters">
             <div class="quest-entry" id="qentry-1" hidden>
               <button id="qbtn-1" type="button" data-level="1" class="quest-row">
@@ -116,6 +117,11 @@
               <details class="quest-steps"><summary>Quest steps <span id="trophyStepsCount"></span></summary><ol id="trophySteps" class="quest-steps__list" tabindex="0" aria-label="The Hall of Memories quest steps"></ol></details>
             </div>
           </nav>
+          <section class="side-quests" aria-labelledby="sideQuestTitle">
+            <h3 id="sideQuestTitle">SIDE QUESTS</h3>
+            <div id="sideQuestList" class="side-quests__list"></div>
+          </section>
+          </div>
           <div class="client-chat" aria-label="Quest log message">
             <span class="client-chat__label"><span aria-hidden="true">✧</span> QUEST GUIDE</span>
             <p id="dialogueText">Welcome, Adventurer. Your birthday adventure awaits.</p>
@@ -218,13 +224,33 @@
     </footer>
   </div>
 
-  <dialog id="removeQuestDialog" class="quest-dialog quest-remove-dialog" aria-labelledby="removeQuestTitle" aria-describedby="removeQuestDescription">
+  <dialog id="removeQuestDialog" data-game-modal class="quest-dialog quest-remove-dialog" aria-labelledby="removeQuestTitle" aria-describedby="removeQuestDescription">
     <h2 id="removeQuestTitle">Remove quest?</h2>
     <p id="removeQuestDescription"></p>
     <div class="quest-remove-dialog__actions">
       <button type="button" class="rs3-btn game-control" data-action="cancel-remove-quest" autofocus>Keep quest</button>
       <button type="button" class="rs3-btn game-control" data-action="confirm-remove-quest">Remove quest</button>
     </div>
+  </dialog>
+
+  <dialog id="settingsDialog" data-game-modal class="quest-dialog quest-remove-dialog" aria-labelledby="settingsTitle" aria-describedby="settingsDescription">
+    <section id="settingsMain">
+      <h2 id="settingsTitle">Settings</h2>
+      <p id="settingsDescription">Start the adventure again from the beginning.</p>
+      <div class="quest-remove-dialog__actions">
+        <button type="button" class="rs3-btn game-control" data-action="close-settings" autofocus>Close</button>
+        <button type="button" class="rs3-btn game-control" data-action="request-restart">Restart game</button>
+      </div>
+    </section>
+    <section id="restartConfirmation" hidden aria-labelledby="restartTitle">
+      <h2 id="restartTitle">Restart the game?</h2>
+      <p id="restartDescription">This permanently removes all saved quests, items, keepsakes and birthday progress on this device. You will return to the start.</p>
+      <p id="restartError" role="alert" hidden></p>
+      <div class="quest-remove-dialog__actions">
+        <button type="button" class="rs3-btn game-control" data-action="cancel-restart">Keep progress</button>
+        <button type="button" class="rs3-btn game-control" data-action="confirm-restart">Restart from scratch</button>
+      </div>
+    </section>
   </dialog>
 
   <dialog id="questDialog" class="quest-dialog" aria-labelledby="questDialogTitle">
@@ -256,42 +282,6 @@
       </footer>
     </section>
   </dialog>
-
-  <!-- MODAL: CHELSEA VS ARSENAL BANTER -->
-  <div id="rivalryModal" data-modal-backdrop
-    class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="rs3-panel modal-panel max-w-md w-full p-5 rounded-xl border border-yellow-400/70 relative" role="dialog"
-      aria-modal="true" aria-labelledby="rivalryTitle">
-      <button type="button" aria-label="Close football rivalry" data-action="toggle-rivalry"
-        class="absolute top-2 right-2 text-amber-400 hover:text-white text-lg font-bold">✕</button>
-
-      <div class="text-center mb-4">
-        <h3 id="rivalryTitle" class="rune-font text-sm text-yellow-400 mb-1">⚽ THE GREAT HOUSE RIVALRY ⚽</h3>
-        <p class="text-xs text-amber-300">London is... Blue or Red?</p>
-      </div>
-
-      <div class="grid grid-cols-2 gap-3 mb-4">
-        <div class="bg-blue-950/80 border border-blue-500 p-3 rounded text-center">
-          <div class="text-3xl mb-1">🦁</div>
-          <div class="font-bold text-blue-300">CHELSEA FC</div>
-          <div class="text-xs text-blue-200/80 mt-1">Her Team (The Boss)</div>
-        </div>
-        <div class="bg-red-950/80 border border-red-500 p-3 rounded text-center">
-          <div class="text-3xl mb-1">🔴</div>
-          <div class="font-bold text-red-300">ARSENAL FC</div>
-          <div class="text-xs text-red-200/80 mt-1">His Team (The Rookie)</div>
-        </div>
-      </div>
-
-      <div class="rs3-dialogue p-3 rounded text-xs text-amber-200 mb-4 text-center">
-        "We play for the same team in real life, but match days are always legendary! Even though he supports Arsenal,
-        she still gets the birthday victory!"
-      </div>
-
-      <button type="button" data-action="toggle-rivalry" class="w-full rs3-btn py-2 text-sm rounded-lg">Back to
-        Quest</button>
-    </div>
-  </div>
 
   <!-- MODAL: ITEM DETAIL POPUP -->
   <div id="itemModal" data-modal-backdrop

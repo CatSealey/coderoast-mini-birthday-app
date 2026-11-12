@@ -6,6 +6,16 @@ export function normalizeQuestProgress(saved, count) {
   return { completed, accepted: accepted.map((value, index) => value || completed[index]) };
 }
 
+export function freshGameProgress(count) {
+  return {
+    ...normalizeQuestProgress(null, count),
+    gameSaves: Array(count).fill(null),
+    trophyDisplays: Array(count).fill(false),
+    trophyQuest: { accepted: false, completed: false },
+    sideQuestCompleted: restoreSideQuestProgress(null)
+  };
+}
+
 export function removeQuestProgress(progress, index) {
   if (!Number.isInteger(index) || index < 0 || index >= progress.completed.length
     || progress.accepted.length !== progress.completed.length) {
@@ -32,3 +42,4 @@ export function questGuideSpeech(quest, title, accepted, completed) {
     offer: true
   };
 }
+import { restoreSideQuestProgress } from './side-quests.js';

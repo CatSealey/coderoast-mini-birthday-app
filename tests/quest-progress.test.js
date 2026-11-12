@@ -1,6 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeQuestProgress, questGuideSpeech, removeQuestProgress } from '../js/quest-progress.js';
+import { freshGameProgress, normalizeQuestProgress, questGuideSpeech, removeQuestProgress } from '../js/quest-progress.js';
+
+test('a fresh game has no quest progress, items, displays or finale', () => {
+  const fresh = freshGameProgress(5);
+  assert.deepEqual(fresh, {
+    completed: [false, false, false, false, false],
+    accepted: [false, false, false, false, false],
+    gameSaves: [null, null, null, null, null],
+    trophyDisplays: [false, false, false, false, false],
+    trophyQuest: { accepted: false, completed: false },
+    sideQuestCompleted: [false, false, false, false, false]
+  });
+  fresh.completed[0] = true;
+  assert.equal(freshGameProgress(5).completed[0], false);
+});
 import { birthdayProgress } from '../js/progression.js';
 import { areAllQuestsComplete } from '../js/world/world-logic.js';
 import { INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SIZE } from '../js/world/world-data.js';

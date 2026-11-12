@@ -4,6 +4,7 @@ import { drawParkRide, PARK_RIDES } from './park-scenery.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { worldCornWalls, worldTrees } from './world-collision.js';
 import { CANOPY_OFFSET, placeQuestDecorations } from './world-scenery-data.js';
+import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_PLAZA, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -92,11 +93,23 @@ function makeGround() {
       i % 4 === 0 ? 'rgba(207, 204, 132, 0.12)' : 'rgba(29, 65, 36, 0.10)');
   }
 
+  const minimap = document.createElement('canvas');
+  minimap.width = Math.ceil(WORLD_SIZE.width / 10); minimap.height = Math.ceil(WORLD_SIZE.height / 10);
+  const mapContext = minimap.getContext('2d');
+  if (!mapContext) throw new Error('The browser could not initialize the minimap landscape.');
+  mapContext.drawImage(canvas, 0, 0, minimap.width, minimap.height);
+  const padding = 30; // Cobblestones extend beyond the plaza's center-point bounds.
+  const left = Math.max(0, Math.floor((TOWN_PLAZA.left - padding) / WORLD_SIZE.width * minimap.width));
+  const top = Math.max(0, Math.floor((TOWN_PLAZA.top - padding) / WORLD_SIZE.height * minimap.height));
+  const right = Math.min(minimap.width, Math.ceil((TOWN_PLAZA.right + padding) / WORLD_SIZE.width * minimap.width));
+  const bottom = Math.min(minimap.height, Math.ceil((TOWN_PLAZA.bottom + padding) / WORLD_SIZE.height * minimap.height));
+  const townTerrain = mapContext.getImageData(left, top, right - left, bottom - top);
+
   for (let row = 0; row * 20 < WORLD_SIZE.height; row += 1) {
     for (let col = 0; col * 25 < WORLD_SIZE.width; col += 1) {
       const x = col * 25 + (row % 2) * 12;
       const y = row * 20;
-      if (roadDistance({ x, y }) > 40) continue;
+      if (roadDistance({ x, y }) > 40 && !isTownPlaza({ x, y })) continue;
       const index = row * 300 + col;
       ctx.fillStyle = ['#9b9983', '#aaa68f', '#8e8d7b', '#b3ad94'][Math.floor(random(index, 23) * 4)];
       ctx.beginPath();
@@ -111,7 +124,7 @@ function makeGround() {
   for (let i = 0; i < 9000; i += 1) {
     const x = random(i, 13) * WORLD_SIZE.width;
     const y = random(i, 14) * WORLD_SIZE.height;
-    if (roadDistance({ x, y }) < 60) continue;
+    if (roadDistance({ x, y }) < 60 || isTownPlaza({ x, y })) continue;
     ctx.strokeStyle = i % 3 ? 'rgba(31, 68, 34, .27)' : 'rgba(202, 202, 122, .22)';
     ctx.lineWidth = 1.4;
     ctx.beginPath();
@@ -121,7 +134,26 @@ function makeGround() {
     ctx.lineTo(x + 4, y - 4 - random(i, 16) * 5);
     ctx.stroke();
   }
-  return canvas;
+  mapContext.drawImage(canvas, 0, 0, minimap.width, minimap.height);
+  mapContext.putImageData(townTerrain, left, top);
+  mapContext.save();
+  mapContext.beginPath();
+  mapContext.rect(left, top, right - left, bottom - top);
+  mapContext.clip();
+  mapContext.beginPath();
+  WORLD_ROUTES[1].forEach(([x, y], index) => {
+    const mx = x * WORLD_SCALE / WORLD_SIZE.width * minimap.width;
+    const my = y * WORLD_SCALE / WORLD_SIZE.height * minimap.height;
+    if (index === 0) mapContext.moveTo(mx, my);
+    else mapContext.lineTo(mx, my);
+  });
+  mapContext.strokeStyle = '#aaa58e';
+  mapContext.lineWidth = 6;
+  mapContext.lineCap = 'round';
+  mapContext.lineJoin = 'round';
+  mapContext.stroke();
+  mapContext.restore();
+  return { ground: canvas, minimap };
 }
 
 function addProps() {
@@ -129,7 +161,7 @@ function addProps() {
   function add(type, x, y, size = 1, variant = 0) {
     props.push({ type, x, y, size, variant });
   }
-  const [escape, town, park, forest, harvest] = QUEST_LOCATIONS;
+  const [escape, , park, forest, harvest] = QUEST_LOCATIONS;
   add('castle', WORLD_SPAWN.x + 50, WORLD_SPAWN.y - 250, 1.45);
   add('house', WORLD_SPAWN.x - 205, WORLD_SPAWN.y - 95, 0.85);
   add('lamp', WORLD_SPAWN.x - 70, WORLD_SPAWN.y - 80);
@@ -139,16 +171,13 @@ function addProps() {
   add('deadTree', escape.x + 185, escape.y - 140, 1.25);
   placeQuestDecorations(escape, 'escape', 22, 560, 12).forEach(({ x, y, scale, variant }) => add('grave', x, y, scale, variant));
 
-  add('tavern', town.x - 85, town.y - 165, 1.25);
-  add('house', town.x + 230, town.y - 135, 0.95, 1);
-  add('house', town.x - 250, town.y + 15, 0.8);
-  add('target', town.x + 190, town.y + 40, 1.15);
-  add('target', town.x + 245, town.y + 35, 1.05);
-  add('stall', town.x - 200, town.y + 110, 0.9);
-  add('stall', town.x + 275, town.y + 150, 0.8, 1);
-  add('bench', town.x - 170, town.y - 20);
-  add('barrel', town.x - 165, town.y - 170);
-  add('barrel', town.x - 140, town.y - 175, 0.8);
+  TOWN_VENUES.forEach((venue) => props.push({
+    ...venue, type: venue.kind === 'games' ? 'tavern' : 'townVenue'
+  }));
+  add('church', TOWN_CHURCH.x, TOWN_CHURCH.y, 1.3);
+  TOWN_TABLES.forEach((table) => add('cafeTable', table.x, table.y));
+  TOWN_BENCHES.forEach(({ x, y }) => add('bench', x, y));
+  TOWN_LAMPS.forEach(({ x, y }) => add('lamp', x, y));
 
   add('coaster', park.x + 40, park.y - 185, 1.2);
   add('parkGate', park.x - 180, park.y - 60, 1);
@@ -176,7 +205,7 @@ function addProps() {
   add('mazeGate', harvest.x - 175, harvest.y - 175, 1);
   worldCornWalls().forEach((wall) => add('cornWall', wall.x, wall.y, 1, Number(wall.vertical)));
   placeQuestDecorations(harvest, 'harvest', 35, 760, 48).forEach(({ x, y, scale }) => add('pumpkin', x, y, scale));
-  [WORLD_SPAWN, escape, town, park, harvest].forEach((quest) => {
+  [WORLD_SPAWN, escape, park, harvest].forEach((quest) => {
     add('lamp', quest.x - 75, quest.y - 50);
     add('lamp', quest.x + 95, quest.y + 75);
   });
@@ -387,14 +416,39 @@ function drawProp(ctx, prop) {
   ctx.scale(prop.size, prop.size);
   if (prop.type === 'tree' || prop.type === 'pine') tree(ctx, prop.type === 'pine', prop.variant);
   else if (prop.type === 'house' || prop.type === 'castle') building(ctx, prop.variant, prop.type === 'castle');
+  else if (prop.type === 'church') {
+    building(ctx, 0);
+    ctx.fillStyle = '#aaa99a'; ctx.fillRect(-53, -146, 45, 93);
+    ctx.fillStyle = '#777e77'; ctx.fillRect(-56, -151, 51, 8);
+    ctx.fillStyle = '#5c6060';
+    ctx.beginPath(); ctx.moveTo(-60, -151); ctx.lineTo(-30, -192); ctx.lineTo(0, -151); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e5d7b4'; ctx.fillRect(-32, -207, 4, 17); ctx.fillRect(-37, -202, 14, 4);
+    ctx.fillStyle = '#506c78'; ctx.fillRect(-41, -129, 20, 33);
+    ctx.fillStyle = '#d7cba8'; ctx.fillRect(-32, -129, 2, 33); ctx.fillRect(-41, -114, 20, 2);
+    ctx.fillStyle = '#d7cba8'; ctx.fillRect(31, -57, 2, 19);
+    ellipse(ctx, 32, -63, 8, 8, '#b8c5b6');
+  }
+  else if (prop.type === 'townVenue') {
+    building(ctx, prop.kind === 'bar' ? 1 : 0);
+    ctx.fillStyle = prop.awning;
+    ctx.fillRect(-52, -44, 104, 10);
+    ctx.fillStyle = '#e9d8b8';
+    for (let x = -48; x < 50; x += 24) ctx.fillRect(x, -44, 10, 10);
+    drawSignText(ctx, prop.name, -68, 108);
+  }
   else if (prop.type === 'tavern') {
     building(ctx, 1);
     drawSignText(ctx, 'LUCKY CHUCKS', -67, 94);
     ellipse(ctx, -29, -23, 8, 8, '#244c43');
     ctx.fillStyle = '#f1e2bb'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('8', -29, -19);
-    ellipse(ctx, 32, -24, 9, 9, '#e2d3ab');
-    ellipse(ctx, 32, -24, 6, 6, '#803c35');
-    ellipse(ctx, 32, -24, 3, 3, '#d8cba8');
+    ellipse(ctx, 32, -24, 9, 9, '#ded3b6');
+    ellipse(ctx, 32, -24, 7, 7, '#293a33');
+    ctx.strokeStyle = '#d7c8a9'; ctx.lineWidth = 0.6;
+    for (let i = 0; i < 8; i += 1) {
+      const angle = i * Math.PI / 4;
+      ctx.beginPath(); ctx.moveTo(32, -24); ctx.lineTo(32 + Math.cos(angle) * 7, -24 + Math.sin(angle) * 7); ctx.stroke();
+    }
+    ellipse(ctx, 32, -24, 2, 2, '#b45247');
   } else if (prop.type === 'haunted') {
     building(ctx, 0);
     ctx.fillStyle = 'rgba(29, 34, 36, .65)'; ctx.fillRect(-58, -83, 116, 83);
@@ -416,10 +470,15 @@ function drawProp(ctx, prop) {
     ctx.lineTo(14, 0); ctx.lineTo(-14, 0); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = '#4b514c'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(0, -12); ctx.moveTo(-6, -24); ctx.lineTo(6, -24); ctx.stroke();
-  } else if (prop.type === 'target') {
-    ctx.strokeStyle = '#60462f'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(0, -42); ctx.lineTo(12, 0); ctx.stroke();
-    ellipse(ctx, 0, -43, 21, 21, '#d8cda3'); ellipse(ctx, 0, -43, 15, 15, '#9d4c3b');
-    ellipse(ctx, 0, -43, 9, 9, '#e0cf9c'); ellipse(ctx, 0, -43, 4, 4, '#a34739');
+  } else if (prop.type === 'cafeTable') {
+    ellipse(ctx, 0, 3, 32, 10, 'rgba(15, 22, 18, .25)');
+    ctx.fillStyle = '#59483b'; ctx.fillRect(-3, -18, 6, 18);
+    ellipse(ctx, 0, -20, 20, 8, '#b19269');
+    for (const x of [-27, 27]) {
+      ctx.fillStyle = '#6f5845'; ctx.fillRect(x - 3, -10, 6, 10);
+      ellipse(ctx, x, -11, 7, 4, '#987a59');
+    }
+    ellipse(ctx, 0, -21, 4, 3, '#d6c6a5');
   } else if (prop.type === 'coaster') drawCoaster(ctx);
   else if (prop.type === 'loopCoaster' || prop.type === 'woodCoaster' || prop.type === 'dropTower') drawParkRide(ctx, prop.type);
   else if (prop.type === 'queue') {
@@ -495,10 +554,10 @@ function drawProp(ctx, prop) {
 }
 
 export function createWorldArt() {
-  const ground = makeGround();
+  const { ground, minimap } = makeGround();
   const props = addProps();
   return {
-    ground,
+    ground, minimap,
     draw(ctx, camera, zoom, width, height, actors) {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);

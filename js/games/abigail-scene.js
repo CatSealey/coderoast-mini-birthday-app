@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { HOUSE_BOUNDS, HOUSE_OBJECTS, HOUSE_WALLS } from './abigail-house.js';
-import { PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker } from '../character-appearance.js';
+import { PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
 import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 import { createPlayerLegs } from './character-legs.js';
 
@@ -12,7 +12,7 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
   const context = renderer ? null : canvas.getContext('2d');
   if (!renderer && !context) throw new Error('Could not initialize the escape room.');
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#202a27');
+  scene.background = new THREE.Color('#171b22');
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 3000);
   let roomGroup = null;
   let player = null;
@@ -27,12 +27,14 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
   const textures = new Set();
   let previousPosition = null;
   let walkingPhase = 0;
-  const runeMarkers = new Map();
+  let facing = 0;
+  const lanternFlames = [];
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   if (renderer) {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    scene.add(new THREE.HemisphereLight('#e5dfc2', '#302c29', 1.8));
-    const light = new THREE.DirectionalLight('#f0d7a2', 2);
+    scene.add(new THREE.HemisphereLight('#b7c3d0', '#211a27', 1.35));
+    const light = new THREE.DirectionalLight('#d8cbb8', 1.5);
     light.position.set(-300, 800, 500);
     scene.add(light);
   }
@@ -159,29 +161,71 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
       box(group, 17, 5, 14, '#42332d', 0, 70, 0);
       box(group, 3, 3, 2, '#443032', -4, 62, 7);
       box(group, 3, 3, 2, '#443032', 4, 62, 7);
-    } else if (item.rune) {
-      if (item.id === 'starCache') {
+    } else if (item.kind) {
+      if (item.kind === 'desk' || item.kind === 'writingDesk') {
         box(group, 66, 8, 48, '#604437', 0, 34, 0);
         for (const x of [-25, 25]) for (const z of [-17, 17]) box(group, 6, 30, 6, '#46352b', x, 15, z);
         box(group, 34, 5, 23, '#d7cba7', -10, 41, 0);
-        box(group, 5, 25, 5, '#ab986d', 19, 50, 0);
-        const telescope = box(group, 32, 10, 10, '#b4975d', 20, 66, 0);
-        telescope.rotation.z = -0.5;
-      } else if (item.id === 'moonCache') {
+        if (item.kind === 'desk') {
+          box(group, 5, 25, 5, '#ab986d', 19, 50, 0);
+          const telescope = box(group, 32, 10, 10, '#b4975d', 20, 66, 0);
+          telescope.rotation.z = -0.5;
+        } else {
+          box(group, 6, 14, 6, '#c9b394', 20, 48, -12);
+          box(group, 3, 5, 3, '#d69f5e', 20, 57, -12);
+        }
+      } else if (item.kind === 'jewellery') {
         box(group, 55, 33, 42, '#6d4e3a', 0, 17, 0);
         box(group, 46, 8, 36, '#a48162', 0, 35, 0);
         box(group, 32, 14, 24, '#4b5364', 0, 45, 0);
         box(group, 8, 8, 3, '#d3c8a9', 0, 44, 13);
-      } else {
+      } else if (item.kind === 'cabinet') {
         box(group, 56, 70, 38, '#574331', 0, 35, 0);
         box(group, 48, 52, 4, '#89694a', 0, 38, 21);
         box(group, 4, 52, 5, '#c2a678', 0, 38, 24);
         box(group, 5, 5, 5, '#d8bc75', 10, 38, 25);
         box(group, 62, 6, 44, '#a3845a', 0, 73, 0);
+      } else if (item.kind === 'bookcase') {
+        box(group, 36, 90, 125, '#594435', 0, 45, 0);
+        for (const y of [20, 44, 68]) {
+          box(group, 38, 4, 125, '#a18361', 0, y, 0);
+          for (let i = 0; i < 7; i += 1) {
+            box(group, 20, 16, 8, ['#896252', '#536c61', '#af906a'][i % 3], 0, y + 10, -48 + i * 15);
+          }
+        }
+      } else if (item.kind === 'cot') {
+        box(group, 65, 16, 125, '#614534', 0, 9, 0);
+        box(group, 57, 8, 110, '#c5b49b', 0, 20, 0);
+        box(group, 54, 4, 72, '#6d6c85', 0, 26, 13);
+        box(group, 40, 6, 24, '#d8cdc0', 0, 27, -38);
+        for (const x of [-30, 30]) {
+          box(group, 5, 5, 125, '#684b3b', x, 45, 0);
+          for (const z of [-50, -30, -10, 10, 30, 50]) box(group, 4, 28, 4, '#a48a6f', x, 31, z);
+        }
+        for (const z of [-60, 60]) box(group, 65, 37, 5, '#684b3b', 0, 26, z);
+      } else if (item.kind === 'piano') {
+        box(group, 82, 61, 31, '#362b2b', 0, 31, -8);
+        box(group, 88, 6, 37, '#584039', 0, 63, -8);
+        box(group, 74, 5, 18, '#b9b0a1', 0, 34, 15);
+        for (let x = -30; x <= 30; x += 10) box(group, 2, 2, 16, '#4c4545', x, 37, 15);
+        for (const x of [-34, 34]) box(group, 7, 27, 8, '#49332c', x, 14, 14);
+        box(group, 35, 18, 5, '#57433a', 0, 49, 9);
+      } else if (item.kind === 'horse') {
+        box(group, 48, 16, 13, '#82614e', 0, 31, 0);
+        box(group, 10, 25, 12, '#82614e', 19, 43, 0).rotation.z = -0.3;
+        box(group, 17, 12, 12, '#a78b72', 24, 53, 0);
+        box(group, 5, 7, 5, '#55433b', 25, 62, -3);
+        for (const x of [-15, 15]) box(group, 6, 20, 8, '#604638', x, 15, 0);
+        for (const z of [-8, 8]) box(group, 58, 4, 4, '#4e382f', 0, 4, z);
+        box(group, 14, 4, 15, '#483c40', 0, 41, 0);
+      } else if (item.kind === 'fireplace') {
+        box(group, 86, 62, 28, '#555154', 0, 31, -2);
+        box(group, 55, 39, 4, '#1c1b20', 0, 24, 13);
+        box(group, 96, 7, 37, '#746d69', 0, 66, -2);
+        box(group, 88, 5, 38, '#494448', 0, 3, 5);
+        for (const x of [-26, 26]) box(group, 8, 43, 9, '#77716c', x, 24, 15);
+        box(group, 35, 4, 10, '#49403b', 0, 7, 16);
       }
-      const marker = box(group, 14, 14, 14, item.rune === 'Star' ? '#e5c76d' : item.rune === 'Moon' ? '#a8bed6' : '#9ee1d5', 0, item.id === 'diamondCache' ? 85 : 61, 0);
-      marker.rotation.y = Math.PI / 4;
-      runeMarkers.set(item.rune, marker);
     } else if (item.id === 'ward') {
       box(group, 62, 18, 62, '#555b54', 0, 9, 0);
       const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(20, 1), new THREE.MeshStandardMaterial({ color: '#b48fca', emissive: '#654578', emissiveIntensity: 0.6 }));
@@ -223,22 +267,22 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     roomGroup = new THREE.Group();
     scene.add(roomGroup);
     const stone = texture(512, 512, (ctx) => {
-      ctx.fillStyle = '#6e6b5b'; ctx.fillRect(0, 0, 512, 512);
+      ctx.fillStyle = '#55545a'; ctx.fillRect(0, 0, 512, 512);
       for (let row = 0; row < 12; row += 1) for (let col = -1; col < 6; col += 1) {
         const x = col * 103 + (row % 2) * 51, y = row * 43;
-        const tone = 137 + ((row * 41 + col * 23 + 512) % 29);
-        ctx.fillStyle = `rgb(${tone},${tone - 2},${tone - 12})`;
+        const tone = 111 + ((row * 41 + col * 23 + 512) % 29);
+        ctx.fillStyle = `rgb(${tone},${tone - 2},${tone + 1})`;
         ctx.fillRect(x + 2, y + 2, 98, 38);
         ctx.fillStyle = 'rgba(255,244,206,.13)'; ctx.fillRect(x + 4, y + 4, 94, 2);
         ctx.fillStyle = 'rgba(38,30,22,.14)'; ctx.fillRect(x + 5, y + 36, 90, 2);
       }
     });
     const planks = texture(1024, 512, (ctx, w, h) => {
-      ctx.fillStyle = '#765a42'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#594a40'; ctx.fillRect(0, 0, w, h);
       for (let row = 0; row < 24; row += 1) {
         const y = row * h / 24;
-        const tone = 104 + (row * 17 % 30);
-        ctx.fillStyle = `rgb(${tone + 24},${tone},${tone - 22})`;
+        const tone = 83 + (row * 17 % 25);
+        ctx.fillStyle = `rgb(${tone + 17},${tone},${tone - 11})`;
         ctx.fillRect(0, y + 1, w, h / 24 - 2);
         ctx.fillStyle = 'rgba(35,24,17,.32)'; ctx.fillRect(0, y, w, 2);
         for (let col = -1; col < 7; col += 1) {
@@ -252,8 +296,8 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
       }
     });
     const rug = texture(512, 256, (ctx, w, h) => {
-      ctx.fillStyle = '#6a4c46'; ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = '#d1b988'; ctx.lineWidth = 9;
+      ctx.fillStyle = '#49353e'; ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#9b8b79'; ctx.lineWidth = 9;
       ctx.strokeRect(12, 12, w - 24, h - 24);
       ctx.strokeStyle = '#9b795a'; ctx.lineWidth = 4;
       ctx.strokeRect(28, 28, w - 56, h - 56);
@@ -265,6 +309,36 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
         ctx.lineTo(x, 170); ctx.lineTo(x - 22, 128); ctx.closePath(); ctx.stroke();
       }
     });
+    const cobweb = texture(256, 256, (ctx) => {
+      ctx.strokeStyle = 'rgba(207, 214, 219, .62)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i <= 5; i += 1) {
+        const angle = i * Math.PI / 10;
+        ctx.beginPath(); ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(angle) * 245, Math.sin(angle) * 245); ctx.stroke();
+      }
+      for (const radius of [50, 95, 140, 185, 230]) {
+        ctx.beginPath();
+        for (let i = 0; i < 5; i += 1) {
+          const a = i * Math.PI / 10, b = (i + 1) * Math.PI / 10, mid = (a + b) / 2;
+          if (i === 0) ctx.moveTo(Math.cos(a) * radius, Math.sin(a) * radius);
+          ctx.quadraticCurveTo(Math.cos(mid) * radius * 0.83, Math.sin(mid) * radius * 0.83,
+            Math.cos(b) * radius, Math.sin(b) * radius);
+        }
+        ctx.stroke();
+      }
+    });
+    const webMaterial = new THREE.MeshBasicMaterial({ map: cobweb, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    materials.set('cobweb', webMaterial);
+    const webGeometry = new THREE.PlaneGeometry(1, 1);
+    geometries.set('cobweb', webGeometry);
+    for (const [x, z, flip] of [[-510, -222, false], [-125, -222, true], [190, -222, false],
+      [445, -222, true], [-500, 257, false], [-230, 257, true], [220, 257, false], [485, 257, true]]) {
+      const web = new THREE.Mesh(webGeometry, webMaterial);
+      web.position.set(x, 81, z);
+      web.scale.set(flip ? -62 : 62, 54, 1);
+      roomGroup.add(web);
+    }
     const floor = texturedBox(roomGroup, 1100, 8, 480, '#ffffff', planks, 0, -4, 0);
     floor.userData.ground = true;
     const newFloor = texturedBox(roomGroup, 1100, 8, 400, '#e8dfd1', planks, 0, -4, 440);
@@ -302,30 +376,21 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
       box(roomGroup, 24, 34, 5, '#49392e', x, 54, 247);
       box(roomGroup, 15, 23, 6, '#e8c77d', x, 54, 250);
     }
-    box(roomGroup, 65, 20, 125, '#614534', -142.5, 10, 522.5);
-    box(roomGroup, 57, 14, 110, '#c5b49b', -142.5, 24, 522.5);
-    box(roomGroup, 56, 6, 73, '#6d6c85', -142.5, 34, 535);
-    box(roomGroup, 40, 8, 24, '#eee3d2', -142.5, 35, 484);
-    for (const [x, z] of [[-527, 522], [522, 520]]) {
-      box(roomGroup, 36, 90, 125, '#594435', x, 45, z);
-      for (const y of [20, 44, 68]) {
-        box(roomGroup, 38, 4, 125, '#a18361', x, y, z);
-        for (let i = 0; i < 7; i += 1) {
-          box(roomGroup, 20, 16, 8, ['#896252', '#536c61', '#af906a'][i % 3], x, y + 10, z - 48 + i * 15);
-        }
-      }
-    }
     for (const x of [-490, -80, 110, 480]) {
       box(roomGroup, 34, 50, 5, '#46382d', x, 66, -237);
-      box(roomGroup, 25, 40, 4, '#a0a795', x, 66, -233);
+      box(roomGroup, 25, 40, 4, '#394858', x, 66, -233);
       box(roomGroup, 3, 40, 5, '#514438', x, 66, -230);
       box(roomGroup, 25, 3, 5, '#514438', x, 66, -230);
       box(roomGroup, 42, 5, 9, '#b6a387', x, 41, -229);
     }
     for (const x of [-375, -160, 205, 400]) {
       box(roomGroup, 7, 23, 8, '#49372a', x, 57, -226);
-      box(roomGroup, 18, 20, 14, '#c28e43', x, 75, -224);
-      box(roomGroup, 11, 13, 15, '#f2cb78', x, 75, -222);
+      box(roomGroup, 18, 20, 14, '#79572e', x, 75, -224);
+      const flame = box(roomGroup, 11, 13, 15, '#f2cb78', x, 75, -222);
+      const flameMaterial = new THREE.MeshStandardMaterial({ color: '#f2cb78', emissive: '#b6531c', emissiveIntensity: 0.7 });
+      materials.set(`flame:${x}`, flameMaterial);
+      flame.material = flameMaterial;
+      lanternFlames.push(flame);
       box(roomGroup, 20, 4, 17, '#654b31', x, 86, -224);
     }
     for (const x of [-320, 290]) {
@@ -335,13 +400,14 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
           x - 19 + i * 7, 95 + i % 3, -226);
       }
     }
-    for (const [x, color] of [[-255, '#647b72'], [70, '#81735a'], [370, '#7b6855']]) {
+    for (const [x, color] of [[-255, '#3f4b51'], [70, '#514451'], [370, '#4a4650']]) {
       box(roomGroup, 62, 42, 4, '#584331', x, 72, -232);
-      box(roomGroup, 52, 32, 5, '#b29e79', x, 72, -229);
+      box(roomGroup, 52, 32, 5, '#86785f', x, 72, -229);
       box(roomGroup, 46, 26, 5, color, x, 72, -226);
-      box(roomGroup, 34, 3, 6, '#a9987a', x, 66, -223);
-      const hill = box(roomGroup, 19, 3, 6, '#b5aa83', x - 5, 72, -223);
-      hill.rotation.z = 0.35;
+      box(roomGroup, 16, 18, 6, '#272c32', x, 68, -223);
+      box(roomGroup, 10, 11, 6, '#686a69', x, 78, -222);
+      box(roomGroup, 2, 2, 7, '#c7b5a2', x - 3, 79, -219);
+      box(roomGroup, 2, 2, 7, '#c7b5a2', x + 3, 79, -219);
     }
     HOUSE_OBJECTS.forEach(furniture);
     player = person(roomGroup, 0, 0, PLAYER_OUTFIT, true, PLAYER_STYLE.belt, PLAYER_STYLE);
@@ -375,14 +441,13 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
 
   function draw(next) {
     state = next;
+    facing = facingForMovement(previousPosition, state.player, facing);
     const moving = previousPosition && Math.hypot(state.player.x - previousPosition.x, state.player.y - previousPosition.y) > 0.01;
     if (moving) walkingPhase += 0.35;
     const stride = moving ? Math.sin(walkingPhase) * 0.4 : 0;
     if (renderer) {
       if (!roomGroup) buildRoom();
-      if (moving) {
-        player.rotation.y = Math.atan2(state.player.x - previousPosition.x, state.player.y - previousPosition.y);
-      }
+      player.rotation.y = facing;
       player.userData.legs[0].rotation.x = stride;
       player.userData.legs[1].rotation.x = -stride;
       swingCharacterArms(player.userData.arms, stride);
@@ -393,18 +458,29 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
       camera.lookAt(cameraX, 0, cameraZ);
       camera.updateMatrixWorld();
       door.visible = !state.chamberUnlocked;
-      runeMarkers.forEach((marker, rune) => { marker.visible = !state.collectedRunes.includes(rune); });
       wardOrb.material.emissiveIntensity = state.wardSolved ? 0 : 0.6;
       wardOrb.material.color.set(state.wardSolved ? '#777078' : '#b48fca');
+      const time = reducedMotion.matches ? 0 : performance.now() / 1000;
+      lanternFlames.forEach((flame, index) => {
+        const flicker = 0.8 + 0.2 * Math.sin(time * 4.3 + index * 2.4) * Math.sin(time * 2.1 + index);
+        flame.material.emissiveIntensity = flicker;
+        flame.scale.y = 0.9 + flicker * 0.1;
+      });
+      wardOrb.position.y = state.wardSolved ? 56 : 56 + Math.sin(time * 1.4) * 3;
       previousPosition = { ...state.player };
       renderer.render(scene, camera);
       return;
     }
-    context.fillStyle = '#28302d'; context.fillRect(0, 0, width, height);
+    context.fillStyle = '#171b22'; context.fillRect(0, 0, width, height);
     const first = fallbackPoint(HOUSE_BOUNDS.left, HOUSE_BOUNDS.top);
     const scale = first.scale;
-    context.fillStyle = '#79614c'; context.fillRect(first.x, first.y, 1100 * scale, 880 * scale);
-    context.strokeStyle = '#493c34'; context.lineWidth = Math.max(1, scale * 8);
+    context.fillStyle = '#574b48'; context.fillRect(first.x, first.y, 1100 * scale, 880 * scale);
+    context.strokeStyle = 'rgba(25, 24, 30, .22)'; context.lineWidth = Math.max(1, scale);
+    for (let y = -220; y < 640; y += 30) {
+      const start = fallbackPoint(-550, y), end = fallbackPoint(550, y);
+      context.beginPath(); context.moveTo(start.x, start.y); context.lineTo(end.x, end.y); context.stroke();
+    }
+    context.strokeStyle = '#302e37'; context.lineWidth = Math.max(1, scale * 8);
     context.beginPath();
     for (const [a, b] of [[-240, -80], [80, 240]]) {
       const start = fallbackPoint(0, a), end = fallbackPoint(0, b);
@@ -421,13 +497,27 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     }
     if (!state.chamberUnlocked) { const a = fallbackPoint(0, -80), b = fallbackPoint(0, 80); context.moveTo(a.x, a.y); context.lineTo(b.x, b.y); }
     context.stroke();
+    context.strokeStyle = 'rgba(205, 210, 220, .45)';
+    context.lineWidth = Math.max(0.7, scale * 2);
+    for (const [x, y, direction] of [[-540, -230, 1], [540, -230, -1], [-540, 630, 1], [540, 630, -1]]) {
+      const corner = fallbackPoint(x, y);
+      const webSize = 75 * scale;
+      context.beginPath();
+      for (let i = 0; i <= 4; i += 1) {
+        const angle = i * Math.PI / 8;
+        context.moveTo(corner.x, corner.y);
+        context.lineTo(corner.x + direction * Math.cos(angle) * webSize,
+          corner.y + (y < 0 ? 1 : -1) * Math.sin(angle) * webSize);
+      }
+      context.stroke();
+    }
     context.font = `${Math.max(14, 50 * scale)}px sans-serif`;
     context.textAlign = 'center'; context.textBaseline = 'middle';
     HOUSE_OBJECTS.filter((item) => item.id !== 'chamberDoor' || !state.chamberUnlocked).forEach((item) => {
       const p = fallbackPoint(item.x, item.y); context.fillText(item.icon, p.x, p.y);
     });
     const p = fallbackPoint(state.player.x, state.player.y);
-    drawCharacterMarker(context, p.x, p.y, PLAYER_OUTFIT, { ...PLAYER_STYLE, scale: Math.max(0.7, scale), stride });
+    drawCharacterMarker(context, p.x, p.y, PLAYER_OUTFIT, { ...PLAYER_STYLE, scale: Math.max(0.7, scale), stride, facing });
     previousPosition = { ...state.player };
   }
 
@@ -455,7 +545,7 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
   }
   canvas.addEventListener('click', handleClick);
   return {
-    draw, resize,
+    draw, resize, hasAtmosphereAnimation: Boolean(renderer),
     objectPosition(id) {
       const item = HOUSE_OBJECTS.find((entry) => entry.id === id);
       if (!item) return null;

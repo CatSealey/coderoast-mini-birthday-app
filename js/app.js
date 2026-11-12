@@ -12,9 +12,10 @@ import { mountOverworld } from './world/overworld.js';
 import { QUEST_LOCATIONS } from './world/world-data.js';
 import { areAllQuestsComplete, isQuestAvailable } from './world/world-logic.js';
 import { birthdayProgress, XP_PER_QUEST } from './progression.js';
-import { normalizeQuestProgress, questGuideSpeech, removeQuestProgress } from './quest-progress.js';
+import { freshGameProgress, normalizeQuestProgress, questGuideSpeech, removeQuestProgress } from './quest-progress.js';
 import { questJournalSteps, trophyJournalSteps } from './quest-journal.js';
 import { BIRTHDAY_TICKET_MARKUP } from './games/birthday-ending.js';
+import { SIDE_QUESTS, restoreSideQuestProgress } from './side-quests.js';
 
 export function startGame(characterName) {
   const STORAGE_KEY = 'rs3-birthday-adventure-progress';
@@ -106,12 +107,12 @@ export function startGame(characterName) {
         const trophyDisplays = restoreDisplays(saved.trophyDisplays, state.completed);
         const trophyQuest = restoreTrophyQuest(saved.trophyQuest, trophyDisplays);
         if (!presentAvailable(trophyDisplays, state.completed)) trophyQuest.completed = false;
-        return { ...state, gameSaves, trophyDisplays, trophyQuest };
+        return { ...state, gameSaves, trophyDisplays, trophyQuest, sideQuestCompleted: restoreSideQuestProgress(saved.sideQuestCompleted) };
       }
     } catch (error) {
       console.error('Could not restore birthday quest progress.', error);
     }
-    return { ...normalizeQuestProgress(null, chapters.length), gameSaves: Array(chapters.length).fill(null), trophyDisplays: Array(chapters.length).fill(false), trophyQuest: { accepted: false, completed: false } };
+    return freshGameProgress(chapters.length);
   }
 
   const progress = readProgress();
@@ -120,6 +121,7 @@ export function startGame(characterName) {
   let gameSaves = progress.gameSaves;
   let trophyDisplays = progress.trophyDisplays;
   let trophyQuest = progress.trophyQuest;
+  let sideQuestCompleted = progress.sideQuestCompleted;
   let inTrophyRoom = false;
   let suppressGameSaves = false;
   let inventorySignature = null;
@@ -133,6 +135,10 @@ export function startGame(characterName) {
   const dialogue = document.querySelector('#dialogueText');
   const questDialog = document.querySelector('#questDialog');
   const removeQuestDialog = document.querySelector('#removeQuestDialog');
+  const settingsDialog = document.querySelector('#settingsDialog');
+  const settingsMain = document.querySelector('#settingsMain');
+  const restartConfirmation = document.querySelector('#restartConfirmation');
+  const restartError = document.querySelector('#restartError');
   const gameRoot = document.querySelector('#questGameRoot');
   const abigailRoot = document.querySelector('#abigailWorldRoot');
   const obscuredWorldControls = [
@@ -151,7 +157,7 @@ export function startGame(characterName) {
 
   function saveProgress(progressToSave = { completed, accepted, gameSaves, trophyDisplays, trophyQuest }) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(progressToSave));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sideQuestCompleted, ...progressToSave }));
       document.querySelector('#saveNotice').hidden = true;
       return true;
     } catch (error) {
@@ -308,6 +314,35 @@ export function startGame(characterName) {
       trophyJournalSteps(trophyDisplays, trophyQuest.completed), chapters.length);
   }
 
+  function renderSideQuests() {
+    const list = document.querySelector('#sideQuestList');
+    const buttons = SIDE_QUESTS.map((quest) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'quest-row';
+      button.dataset.sideQuest = String(quest.id);
+      button.setAttribute('aria-label', `${quest.title} — ${sideQuestCompleted[quest.id] ? 'completed' : 'not completed'}. Find Cat.`);
+      const icon = document.createElement('span');
+      icon.className = 'quest-row__icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = '✪';
+      const copy = document.createElement('span');
+      copy.className = 'quest-row__copy';
+      const title = document.createElement('strong');
+      title.textContent = quest.title;
+      const location = document.createElement('small');
+      location.textContent = `${QUEST_LOCATIONS[quest.id].name} · Find Cat`;
+      copy.append(title, location);
+      const status = document.createElement('span');
+      status.className = `quest-row__status${sideQuestCompleted[quest.id] ? ' quest-row__status--complete' : ''}`;
+      status.setAttribute('aria-hidden', 'true');
+      status.textContent = sideQuestCompleted[quest.id] ? '✓ Done' : '○ To do';
+      button.append(icon, copy, status);
+      return button;
+    });
+    list.replaceChildren(...buttons);
+  }
+
   function renderChapterNavigation() {
     chapters.forEach((chapter, index) => {
       const button = document.querySelector(`#qbtn-${index + 1}`);
@@ -326,9 +361,10 @@ export function startGame(characterName) {
     trophyStatus.textContent = trophyQuest.completed ? 'Completed ✓' : 'Accepted';
     trophyStatus.className = `quest-row__status ${trophyQuest.completed ? 'quest-row__status--complete' : 'quest-row__status--available'}`;
     renderTrophySteps();
+    renderSideQuests();
     document.querySelector('#questJournalHint').textContent = accepted.some(Boolean) || trophyQuest.accepted
       ? 'Select an accepted quest to travel to its entrance.'
-      : 'Your journal is empty. Find quest givers marked on the world map.';
+      : 'Find quest givers marked on the world map, or explore the side quests below.';
   }
 
   function setStageStatus(text, className = '') {
@@ -515,8 +551,15 @@ export function startGame(characterName) {
           world.setQuestStates(completed, accepted, trophyQuest.completed);
           audio.playSound('levelUp');
         }
+        audio.prepareBirthdayCelebration().catch((error) => {
+          console.error('Birthday music could not be started.', error);
+          document.querySelector('#audioText').textContent = 'Audio could not start';
+        });
         return true;
       },
+      onCakeArrives: () => audio.startBirthdayCelebration(),
+      onBirthdayFinished: () => audio.finishBirthdayCelebration(),
+      onBirthdayEnd: () => audio.stopBirthdayCelebration(),
       onLeave: leaveTrophyRoom,
       onMessage: (message) => { dialogue.textContent = message; document.querySelector('#worldMessage').textContent = message; }
     });
@@ -664,6 +707,57 @@ export function startGame(characterName) {
     document.querySelector('#questPanelTitle').focus();
   }
 
+  function showSettings() {
+    settingsMain.hidden = false;
+    restartConfirmation.hidden = true;
+    restartError.hidden = true;
+    settingsDialog.setAttribute('aria-labelledby', 'settingsTitle');
+    settingsDialog.setAttribute('aria-describedby', 'settingsDescription');
+    if (worldQuestIndex === null && !inTrophyRoom) world.setPaused(true);
+    settingsDialog.showModal();
+  }
+
+  function closeSettings() {
+    settingsDialog.close();
+    if (worldQuestIndex === null && !inTrophyRoom) world.setPaused(false);
+  }
+
+  function showRestartConfirmation(show) {
+    settingsMain.hidden = show;
+    restartConfirmation.hidden = !show;
+    restartError.hidden = true;
+    settingsDialog.setAttribute('aria-labelledby', show ? 'restartTitle' : 'settingsTitle');
+    settingsDialog.setAttribute('aria-describedby', show ? 'restartDescription' : 'settingsDescription');
+    settingsDialog.querySelector(show ? '[data-action="cancel-restart"]' : '[data-action="request-restart"]').focus();
+  }
+
+  function restartGame() {
+    const fresh = freshGameProgress(chapters.length);
+    if (!saveProgress(fresh)) {
+      restartError.textContent = 'The game could not be restarted because your browser could not save progress. Your existing progress is unchanged.';
+      restartError.hidden = false;
+      return;
+    }
+    suppressGameSaves = true;
+    completed = fresh.completed; accepted = fresh.accepted; gameSaves = fresh.gameSaves;
+    trophyDisplays = fresh.trophyDisplays; trophyQuest = fresh.trophyQuest; sideQuestCompleted = fresh.sideQuestCompleted;
+    settingsDialog.close();
+    leaveWorldQuest(); leaveTrophyRoom();
+    if (questDialog.open) closeQuestDialog();
+    suppressGameSaves = false;
+    activeChapter = null;
+    document.querySelectorAll('.quest-steps').forEach((details) => { details.open = false; });
+    world.reset();
+    world.setQuestStates(completed, accepted, false);
+    world.setPaused(false);
+    stageTitle.textContent = 'Birthday adventure';
+    setStageStatus('Exploring', '');
+    renderInventory(); renderChapterNavigation();
+    dialogue.textContent = 'Your adventure has restarted. Find a quest giver to begin.';
+    document.querySelector('#worldMessage').textContent = dialogue.textContent;
+    document.querySelector('#worldCanvas').focus();
+  }
+
   const world = mountOverworld({
     characterName,
     worldCanvas: document.querySelector('#worldCanvas'),
@@ -689,6 +783,15 @@ export function startGame(characterName) {
       dialogue.textContent = 'The Hall of Memories added to your journal. Enter the castle to display your keepsakes.';
       document.querySelector('#worldMessage').textContent = dialogue.textContent;
     },
+    onSideQuest: (index) => {
+      if (sideQuestCompleted[index]) return true;
+      const next = [...sideQuestCompleted];
+      next[index] = true;
+      if (!saveProgress({ completed, accepted, gameSaves, trophyDisplays, trophyQuest, sideQuestCompleted: next })) return false;
+      sideQuestCompleted = next;
+      renderSideQuests();
+      return true;
+    },
     onMessage: (message) => { dialogue.textContent = message; },
     onQuestSelected: (index) => {
       activeChapter = index;
@@ -701,6 +804,16 @@ export function startGame(characterName) {
   document.addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (!button) return;
+    if (button.dataset.sideQuest !== undefined) {
+      const index = Number(button.dataset.sideQuest);
+      if (!SIDE_QUESTS[index]) return;
+      leaveWorldQuest(); leaveTrophyRoom();
+      activeChapter = null;
+      stageTitle.textContent = `Find Cat · ${SIDE_QUESTS[index].title}`;
+      setStageStatus('Destination set', '');
+      world.selectSideQuest(index);
+      return;
+    }
     if (button.classList.contains('quest-item')) {
       const show = !button.classList.contains('quest-item--show-name');
       document.querySelectorAll('.quest-item--show-name').forEach((item) => item.classList.remove('quest-item--show-name'));
@@ -735,8 +848,16 @@ export function startGame(characterName) {
       });
     } else if (button.dataset.action === 'abigail-leave') {
       leaveWorldQuest();
-    } else if (button.dataset.action === 'toggle-rivalry') {
-      document.querySelector('#rivalryModal').classList.toggle('hidden');
+    } else if (button.dataset.action === 'open-settings') {
+      showSettings();
+    } else if (button.dataset.action === 'close-settings') {
+      closeSettings();
+    } else if (button.dataset.action === 'request-restart') {
+      showRestartConfirmation(true);
+    } else if (button.dataset.action === 'cancel-restart') {
+      showRestartConfirmation(false);
+    } else if (button.dataset.action === 'confirm-restart') {
+      restartGame();
     } else if (button.dataset.action === 'close-item') {
       closeModal('itemModal');
     } else if (button.dataset.action === 'close-quest') {
@@ -759,18 +880,22 @@ export function startGame(characterName) {
     closeRemoveQuestDialog();
   });
 
-  document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape') return;
-    ['itemModal', 'rivalryModal'].forEach((id) => closeModal(id));
+  settingsDialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    if (!restartConfirmation.hidden) showRestartConfirmation(false);
+    else closeSettings();
   });
 
-  document.querySelector('.quest-list').addEventListener('keydown', (event) => {
-    if (event.target.closest('.quest-steps')
-      && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) {
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    closeModal('itemModal');
+  });
+
+  document.querySelector('.quest-journal__scroll').addEventListener('keydown', (event) => {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) {
       event.stopPropagation();
     }
   });
-
   window.addEventListener('pagehide', () => {
     disposeGame();
     world.dispose();

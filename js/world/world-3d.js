@@ -6,9 +6,11 @@ import { roadDistance } from './world-art.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { CANOPY_LINKS, CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, placeQuestDecorations } from './world-scenery-data.js';
 import { worldCornWalls, worldTrees } from './world-collision.js';
-import { GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, addCharacterHeadDetails } from '../character-appearance.js';
+import { CAT_OUTFIT, CAT_STYLE, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, addCharacterHeadDetails } from '../character-appearance.js';
 import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
-import { createPlayerLegs } from '../games/character-legs.js';
+import { createCharacterLegs, createPlayerLegs } from '../games/character-legs.js';
+import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
+import { sideQuestPosition } from '../side-quests.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -234,19 +236,22 @@ export function createWorld3D(canvas, ground, characterName) {
       }
     }
   }
-  function character(color, longHair = false, hair, belt = '#aa9160', playerStyle = null) {
+  function character(color, longHair = false, hair, belt = '#aa9160', style = null) {
     const g = new THREE.Group();
     const torso = mesh(torsoGeometry, color, g, 0, 37, 0); torso.scale.set(20, 30, 12);
     addCharacterHeadDetails((x, y, z, w, h, d, shade) => box(g, w, h, d, shade, x, y, z),
       (x, y, z, w, h, d, shade) => {
         const part = mesh(headGeometry, shade, g, x, y, z); part.scale.set(w, h, d);
-      }, { headY: 60, width: 14, height: 14, depth: 14, skin: '#d7aa83', hair, longHair });
-    if (!longHair) box(g, 16, 25, 3, '#725443', 0, 37, -8);
+      }, { headY: 60, width: 14, height: 14, depth: 14, skin: '#d7aa83', hair, longHair, hairLength: style?.hairLength });
+    if (!longHair && !style) box(g, 16, 25, 3, '#725443', 0, 37, -8);
     box(g, 20, 4, 14, belt, 0, 25, 0);
+    if (style?.buckle) box(g, 4, 3, 2, style.buckle, 0, 25, 8);
     const bodyBox = (x, y, z, w, h, d, shade, parent) => box(parent, w, h, d, shade, x, y, z);
-    if (playerStyle) {
+    if (style?.shorts) {
       g.userData.legs = createPlayerLegs(g, bodyBox, { offset: 5, height: 23, width: 7, depth: 8,
-        shoeColor: '#5a4434', shortsColor: playerStyle.shorts, skin: '#d7aa83' });
+        shoeColor: '#5a4434', shortsColor: style.shorts, skin: '#d7aa83' });
+    } else if (style?.trousers) {
+      g.userData.legs = createCharacterLegs(g, bodyBox, 5, '#5a4434', style.trousers);
     } else {
       const left = box(g, 7, 23, 8, '#443e34', -5, 11, 0);
       const right = box(g, 7, 23, 8, '#443e34', 5, 11, 0);
@@ -255,7 +260,8 @@ export function createWorld3D(canvas, ground, characterName) {
       g.userData.legs = [left, right];
     }
     g.userData.arms = createCharacterArms(g, bodyBox, {
-      offset: 12.5, shoulderY: 48.5, length: 25, width: 6, depth: 8, color, skin: '#d7aa83'
+      offset: 12.5, shoulderY: 48.5, length: 25, width: 6, depth: 8, color, skin: '#d7aa83',
+      shortSleeves: style?.shortSleeves, tattoo: style?.tattoo
     });
     scene.add(g);
     return g;
@@ -276,8 +282,41 @@ export function createWorld3D(canvas, ground, characterName) {
   });
   const townsfolk = WORLD_NPCS.map((npc, index) => {
     const { longHair, hair } = TOWNSFOLK_HAIRSTYLES[index % TOWNSFOLK_HAIRSTYLES.length];
-    const person = character(npc.color, longHair, hair);
+    const sideQuest = npc.sideQuest !== undefined;
+    const person = sideQuest
+      ? character(CAT_OUTFIT, false, undefined, CAT_STYLE.belt, CAT_STYLE)
+      : character(npc.color, longHair, hair);
     person.position.set(npc.x, 0, npc.y);
+    if (npc.prop === 'doll') {
+      person.rotation.y = Math.PI / 2;
+      const doll = groupAt(npc.x + 42, npc.y);
+      box(doll, 15, 20, 10, '#77524e', 0, 12, 0);
+      const head = mesh(headGeometry, '#d7bc9d', doll, 0, 28, 0); head.scale.set(12, 12, 12);
+      box(doll, 14, 4, 11, '#49332d', 0, 34, 0);
+      for (const side of [-1, 1]) {
+        box(doll, 4, 14, 5, '#d7bc9d', side * 9, 15, 0);
+        box(doll, 2, 2, 2, '#4d302c', side * 3, 29, 6);
+      }
+    } else if (npc.prop === 'cup') {
+      const cup = mesh(new THREE.CylinderGeometry(6, 4, 16, 10), '#d6a957', person, 14, 34, 8);
+      cup.rotation.z = -0.15;
+      mesh(new THREE.CylinderGeometry(6.5, 6.5, 2, 10), '#eee0ae', person, 14, 43, 8);
+    } else if (npc.prop === 'tickets') {
+      box(person, 18, 12, 2, '#cfb783', 10, 40, 9);
+      box(person, 18, 12, 2, '#eed8a0', 13, 37, 11);
+      box(person, 2, 10, 3, '#a6764c', 13, 37, 12);
+    } else if (npc.prop === 'grave') {
+      person.rotation.y = Math.PI / 2;
+      const shovel = box(person, 3, 43, 3, '#a88154', -14, 21, 8);
+      shovel.rotation.z = -0.2;
+      box(person, 12, 8, 3, '#a2a9a0', -18, 2, 8);
+      const grave = groupAt(npc.x + 48, npc.y);
+      box(grave, 58, 2, 32, '#3c2d25', 0, 1, 0);
+      box(grave, 23, 8, 12, '#5c6e70', -2, 5, 0);
+      const head = mesh(headGeometry, '#d7aa83', grave, 16, 8, 0); head.scale.set(12, 12, 12);
+      const davidLabel = textSprite('DAVID WHITE', 'rgba(24, 40, 37, .9)', 256);
+      davidLabel.position.y = 42; grave.add(davidLabel);
+    }
     const label = textSprite(npc.name.toUpperCase(), 'rgba(24, 40, 37, .9)', 384);
     label.position.y = 95;
     person.add(label);
@@ -288,20 +327,51 @@ export function createWorld3D(canvas, ground, characterName) {
     const ring = mesh(new THREE.TorusGeometry(21, 3, 6, 24), '#e6bf63', marker, 0, 3, 0);
     ring.rotation.x = Math.PI / 2;
     const label = textSprite(`ENTER · ${quest.entrance.name.toUpperCase()}`, 'rgba(38, 48, 34, .94)', 512);
-    label.position.set(index === 3 ? -90 : 0, 48, index === 3 ? 40 : 0);
+    label.position.set(index === 3 ? -90 : 0, index === 1 ? 32 : 48, index === 3 ? 40 : index === 1 ? 55 : 0);
     marker.add(label);
     return label;
   });
 
   castle(WORLD_SPAWN.x + 50, WORLD_SPAWN.y - 250);
   house(WORLD_SPAWN.x - 205, WORLD_SPAWN.y - 95, false, 0.8);
-  const [escape, town, park, forest, harvest] = QUEST_LOCATIONS;
+  const [escape, , park, forest, harvest] = QUEST_LOCATIONS;
   house(escape.x - 70, escape.y - 185, true, 1.15);
-  house(town.x - 85, town.y - 165, false, 1.2);
-  house(town.x + 230, town.y - 135);
-  house(town.x - 250, town.y + 15, false, 0.85);
-  const townSign = textSprite('LUCKY CHUCKS', 'rgba(60, 42, 30, .95)');
-  townSign.position.set(town.x - 85, 120, town.y - 100); scene.add(townSign);
+  TOWN_VENUES.forEach((venue) => {
+    const building = house(venue.x, venue.y, false, venue.size);
+    if (venue.kind !== 'games') {
+      box(building, 105, 5, 23, venue.awning, 0, 49, 59);
+      for (let x = -44; x <= 44; x += 22) box(building, 9, 6, 23, '#e8d8ba', x, 50, 59);
+    }
+    const sign = textSprite(venue.name, 'rgba(60, 42, 30, .95)', 320);
+    sign.position.set(0, 110, 56); building.add(sign);
+    if (venue.kind === 'games') {
+      const activities = textSprite('POOL · DARTS · GAMES', 'rgba(43, 69, 56, .96)', 320);
+      activities.position.set(0, 72, 58); building.add(activities);
+    }
+  });
+  function church() {
+    const g = groupAt(TOWN_CHURCH.x, TOWN_CHURCH.y);
+    stoneBox(g, 170, 12, 170, '#96988d', 0, 6, 0);
+    stoneBox(g, 150, 88, 150, '#c2c0ad', 0, 56, 0);
+    roof(g, 162, 162, 55, '#666d68', 100);
+    stoneBox(g, 54, 150, 54, '#b4b4a4', 0, 75, 55);
+    mesh(new THREE.ConeGeometry(42, 52, 4), '#626b67', g, 0, 176, 55).rotation.y = Math.PI / 4;
+    box(g, 4, 25, 4, '#dfcf9c', 0, 213, 55);
+    box(g, 16, 4, 4, '#dfcf9c', 0, 217, 55);
+    for (const side of [-1, 1]) {
+      box(g, 32, 54, 5, '#54493e', 0, 39, side < 0 ? -77 : 84);
+      box(g, 24, 46, 6, '#705746', 0, 36, side < 0 ? -80 : 87);
+      for (const x of [-43, 43]) {
+        box(g, 20, 32, 5, '#d7cba8', x, 63, side * 77);
+        box(g, 14, 26, 6, '#6c9094', x, 63, side * 80);
+      }
+      box(g, 5, 37, 22, '#d7cba8', side * 77, 65, 0);
+      box(g, 6, 30, 16, '#6c9094', side * 80, 65, 0);
+    }
+    box(g, 26, 38, 5, '#dacfae', 0, 108, 83);
+    box(g, 18, 30, 6, '#6b8990', 0, 108, 86);
+  }
+  church();
   const escapeSign = textSprite('ESCAPE ROOM', 'rgba(36, 41, 38, .95)');
   escapeSign.position.set(escape.x - 70, 120, escape.y - 125); scene.add(escapeSign);
 
@@ -312,11 +382,6 @@ export function createWorld3D(canvas, ground, characterName) {
     box(g, 17, 22, 17, '#584c3b', 0, 77, 0);
     box(g, 12, 16, 18, color, 0, 77, 0);
     mesh(new THREE.ConeGeometry(14, 12, 4), '#574a3b', g, 0, 93, 0).rotation.y = Math.PI / 4;
-  }
-  function barrel(x, z) {
-    const g = groupAt(x, z);
-    mesh(new THREE.CylinderGeometry(11, 10, 28, 10), '#785b3f', g, 0, 14, 0);
-    for (const y of [5, 23]) mesh(new THREE.TorusGeometry(10.5, 1.5, 4, 10), '#48463e', g, 0, y, 0).rotation.x = Math.PI / 2;
   }
   function bench(x, z) {
     const g = groupAt(x, z);
@@ -333,6 +398,16 @@ export function createWorld3D(canvas, ground, characterName) {
     for (let stripe = -3; stripe <= 3; stripe += 2) box(g, 10, 7, 55, '#dfcba0', stripe * 10, 100, 0);
     for (const side of [-20, 0, 20]) box(g, 9, 12, 9, '#b8a472', side, 48, 0);
   }
+  function cafeTable(x, z) {
+    const g = groupAt(x, z);
+    mesh(new THREE.CylinderGeometry(3, 5, 22, 8), '#5f4b39', g, 0, 11, 0);
+    mesh(new THREE.CylinderGeometry(20, 20, 4, 16), '#ae8f68', g, 0, 23, 0);
+    for (const side of [-27, 27]) {
+      mesh(new THREE.CylinderGeometry(3, 4, 12, 8), '#5f4b39', g, side, 6, 0);
+      mesh(new THREE.CylinderGeometry(7, 7, 3, 12), '#997957', g, side, 13, 0);
+    }
+    mesh(new THREE.CylinderGeometry(4, 3, 7, 10), '#d6c6a5', g, 0, 28, 0);
+  }
   function gate(x, z, label, color) {
     const g = groupAt(x, z);
     for (const side of [-65, 65]) {
@@ -343,14 +418,13 @@ export function createWorld3D(canvas, ground, characterName) {
     const sign = textSprite(label, 'rgba(63, 48, 35, .92)', 320);
     sign.position.set(0, 88, 8); g.add(sign);
   }
-  [WORLD_SPAWN, escape, town, park, harvest].forEach((location) => {
+  [WORLD_SPAWN, escape, park, harvest].forEach((location) => {
     lamp(location.x - 75, location.y - 50);
     lamp(location.x + 95, location.y + 75);
   });
-  barrel(town.x - 165, town.y - 155); barrel(town.x - 138, town.y - 160);
-  bench(town.x - 170, town.y - 20);
-  stall(town.x - 200, town.y + 110, '#a16c50');
-  stall(town.x + 275, town.y + 150, '#687e73');
+  TOWN_LAMPS.forEach(({ x, y }) => lamp(x, y));
+  TOWN_BENCHES.forEach(({ x, y }) => bench(x, y));
+  TOWN_TABLES.forEach(({ x, y }) => cafeTable(x, y));
   stall(park.x + 205, park.y + 45, '#9e6254');
   stall(park.x - 380, park.y + 260, '#788a88');
   stall(park.x + 350, park.y + 300, '#a56e50');
@@ -378,14 +452,6 @@ export function createWorld3D(canvas, ground, characterName) {
       box(grave, 25, 7, 8, '#97988a', 0, 34, 0);
     }
   });
-  for (let i = 0; i < 2; i += 1) {
-    const target = groupAt(town.x + 190 + i * 55, town.y + 40);
-    box(target, 6, 55, 6, '#69513b', 0, 27, 0);
-    const face = mesh(new THREE.CylinderGeometry(23, 23, 4, 20), '#b75b4b', target, 0, 55, 0);
-    face.rotation.x = Math.PI / 2;
-    const bull = mesh(new THREE.CylinderGeometry(9, 9, 5, 20), '#e8d1a0', target, 0, 55, 3);
-    bull.rotation.x = Math.PI / 2;
-  }
   const coasterTrains = [];
   function coaster(x, z, type, color, size = 1, rotation = 0) {
     const group = groupAt(x, z);
@@ -664,7 +730,9 @@ export function createWorld3D(canvas, ground, characterName) {
   const shadowEntries = [
     ...treeData.map((t) => ({ x: t.x + 12, z: t.z + 16, width: 110 * t.size, depth: 75 * t.size })),
     { x: WORLD_SPAWN.x + 70, z: WORLD_SPAWN.y - 225, width: 340, depth: 240 },
-    ...[escape, town].map((q) => ({ x: q.x - 65, z: q.y - 160, width: 230, depth: 170 }))
+    { x: escape.x - 65, z: escape.y - 160, width: 230, depth: 170 },
+    ...TOWN_VENUES.map((venue) => ({ x: venue.x + 20, z: venue.y + 15, width: 190 * venue.size, depth: 140 * venue.size })),
+    { x: TOWN_CHURCH.x + 20, z: TOWN_CHURCH.y + 20, width: 230, depth: 205 }
   ];
   const shadows = new THREE.InstancedMesh(shadowGeometry, shadowMaterial, shadowEntries.length);
   const shadowObject = new THREE.Object3D();
@@ -680,7 +748,7 @@ export function createWorld3D(canvas, ground, characterName) {
   for (let i = 0; i < 3000; i += 1) {
     const x = 35 + random(i, 71) * (WORLD_SIZE.width - 70);
     const z = 35 + random(i, 72) * (WORLD_SIZE.height - 70);
-    if (roadDistance({ x, y: z }) < 65) continue;
+    if (roadDistance({ x, y: z }) < 65 || isTownPlaza({ x, y: z })) continue;
     const region = regionBlendAt({ x, y: z }).region.id;
     if (region === 'park' || region === 'harvest') continue;
     groundDetails.push({ x, z, region, size: 0.6 + random(i, 73) * 0.8 });
@@ -736,6 +804,21 @@ export function createWorld3D(canvas, ground, characterName) {
         marker.material = material(completed[index] ? '#97c77c' : '#e6bf63');
         marker.rotation.y = time / 1000;
         label.visible = index === selected;
+      });
+      townsfolk.forEach((person, index) => {
+        const npc = WORLD_NPCS[index];
+        if (npc.prop === 'pace') {
+          const position = sideQuestPosition(npc, time);
+          person.position.x = position.x;
+          person.rotation.y = Math.cos(time / 650) >= 0 ? Math.PI / 2 : -Math.PI / 2;
+          const step = Math.sin(time / 120) * 0.35;
+          person.userData.legs[0].rotation.x = step;
+          person.userData.legs[1].rotation.x = -step;
+          swingCharacterArms(person.userData.arms, step);
+        } else if (npc.sideQuest !== undefined) {
+          const facing = npc.prop === 'doll' || npc.prop === 'grave' ? Math.PI / 2 : 0;
+          person.rotation.y = facing + Math.sin(time / 1300) * 0.08;
+        }
       });
       const { region, neighbor, blend } = regionBlendAt(position);
       const night = (region.id === 'forest' ? 1 - blend : 0) + (neighbor.id === 'forest' ? blend : 0);

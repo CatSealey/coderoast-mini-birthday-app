@@ -33,9 +33,25 @@ export const HOUSE_OBJECTS = Object.freeze([
   { id: 'ward', name: 'Runic ward', icon: '🔮', x: 335, y: -145, radius: 34 },
   { id: 'chest', name: 'Sealed chest', icon: '🗝️', x: 350, y: 140, radius: 36 },
   { id: 'exit', name: 'Escape door', icon: '🚪', x: 540, y: 0, radius: 0 },
-  { id: 'starCache', name: 'Astronomer’s desk', icon: '🔭', x: -380, y: 510, radius: 34, rune: 'Star' },
-  { id: 'moonCache', name: 'Jewellery box', icon: '📦', x: 0, y: 510, radius: 34, rune: 'Moon' },
-  { id: 'diamondCache', name: 'Keeper’s cabinet', icon: '🗄️', x: 380, y: 510, radius: 34, rune: 'Diamond' }
+  { id: 'fireplace', name: 'Old fireplace', icon: '🕯️', x: -315, y: -210, radius: 42, kind: 'fireplace',
+    description: 'Cold ashes and a handful of soot are all that remain in the fireplace.' },
+  { id: 'starCache', name: 'Old piano', icon: '🎹', x: -465, y: 370, radius: 43, kind: 'piano', rune: 'Star' },
+  { id: 'studyDesk', name: 'Astronomer’s desk', icon: '🔭', x: -335, y: 515, radius: 34, kind: 'desk',
+    description: 'The telescope points at a sky that cannot be seen from here.' },
+  { id: 'studyBookcase', name: 'Dusty bookcase', icon: '📚', x: -527, y: 522, radius: 0, kind: 'bookcase',
+    description: 'Dusty books lean together on the shelves. Nothing stirs inside them.' },
+  { id: 'cot', name: 'Old cot', icon: '🛏️', x: -142, y: 522, radius: 0, kind: 'cot',
+    description: 'The cot is empty, though its blanket looks as if it was recently disturbed.' },
+  { id: 'moonCache', name: 'Rocking horse', icon: '🐴', x: 80, y: 365, radius: 30, kind: 'horse', rune: 'Moon' },
+  { id: 'jewelleryBox', name: 'Jewellery box', icon: '📦', x: 30, y: 530, radius: 34, kind: 'jewellery',
+    description: 'The jewellery box holds a faded ribbon, but no rune.' },
+  { id: 'archiveCabinet', name: 'Keeper’s cabinet', icon: '🗄️', x: 380, y: 510, radius: 34, kind: 'cabinet',
+    description: 'The cabinet contains old papers, too faded to read.' },
+  { id: 'archiveDesk', name: 'Writing desk', icon: '📜', x: 265, y: 555, radius: 34, kind: 'writingDesk',
+    description: 'A half-finished letter lies beneath a layer of dust.' },
+  { id: 'archiveBox', name: 'Keepsake box', icon: '📦', x: 265, y: 355, radius: 34, kind: 'jewellery',
+    description: 'Inside the box is a handful of brittle dried flowers.' },
+  { id: 'diamondCache', name: 'Keeper’s bookcase', icon: '📚', x: 522, y: 520, radius: 0, kind: 'bookcase', rune: 'Diamond' }
 ]);
 export const INTERACTION_DISTANCE = 85;
 const PLAYER_RADIUS = 15;
@@ -188,6 +204,7 @@ export function interactHouse(state, id) {
     return { ...state, collectedRunes: [...state.collectedRunes, item.rune],
       message: `You search ${item.name} and discover the ${item.rune.toLowerCase()} rune!` };
   }
+  if (item.description) return { ...state, message: item.description };
   if (id === 'ward' && !state.wardSolved && state.collectedRunes.length < ABIGAIL_RUNES.length) {
     return { ...state, message: `The ward needs three runes. You have found ${state.collectedRunes.length} of 3; search the other rooms.` };
   }

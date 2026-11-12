@@ -3,13 +3,15 @@ import { COASTER_DROP_SECONDS, COASTER_GOAL, COASTER_RETURN_SECONDS, COASTER_RID
 
 export const ADVENTURE_NAMES = { 1: 'Lucky Chucks', 2: 'Thirteen', 3: 'GoApe' };
 export const POOL_TABLE_FOOTPRINT = Object.freeze({ x: 500, y: 230, width: 220, depth: 131 });
-export const PUB_JOIN_POINT = Object.freeze({ x: 724, y: 460 });
+export const PUB_JOIN_POINT = Object.freeze({ x: 780, y: 412 });
 export const PUB_EXIT = Object.freeze({ x: 900, y: 640 });
-export const PUB_PARTNER_OFFSET = -34;
-export const PUB_GOODBYE = "Cat: We sucked at pool, let's go home.";
+export const PUB_PARTNER_OFFSET = -50;
+const COUPLE_FACING = Math.atan2(500, 950);
+export const PUB_GOODBYE = "Cat: We sucked at pool but I had so much fun! Let's go home.";
 export const COASTER_GOODBYE = 'Cat: You look so happy with yourself 😅, you got me good!';
-export const COASTER_JOIN_POINT = Object.freeze({ x: 644, y: 610 });
-export const COASTER_EXIT = Object.freeze({ x: 900, y: 610 });
+export const COUPLE_GOODBYE_SECONDS = 3;
+export const COASTER_JOIN_POINT = Object.freeze({ x: 860, y: 580 });
+export const COASTER_EXIT = Object.freeze({ x: 900, y: 656 });
 export const CANOPY_ZIPLINE = Object.freeze({
   start: Object.freeze({ x: 1800, y: 350, height: 190 }),
   departure: Object.freeze({ x: 1850, y: 375, height: 190 }),
@@ -17,9 +19,14 @@ export const CANOPY_ZIPLINE = Object.freeze({
   departureProgress: 0.15,
   cableHeight: 85
 });
+const PUB_BAR = Object.freeze({ x: 130, y: 120, width: 190, depth: 65 });
 export const OBJECTS = {
   1: [
-    { id: 'bar', name: 'Bar', x: 130, y: 120, kind: 'bar', footprint: { width: 190, depth: 65 } },
+    { id: 'bar', name: 'Bar', x: PUB_BAR.x, y: PUB_BAR.y, kind: 'bar', footprint: { width: PUB_BAR.width, depth: PUB_BAR.depth } },
+    {
+      id: 'bartender', name: 'Jamie the Bartender', x: 130, y: 78, kind: 'npc', footprint: { radius: 16 },
+      interactionArea: PUB_BAR
+    },
     { id: 'rack-note', name: 'Scorecard', x: 285, y: 130, kind: 'note', footprint: { width: 62, depth: 32 } },
     { id: 'drinks-table', name: 'Drinks table', x: 540, y: 440, kind: 'table', footprint: { width: 100, depth: 70 } },
     { id: 'cue-rack', name: 'Cue rack', x: 835, y: 130, kind: 'rack', footprint: { width: 80, depth: 23 } },
@@ -29,13 +36,13 @@ export const OBJECTS = {
       footprint: { width: POOL_TABLE_FOOTPRINT.width, depth: POOL_TABLE_FOOTPRINT.depth }
     },
     { id: 'tool-rack', name: 'Equipment cupboard', x: 290, y: 590, kind: 'tools', footprint: { width: 75, depth: 48 } },
-    { id: 'cabinet', name: 'Cabinet', x: 840, y: 500, kind: 'cabinet', footprint: { width: 60, depth: 52 } },
-    { id: 'love', name: 'Cat', x: 690, y: 460, kind: 'npc', footprint: { radius: 16 } }
+    { id: 'cabinet', name: 'Cabinet', x: 900, y: 300, kind: 'cabinet', footprint: { width: 60, depth: 52 } },
+    { id: 'love', name: 'Cat', ...couplePartnerPosition(PUB_JOIN_POINT, COUPLE_FACING), kind: 'npc', footprint: { radius: 16 } }
   ],
   2: [
     { id: 'carriage', name: 'Thirteen carriage', x: 500, y: 530, kind: 'carriage' },
-    { id: 'locker', name: 'Bag locker', x: 790, y: 665, kind: 'locker', footprint: { width: 60, depth: 49 } },
-    { id: 'amor', name: 'Cat', x: 610, y: 610, kind: 'npc' }
+    { id: 'locker', name: 'Bag locker', x: 260, y: 592.25, kind: 'locker', footprint: { width: 60, depth: 24.5 } },
+    { id: 'amor', name: 'Cat', ...couplePartnerPosition(COASTER_JOIN_POINT, COUPLE_FACING), kind: 'npc', footprint: { radius: 16 } }
   ],
   3: [
     { id: 'leaf', name: 'Glowing leaf', x: 200, y: 295, kind: 'collectible', height: 0 },
@@ -73,53 +80,67 @@ const pubCollision = {
   blocked: (point) => !withinPub(point) || furnitureCollision.blocked(point),
   clearSegment: (start, end) => withinPub(end) && furnitureCollision.clearSegment(start, end)
 };
-const coupleFurniture = createCollision(PUB_OBSTACLES.filter((obstacle) => obstacle.id !== 'love'), PUB_PLAYER_RADIUS);
-const partnerPoint = (point) => ({ x: point.x + PUB_PARTNER_OFFSET, y: point.y });
-const coupleCollision = {
-  blocked: (point) => !withinPub(point) || !withinPub(partnerPoint(point))
-    || coupleFurniture.blocked(point) || coupleFurniture.blocked(partnerPoint(point)),
-  clearSegment: (start, end) => withinPub(end) && withinPub(partnerPoint(end))
-    && coupleFurniture.clearSegment(start, end)
-    && coupleFurniture.clearSegment(partnerPoint(start), partnerPoint(end))
-};
+export function couplePartnerPosition(point, facing) {
+  return {
+    x: point.x + PUB_PARTNER_OFFSET * Math.cos(facing),
+    y: point.y - PUB_PARTNER_OFFSET * Math.sin(facing)
+  };
+}
+const withinRoom = (point) => point.x >= PUB_PLAYER_RADIUS && point.x <= 1000 - PUB_PLAYER_RADIUS
+  && point.y >= PUB_PLAYER_RADIUS && point.y <= 700 - PUB_PLAYER_RADIUS;
+function coupleCollisionFor(obstacles) {
+  const collision = createCollision(obstacles, PUB_PLAYER_RADIUS);
+  const partner = (point) => couplePartnerPosition(point, COUPLE_FACING);
+  return {
+    blocked: (point) => !withinPub(point) || !withinRoom(partner(point))
+      || collision.blocked(point) || collision.blocked(partner(point)),
+    clearSegment: (start, end) => withinPub(end) && withinRoom(partner(end))
+      && collision.clearSegment(start, end) && collision.clearSegment(partner(start), partner(end))
+  };
+}
+const coupleCollision = coupleCollisionFor(PUB_OBSTACLES.filter((obstacle) => obstacle.id !== 'love'));
 const locker = OBJECTS[2].find((object) => object.id === 'locker');
-const lockerCollision = createCollision([{ x: locker.x, y: locker.y, ...locker.footprint }], PUB_PLAYER_RADIUS);
+const coasterObstacles = OBJECTS[2].filter((object) => object.footprint)
+  .map(({ x, y, footprint }) => ({ x, y, ...footprint }));
+const platformCollision = createCollision(coasterObstacles, PUB_PLAYER_RADIUS);
 const coasterCollision = {
-  blocked: (point) => !withinPub(point) || lockerCollision.blocked(point),
-  clearSegment: (start, end) => withinPub(end) && lockerCollision.clearSegment(start, end)
+  blocked: (point) => !withinPub(point) || platformCollision.blocked(point),
+  clearSegment: (start, end) => withinPub(end) && platformCollision.clearSegment(start, end)
 };
-const coasterCoupleCollision = {
-  blocked: (point) => coasterCollision.blocked(point) || coasterCollision.blocked(partnerPoint(point)),
-  clearSegment: (start, end) => coasterCollision.clearSegment(start, end)
-    && coasterCollision.clearSegment(partnerPoint(start), partnerPoint(end))
-};
+const coasterCoupleCollision = coupleCollisionFor([{ x: locker.x, y: locker.y, ...locker.footprint }]);
+
+function followsCoupleHeading(start, end) {
+  const dx = end.x - start.x, dy = end.y - start.y;
+  return dx * Math.sin(COUPLE_FACING) + dy * Math.cos(COUPLE_FACING) >= 0
+    && Math.abs(dx * Math.cos(COUPLE_FACING) - dy * Math.sin(COUPLE_FACING)) < 1e-6 * Math.max(1, Math.hypot(dx, dy));
+}
 
 export function pubCouplePath(start) {
-  const route = findWorldPath(start, PUB_EXIT, coupleCollision);
-  return route?.length && Math.hypot(route.at(-1).x - PUB_EXIT.x, route.at(-1).y - PUB_EXIT.y) < 0.01 ? route : null;
+  return followsCoupleHeading(start, PUB_EXIT) && !coupleCollision.blocked(start) && !coupleCollision.blocked(PUB_EXIT)
+    && coupleCollision.clearSegment(start, PUB_EXIT) ? [PUB_EXIT] : null;
 }
 
 export function walkPubCouple(state, destination, seconds) {
   if (!Number.isFinite(seconds) || seconds <= 0) return state;
   const dx = destination.x - state.player.x, dy = destination.y - state.player.y;
   const length = Math.hypot(dx, dy);
-  if (!length) return state;
-  const distance = Math.min(length, 105 * seconds);
+  if (!length || !followsCoupleHeading(state.player, destination)) return state;
+  const distance = Math.min(length, 55 * seconds);
   const next = { x: state.player.x + dx / length * distance, y: state.player.y + dy / length * distance };
   if (!coupleCollision.clearSegment(state.player, next)) return state;
   return { ...state, player: { ...state.player, ...next } };
 }
 
 export function coasterCouplePath(start) {
-  const route = findWorldPath(start, COASTER_EXIT, coasterCoupleCollision);
-  return route?.length && Math.hypot(route.at(-1).x - COASTER_EXIT.x, route.at(-1).y - COASTER_EXIT.y) < 0.01 ? route : null;
+  return followsCoupleHeading(start, COASTER_EXIT) && !coasterCoupleCollision.blocked(start) && !coasterCoupleCollision.blocked(COASTER_EXIT)
+    && coasterCoupleCollision.clearSegment(start, COASTER_EXIT) ? [COASTER_EXIT] : null;
 }
 
 export function walkCoasterCouple(state, destination, seconds) {
   if (!Number.isFinite(seconds) || seconds <= 0) return state;
   const dx = destination.x - state.player.x, dy = destination.y - state.player.y;
   const length = Math.hypot(dx, dy);
-  if (!length) return state;
+  if (!length || !followsCoupleHeading(state.player, destination)) return state;
   const distance = Math.min(length, 105 * seconds);
   const next = { x: state.player.x + dx / length * distance, y: state.player.y + dy / length * distance };
   if (!coasterCoupleCollision.clearSegment(state.player, next)) return state;
@@ -178,19 +199,21 @@ function furnitureApproaches(point, { x, y, width, depth, radius }) {
 }
 
 export function adventureObjectDistance(index, player, object) {
-  return (index === 1 || index === 2) && object.footprint
-    ? footprintDistance(player, { ...object.footprint, x: object.x, y: object.y })
+  return (index === 1 || (index === 2 && object.kind !== 'npc')) && object.footprint
+    ? footprintDistance(player, object.interactionArea || { ...object.footprint, x: object.x, y: object.y })
     : Math.hypot(player.x - object.x, player.y - object.y);
 }
 
 export function adventureObjectInRange(index, player, object) {
-  const range = (index === 1 || index === 2) && object.footprint ? PUB_INTERACTION_RANGE : 85;
+  const range = (index === 1 || (index === 2 && object.kind !== 'npc')) && object.footprint ? PUB_INTERACTION_RANGE : 85;
   return adventureObjectDistance(index, player, object) <= range
     && Math.abs(player.height - (object.height || 0)) <= 25;
 }
 
 function furniturePath(player, destination, object, collision) {
-  const points = object?.footprint ? furnitureApproaches(player, { ...object.footprint, x: object.x, y: object.y }) : [destination];
+  const points = object?.footprint
+    ? furnitureApproaches(player, object.interactionArea || { ...object.footprint, x: object.x, y: object.y })
+    : [destination];
   const routes = points.filter((point) => !collision.blocked(point))
     .map((point) => ({ point, route: findWorldPath(player, point, collision) }))
     .filter(({ point, route }) => route?.length && Math.hypot(route.at(-1).x - point.x, route.at(-1).y - point.y) < 0.01)
@@ -335,7 +358,7 @@ export function restoreAdventureState(index, saved) {
       restored.progress = 0;
     }
     if (['boarding', 'platform'].includes(restored.phase) && !restored.complete && coasterCollision.blocked(restored.player)) {
-      const positions = furnitureApproaches(restored.player, { x: locker.x, y: locker.y, ...locker.footprint })
+      const positions = coasterObstacles.flatMap((obstacle) => furnitureApproaches(restored.player, obstacle))
         .filter((point) => !coasterCollision.blocked(point));
       positions.push({ x: initial.player.x, y: initial.player.y });
       positions.sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y));
@@ -390,7 +413,7 @@ export function walkAdventure(index, state, dx, dy, seconds) {
   let x = Math.max(40, Math.min(index === 3 ? 1850 : 960, state.player.x + dx / length * distance));
   let y = Math.max(40, Math.min(660, state.player.y + dy / length * distance));
   if (index === 1 || index === 2) {
-    const collision = index === 1 ? furnitureCollision : lockerCollision;
+    const collision = index === 1 ? furnitureCollision : platformCollision;
     const next = collision.move(state.player, x - state.player.x, y - state.player.y);
     x = next.x; y = next.y;
     if (x === state.player.x && y === state.player.y) return state;
@@ -518,6 +541,9 @@ export function interactAdventure(index, state, id) {
   if (index === 1) {
     if (id === 'bar') return state.drinksPlaced ? message(state, 'The drinks are already on the table.')
       : { ...state, drinks: true, message: 'You collect two drinks from the bar.' };
+    if (id === 'bartender') return message(state, state.drinks || state.drinksPlaced
+      ? 'Jamie: Enjoy your drinks, and good luck with the pool!'
+      : 'Jamie: Welcome to Lucky Chucks! Help yourselves to drinks at the bar.');
     if (id === 'drinks-table') return state.drinksPlaced ? message(state, 'The drinks are ready.')
       : state.drinks ? { ...state, drinks: false, drinksPlaced: true, message: 'You put the drinks beside the pool table.' }
         : message(state, 'Get the drinks from the bar first.');

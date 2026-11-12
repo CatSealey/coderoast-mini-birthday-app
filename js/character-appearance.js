@@ -17,6 +17,12 @@ export const TOWNSFOLK_HAIRSTYLES = [
   { longHair: true, hair: '#a97d50' }, { longHair: true, hair: '#5e4035' }
 ];
 
+export function facingForMovement(previous, current, facing = 0) {
+  if (!previous) return facing;
+  const dx = current.x - previous.x, dy = current.y - previous.y;
+  return Math.hypot(dx, dy) > 0.01 ? Math.atan2(dx, dy) : facing;
+}
+
 export function addCharacterHeadDetails(box, round, options) {
   const { skin, hair = CHARACTER_HAIR, longHair = false, hairLength = longHair ? 'long' : 'short' } = options;
   const width = options.width * 0.96, height = options.height * 0.96, depth = options.depth * 0.96;
@@ -37,7 +43,9 @@ export function addCharacterHeadDetails(box, round, options) {
   box(0, headY - height * 0.23, front * 0.96, width * 0.18, height * 0.06, 1.2, '#a66f67');
 }
 
-export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = CHARACTER_HAIR, hairLength = 'long', trousers, shorts, legTattoo = false, belt, buckle, shortSleeves = false, tattoo = false, stride = 0, heldArm = -1 } = {}) {
+export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = CHARACTER_HAIR, hairLength = 'long', trousers, shorts, legTattoo = false, belt, buckle, shortSleeves = false, tattoo = false, stride = 0, heldArm = -1, facing = 0 } = {}) {
+  const back = Math.cos(facing) < -Math.SQRT1_2;
+  const side = Math.abs(Math.sin(facing)) > Math.SQRT1_2;
   context.fillStyle = hair;
   context.beginPath();
   context.ellipse(x, y, 8 * scale, (hairLength === 'long' ? 12 : hairLength === 'shoulder' ? 10 : 7) * scale, 0, 0, Math.PI * 2);
@@ -56,10 +64,11 @@ export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = C
     context.fillRect(x - 10 * scale, y + (11 - rightArmStride * 2) * scale, 2 * scale, 6 * scale);
     context.fillRect(x + 8 * scale, y + (11 + leftArmStride * 2) * scale, 2 * scale, 6 * scale);
     if (tattoo) {
+      const tattooOffset = back ? leftArmStride * 2 : -rightArmStride * 2;
       context.fillStyle = TATTOO_INK;
-      context.fillRect(x - 10 * scale, y + (12 - rightArmStride * 2) * scale, 2 * scale, 3 * scale);
+      context.fillRect(x + (back ? 8 : -10) * scale, y + (12 + tattooOffset) * scale, 2 * scale, 3 * scale);
       context.fillStyle = TATTOO_ACCENT;
-      context.fillRect(x - 9 * scale, y + (13 - rightArmStride * 2) * scale, scale, scale);
+      context.fillRect(x + (back ? 9 : -9) * scale, y + (13 + tattooOffset) * scale, scale, scale);
     }
   }
   if (hairLength === 'long') {
@@ -75,9 +84,9 @@ export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = C
     context.fillRect(x + scale, y + (20 - stride * 2) * scale, 6 * scale, 6 * scale);
     if (legTattoo) {
       context.fillStyle = TATTOO_INK;
-      context.fillRect(x + 2 * scale, y + (21 - stride * 2) * scale, 4 * scale, 3 * scale);
+      context.fillRect(x + (back ? -6 : 2) * scale, y + (21 + (back ? stride : -stride) * 2) * scale, 4 * scale, 3 * scale);
       context.fillStyle = TATTOO_ACCENT;
-      context.fillRect(x + 4 * scale, y + (22 - stride * 2) * scale, scale, scale);
+      context.fillRect(x + (back ? -4 : 4) * scale, y + (22 + (back ? stride : -stride) * 2) * scale, scale, scale);
     }
     context.fillStyle = '#594336';
     context.fillRect(x - 7 * scale, y + (26 + stride * 2) * scale, 6 * scale, 2 * scale);
@@ -86,19 +95,21 @@ export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = C
   if (belt) {
     context.fillStyle = belt;
     context.fillRect(x - 8 * scale, y + 14 * scale, 16 * scale, 2 * scale);
-    if (buckle) {
+    if (buckle && !back) {
       context.fillStyle = buckle;
       context.fillRect(x - scale, y + 14 * scale, 2 * scale, 2 * scale);
     }
   }
-  context.fillStyle = '#dfb38c';
+  context.fillStyle = back ? hair : '#dfb38c';
   context.beginPath();
   context.arc(x, y, 6.5 * scale, 0, Math.PI * 2);
   context.fill();
   context.fillStyle = hair;
   context.fillRect(x - 5 * scale, y - 6 * scale, 8 * scale, 2 * scale);
   context.fillRect(x + 3.5 * scale, y - 5 * scale, 2 * scale, 5 * scale);
-  context.fillStyle = '#49382f';
-  context.fillRect(x - 3.5 * scale, y - scale, 1.5 * scale, 1.5 * scale);
-  context.fillRect(x + 2 * scale, y - scale, 1.5 * scale, 1.5 * scale);
+  if (!back) {
+    context.fillStyle = '#49382f';
+    if (!side || Math.sin(facing) < 0) context.fillRect(x - 3.5 * scale, y - scale, 1.5 * scale, 1.5 * scale);
+    if (!side || Math.sin(facing) > 0) context.fillRect(x + 2 * scale, y - scale, 1.5 * scale, 1.5 * scale);
+  }
 }

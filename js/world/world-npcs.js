@@ -1,4 +1,5 @@
 import { QUEST_LOCATIONS, WORLD_SPAWN } from './world-data.js';
+import { SIDE_QUESTS } from '../side-quests.js';
 
 export const WORLD_NPCS = Object.freeze([
   {
@@ -28,10 +29,10 @@ export const WORLD_NPCS = Object.freeze([
     ]
   },
   {
-    name: 'Nell the Archer', x: QUEST_LOCATIONS[1].x + 285, y: QUEST_LOCATIONS[1].y - 5, color: '#648064',
+    name: 'Nell the Local', x: QUEST_LOCATIONS[1].x + 285, y: QUEST_LOCATIONS[1].y - 5, color: '#648064',
     dialogue: [
-      'A steady hand helps with archery and pool alike. Welcome to Lucky Chucks!',
-      'Chuck has a trick shot waiting if you fancy a challenge.'
+      'Welcome to town! There are plenty of places to eat and drink around Lucky Chucks.',
+      'Lucky Chucks is a great place for pool, darts and games with friends.'
     ]
   },
   {
@@ -54,5 +55,9 @@ export const WORLD_NPCS = Object.freeze([
       'Mind the corn! This maze has more turns than my pumpkin patch.',
       'There are seven clues to find in the maze, and seven mechanisms to solve.'
     ]
-  }
+  },
+  ...SIDE_QUESTS.map((quest) => ({
+    name: 'Cat', x: quest.x, y: quest.y, color: '#1c1e1e',
+    sideQuest: quest.id, prop: quest.prop, dialogue: [quest.dialogue]
+  }))
 ]);

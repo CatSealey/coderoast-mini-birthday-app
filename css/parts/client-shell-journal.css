@@ -98,6 +98,25 @@
   padding: 7px;
 }
 
+.side-quests {
+  margin-top: 10px;
+}
+
+.side-quests h3 {
+  margin: 0 0 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(146, 165, 176, 0.2);
+  color: #e1cc88;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.065em;
+}
+
+.side-quests__list {
+  display: grid;
+  gap: 5px;
+}
+
 .client-topbar,
 .client-actionbar,
 .client-panel {
@@ -293,6 +312,19 @@
   margin: 8px 0;
   color: #92a3ae;
   font-size: 0.68rem;
+}
+
+.quest-journal__scroll {
+  min-height: 0;
+  max-height: min(65vh, max(160px, 100vh - 340px), 640px);
+  padding: 2px 3px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.quest-journal__scroll:focus-visible {
+  outline: 2px solid #eed487;
+  outline-offset: -2px;
 }
 
 .quest-list {
