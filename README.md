@@ -1,7 +1,7 @@
 # RuneScape 3 Birthday Adventure
 
 A responsive RuneScape-inspired birthday game for Dani's 30th, with an expanded Gielinor-style world, separate regions that preserve landmark scale, longer road-linked journeys between five quests inspired by shared memories, and a custom game-client layout. Find a guide, accept their quest, and enter its landmark to begin.
-The player wears black, while Cat keeps her own outfit; both characters have matching appearances across the world, quests and birthday ending.
+The player wears black shorts and has long hair and a tattoo on her left leg. Cat has shoulder-length hair, a black T-shirt, dark green trousers and a Japanese-inspired tattoo sleeve on her right arm; both characters keep their appearances across the world, quests and birthday ending. Characters swing their arms as they walk, while keeping their hands posed for the birthday gifts.
 The journal starts empty, while all five quest givers are marked on the map and can be visited in any order. Accepted quests appear in the journal. Each awards its own numbered keepsake (1–5, in journal order). Completed quests stay complete until removed from the journal; remove and accept a quest again to start it over. Existing completed quests remain in the journal. Speak to Elowen outside Lumbridge Castle to accept The Hall of Memories, then display each keepsake in the trophy room; a birthday present appears when all five have been placed.
 
 Open **Quest steps** under any accepted quest in the journal to see what remains and which milestones are complete. Steps update from saved quest progress, including items already used. Fright Nights clues appear as subtasks under their areas, revealing their text only after discovery. Thirteen's collected park items are kept between laps, and missed items stay on the track until collected.
@@ -19,6 +19,8 @@ The character begins at level 29. Each of the five keepsake quests awards 15 bir
 ├── js/
 │   ├── app.js           # Quest state, navigation, and UI
 │   ├── audio.js         # Music and sound effects
+│   ├── character-appearance.js # Shared character colours, hairstyles and facial details
+│   ├── character-body.js # Rounded character torsos and Cat's tattoo details
 │   ├── chapter-maps.js  # Illustrated quest field maps
 │   ├── games/           # One module per mini-game
 │   └── world/           # Walkable overworld, map, and movement rules

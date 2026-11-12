@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { CANOPY_CROSSINGS, CANOPY_PLATFORMS, CANOPY_ZIPLINE, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_PARTNER_OFFSET, PUB_STOOLS, adventureObjectDistance } from './adventure-logic.js';
 import { COASTER_PLATFORM, COASTER_RAIL_OFFSET, COASTER_REJOIN_PROGRESS, COASTER_TREATS, coasterDirection, coasterHeading, coasterLanePosition, coasterPosition, coasterRailPosition } from './coaster-course.js';
 import { drawCoasterItem } from './coaster-art.js';
-import { createCharacterLegs } from './character-legs.js';
-import { CAT_OUTFIT, CHARACTER_HAIR, PLAYER_OUTFIT, drawCharacterMarker } from '../character-appearance.js';
+import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
+import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker } from '../character-appearance.js';
+import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 
 export function createAdventureScene(canvas, index, onSelect, characterName) {
   const probe = document.createElement('canvas').getContext('webgl2');
@@ -15,6 +16,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   const scene = new THREE.Scene(), camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 4000);
   const raycaster = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+  const torsoGeometry = createCharacterTorsoGeometry();
   const sphereGeometry = new THREE.SphereGeometry(0.5, 12, 8);
   const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
   const coneGeometry = new THREE.ConeGeometry(0.5, 1, 8);
@@ -82,17 +84,21 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     const sprite = new THREE.Sprite(mat); sprite.position.set(x, y, z); sprite.scale.set(130, 32, 1); scene.add(sprite);
     return sprite;
   }
-  function person(color, name, x, z, parent = scene, longHair = false) {
+  function person(color, name, x, z, parent = scene, style = {}) {
     const group = new THREE.Group(); group.position.set(x, 0, z); parent.add(group);
-    box(0, 39, 0, 26, 38, 17, color, group);
-    box(0, 70, 0, 19, 20, 19, '#dfb38c', group);
-    box(0, 82, 0, 21, 6, 21, '#47372e', group);
-    if (longHair) box(0, 70, -11, 21, 27, 5, CHARACTER_HAIR, group);
-    group.userData.legs = createCharacterLegs(group, box, 7, '#594336');
-    box(0, 27, 9, 26, 4, 2, '#a98e60', group);
-    box(-5, 71, 10, 3, 3, 2, '#47372e', group); box(5, 71, 10, 3, 3, 2, '#47372e', group);
-    box(-17, 40, 0, 7, 28, 8, color, group);
-    box(17, 40, 0, 7, 28, 8, color, group);
+    round(torsoGeometry, 0, 39, 0, 26, 38, 17, color, group);
+    addCharacterHeadDetails((px, py, pz, w, h, d, shade) => box(px, py, pz, w, h, d, shade, group),
+      (px, py, pz, w, h, d, shade) => round(sphereGeometry, px, py, pz, w, h, d, shade, group),
+      { headY: 70, width: 19, height: 20, depth: 19, skin: '#dfb38c', hairLength: style.hairLength });
+    group.userData.legs = style.shorts
+      ? createPlayerLegs(group, box, { offset: 7, shoeColor: '#594336', shortsColor: style.shorts, skin: '#dfb38c' })
+      : createCharacterLegs(group, box, 7, '#594336', style.trousers);
+    box(0, 27, 9, 26, 4, 2, style.belt || '#a98e60', group);
+    if (style.buckle) box(0, 27, 10.5, 5, 3, 1, style.buckle, group);
+    group.userData.arms = createCharacterArms(group, box, {
+      offset: 16, shoulderY: 54, length: 28, width: 7, depth: 8, color, skin: '#dfb38c',
+      shortSleeves: style.shortSleeves, tattoo: style.tattoo
+    });
     if (name) group.userData.label = label(name, x, 103, z);
     return group;
   }
@@ -104,8 +110,8 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     for (const x of [-25, 25]) for (const z of [-24, 24]) {
       round(cylinderGeometry, x, 9, z, 15, 7, 15, '#252f2c', group).rotation.z = Math.PI / 2;
     }
-    if (withRiders) for (const [x, color] of [[-17, PLAYER_OUTFIT], [17, CAT_OUTFIT]]) {
-      const rider = person(color, null, x, 0, group, true); rider.position.y = 18; rider.scale.set(0.7, 0.7, 0.7);
+    if (withRiders) for (const [x, color, style] of [[-17, PLAYER_OUTFIT, PLAYER_STYLE], [17, CAT_OUTFIT, CAT_STYLE]]) {
+      const rider = person(color, null, x, 0, group, style); rider.position.y = 18; rider.scale.set(0.7, 0.7, 0.7);
       rider.userData.legs.forEach((leg) => { leg.rotation.x = -Math.PI / 2; });
     }
     return group;
@@ -154,7 +160,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     const { x, y: z, kind } = object, h = object.height || 0;
     let mesh;
     if (kind === 'npc') {
-      mesh = person(CAT_OUTFIT, object.name, x, z, scene, object.id === 'amor' || object.id === 'love');
+      mesh = person(CAT_OUTFIT, object.name, x, z, scene, CAT_STYLE);
       if (object.id === 'amor') platformAmor = mesh;
       if (index === 1 && object.id === 'love') pubLove = mesh;
     } else {
@@ -397,7 +403,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       lightMarker = box(220, 3, 350, 80, 4, 80, '#e9ca76', scene, true);
     }
     OBJECTS[index].forEach(makeObject);
-    player = person(PLAYER_OUTFIT, null, 0, 0, scene, true);
+    player = person(PLAYER_OUTFIT, null, 0, 0, scene, PLAYER_STYLE);
     const nameLabel = label(characterName, 0, 105, 0);
     player.userData.label = nameLabel;
   }
@@ -417,6 +423,11 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   }
   function draw(next, dt = 0, aim = 0) {
     state = next;
+    const distance = previousPlayer && dt > 0
+      ? Math.hypot(state.player.x - previousPlayer.x, state.player.y - previousPlayer.y) : 0;
+    walkPhase += distance * 0.08;
+    const swing = distance > 0.1 ? Math.sin(walkPhase) * 0.45 : 0;
+    previousPlayer = { x: state.player.x, y: state.player.y };
     if (state.ballLost && !lastBallLost) ballAnimation = 0.001;
     lastBallLost = Boolean(state.ballLost);
     if (ballAnimation && ballAnimation < 1) ballAnimation = Math.min(1, ballAnimation + dt / 2);
@@ -428,13 +439,8 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       : state.pubTogether || (index === 3 && state.zipline) ? state.player.y : 350;
     if (renderer) {
       player.visible = !riding; player.position.set(state.player.x, state.player.height, state.player.y);
-      if (previousPlayer && dt > 0) {
-        const distance = Math.hypot(state.player.x - previousPlayer.x, state.player.y - previousPlayer.y);
-        walkPhase += distance * 0.08;
-        const swing = distance > 0.1 ? Math.sin(walkPhase) * 0.45 : 0;
-        player.userData.legs[0].rotation.x = swing; player.userData.legs[1].rotation.x = -swing;
-      }
-      previousPlayer = { x: state.player.x, y: state.player.y };
+      player.userData.legs[0].rotation.x = swing; player.userData.legs[1].rotation.x = -swing;
+      swingCharacterArms(player.userData.arms, swing, state.pubTogether ? 1 : -1);
       player.userData.label.visible = !riding;
       if (platformAmor) {
         platformAmor.visible = !riding;
@@ -444,6 +450,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         platformAmor.position.set(amorX, 0, amorY);
         platformAmor.userData.label.position.set(amorX, 103, amorY);
         platformAmor.userData.legs.forEach((leg, i) => { leg.rotation.x = state.pubTogether ? player.userData.legs[i].rotation.x : 0; });
+        swingCharacterArms(platformAmor.userData.arms, state.pubTogether ? swing : 0, state.pubTogether ? 0 : -1);
         joinedHands.visible = Boolean(state.pubTogether);
         joinedHands.position.set(state.player.x + PUB_PARTNER_OFFSET / 2, 27, state.player.y);
       }
@@ -458,6 +465,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         pubLove.position.set(loveX, 0, loveY);
         pubLove.userData.label.position.set(loveX, 103, loveY);
         pubLove.userData.legs.forEach((leg, i) => { leg.rotation.x = together ? player.userData.legs[i].rotation.x : 0; });
+        swingCharacterArms(pubLove.userData.arms, together ? swing : 0, together ? 0 : -1);
         joinedHands.visible = together;
         joinedHands.position.set(state.player.x + PUB_PARTNER_OFFSET / 2, 27, state.player.y);
         pubExitMarker.visible = state.pubEnding === 'ready';
@@ -581,7 +589,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         return;
       }
       if (index === 2 && object.id === 'amor' && state.pubTogether) {
-        drawCharacterMarker(ctx, sx(state.player.x + PUB_PARTNER_OFFSET), sy(state.player.y), CAT_OUTFIT);
+        drawCharacterMarker(ctx, sx(state.player.x + PUB_PARTNER_OFFSET), sy(state.player.y), CAT_OUTFIT, { ...CAT_STYLE, stride: swing, heldArm: 0 });
         ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
         ctx.fillText(object.name, sx(state.player.x + PUB_PARTNER_OFFSET), sy(state.player.y) - 17);
         return;
@@ -604,7 +612,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         const objectX = object.id === 'love' && state.pubTogether ? state.player.x + PUB_PARTNER_OFFSET : object.x;
         const objectY = object.id === 'love' && state.pubTogether ? state.player.y : object.y;
         if (object.id === 'love') {
-          drawCharacterMarker(ctx, sx(objectX), sy(objectY), CAT_OUTFIT);
+          drawCharacterMarker(ctx, sx(objectX), sy(objectY), CAT_OUTFIT, { ...CAT_STYLE, stride: state.pubTogether ? swing : 0, heldArm: state.pubTogether ? 0 : -1 });
           ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
           ctx.fillText(object.name, sx(objectX), sy(objectY) - 17);
           return;
@@ -621,7 +629,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         return;
       }
       if (object.id === 'amor') {
-        drawCharacterMarker(ctx, sx(object.x), sy(object.y), CAT_OUTFIT);
+        drawCharacterMarker(ctx, sx(object.x), sy(object.y), CAT_OUTFIT, CAT_STYLE);
         ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
         ctx.fillText(object.name, sx(object.x), sy(object.y) - 17);
         return;
@@ -640,7 +648,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       ctx.stroke();
     }
     if (index !== 2 || !['riding', 'dropping', 'returning'].includes(state.phase)) {
-      drawCharacterMarker(ctx, sx(state.player.x), sy(state.player.y), PLAYER_OUTFIT);
+      drawCharacterMarker(ctx, sx(state.player.x), sy(state.player.y), PLAYER_OUTFIT, { ...PLAYER_STYLE, stride: swing, heldArm: state.pubTogether ? 1 : -1 });
       if ((index === 1 || index === 2) && state.pubTogether) {
         ctx.fillStyle = '#dfb38c';
         ctx.fillRect(sx(state.player.x + PUB_PARTNER_OFFSET), sy(state.player.y) + 5, -PUB_PARTNER_OFFSET * scale, 4);
@@ -654,8 +662,8 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       ctx.save(); ctx.translate(sx(ridePoint.x), sy(ridePoint.y));
       ctx.rotate(-coasterHeading(state.phase, state.progress));
       ctx.fillStyle = '#675143'; ctx.fillRect(-22, -13, 44, 26);
-      drawCharacterMarker(ctx, -10, -5, PLAYER_OUTFIT, 0.55);
-      drawCharacterMarker(ctx, 10, -5, CAT_OUTFIT, 0.55);
+      drawCharacterMarker(ctx, -10, -5, PLAYER_OUTFIT, { ...PLAYER_STYLE, scale: 0.55 });
+      drawCharacterMarker(ctx, 10, -5, CAT_OUTFIT, { ...CAT_STYLE, scale: 0.55 });
       ctx.restore();
     }
   }
@@ -695,7 +703,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     return { x: width / 2 + (object.x - targetXForClick()) * scale, y: height / 2 + (object.y - 350) * scale - 30 };
   }
   return { draw, resize, objectPosition, dispose() {
-    canvas.removeEventListener('click', click); boxGeometry.dispose(); sphereGeometry.dispose(); cylinderGeometry.dispose(); coneGeometry.dispose(); triangleGeometry.dispose(); materials.forEach((m) => m.dispose());
+    canvas.removeEventListener('click', click); boxGeometry.dispose(); torsoGeometry.dispose(); sphereGeometry.dispose(); cylinderGeometry.dispose(); coneGeometry.dispose(); triangleGeometry.dispose(); materials.forEach((m) => m.dispose());
     textures.forEach((t) => t.dispose()); renderer?.dispose();
   } };
 }

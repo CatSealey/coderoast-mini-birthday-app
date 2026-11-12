@@ -6,7 +6,9 @@ import { roadDistance } from './world-art.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { CANOPY_LINKS, CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, placeQuestDecorations } from './world-scenery-data.js';
 import { worldCornWalls, worldTrees } from './world-collision.js';
-import { CHARACTER_HAIR, PLAYER_OUTFIT } from '../character-appearance.js';
+import { GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, addCharacterHeadDetails } from '../character-appearance.js';
+import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
+import { createPlayerLegs } from '../games/character-legs.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -47,6 +49,8 @@ export function createWorld3D(canvas, ground, characterName) {
   const geometries = new Set();
   const textures = new Set();
   const boxGeometries = new Map();
+  const headGeometry = new THREE.SphereGeometry(0.5, 16, 12);
+  const torsoGeometry = createCharacterTorsoGeometry();
   function material(color) {
     if (!materials.has(color)) materials.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.9 }));
     return materials.get(color);
@@ -230,32 +234,39 @@ export function createWorld3D(canvas, ground, characterName) {
       }
     }
   }
-  function character(color, longHair = false) {
+  function character(color, longHair = false, hair, belt = '#aa9160', playerStyle = null) {
     const g = new THREE.Group();
-    box(g, 20, 30, 12, color, 0, 37, 0);
-    box(g, 14, 14, 14, '#d7aa83', 0, 60, 0);
-    box(g, 15, 5, 15, '#48372c', 0, 69, 0);
-    if (longHair) box(g, 15, 22, 5, CHARACTER_HAIR, 0, 60, -8);
-    box(g, 16, 25, 3, '#725443', 0, 37, -8);
-    box(g, 20, 4, 14, '#aa9160', 0, 25, 0);
-    box(g, 3, 3, 2, '#4d4036', -3, 61, 8);
-    box(g, 3, 3, 2, '#4d4036', 3, 61, 8);
-    const left = box(g, 7, 23, 8, '#443e34', -5, 11, 0);
-    const right = box(g, 7, 23, 8, '#443e34', 5, 11, 0);
-    box(left, 8, 4, 12, '#5a4434', 0, -9, 2);
-    box(right, 8, 4, 12, '#5a4434', 0, -9, 2);
-    box(g, 6, 25, 8, color, -14, 36, 0);
-    box(g, 6, 25, 8, color, 14, 36, 0);
-    g.userData.legs = [left, right];
+    const torso = mesh(torsoGeometry, color, g, 0, 37, 0); torso.scale.set(20, 30, 12);
+    addCharacterHeadDetails((x, y, z, w, h, d, shade) => box(g, w, h, d, shade, x, y, z),
+      (x, y, z, w, h, d, shade) => {
+        const part = mesh(headGeometry, shade, g, x, y, z); part.scale.set(w, h, d);
+      }, { headY: 60, width: 14, height: 14, depth: 14, skin: '#d7aa83', hair, longHair });
+    if (!longHair) box(g, 16, 25, 3, '#725443', 0, 37, -8);
+    box(g, 20, 4, 14, belt, 0, 25, 0);
+    const bodyBox = (x, y, z, w, h, d, shade, parent) => box(parent, w, h, d, shade, x, y, z);
+    if (playerStyle) {
+      g.userData.legs = createPlayerLegs(g, bodyBox, { offset: 5, height: 23, width: 7, depth: 8,
+        shoeColor: '#5a4434', shortsColor: playerStyle.shorts, skin: '#d7aa83' });
+    } else {
+      const left = box(g, 7, 23, 8, '#443e34', -5, 11, 0);
+      const right = box(g, 7, 23, 8, '#443e34', 5, 11, 0);
+      box(left, 8, 4, 12, '#5a4434', 0, -9, 2);
+      box(right, 8, 4, 12, '#5a4434', 0, -9, 2);
+      g.userData.legs = [left, right];
+    }
+    g.userData.arms = createCharacterArms(g, bodyBox, {
+      offset: 12.5, shoulderY: 48.5, length: 25, width: 6, depth: 8, color, skin: '#d7aa83'
+    });
     scene.add(g);
     return g;
   }
-  const player = character(PLAYER_OUTFIT, true);
+  const player = character(PLAYER_OUTFIT, true, undefined, PLAYER_STYLE.belt, PLAYER_STYLE);
   const playerLabel = textSprite(`${characterName.toUpperCase()} · 29`, 'rgba(24, 35, 29, .9)');
   let playerLevel = 29;
   playerLabel.position.y = 95; player.add(playerLabel);
-  const guides = QUEST_LOCATIONS.map((quest) => {
-    const guide = character('#876c51');
+  const guides = QUEST_LOCATIONS.map((quest, index) => {
+    const { longHair, hair } = GUIDE_HAIRSTYLES[index % GUIDE_HAIRSTYLES.length];
+    const guide = character('#876c51', longHair, hair);
     guide.position.set(quest.x, 0, quest.y);
     const marker = mesh(new THREE.OctahedronGeometry(12), '#e6bf63', guide, 0, 93, 0);
     const label = textSprite(quest.guide.toUpperCase(), 'rgba(37, 39, 28, .9)', 384);
@@ -263,8 +274,9 @@ export function createWorld3D(canvas, ground, characterName) {
     guide.add(label);
     return { guide, marker, label };
   });
-  const townsfolk = WORLD_NPCS.map((npc) => {
-    const person = character(npc.color);
+  const townsfolk = WORLD_NPCS.map((npc, index) => {
+    const { longHair, hair } = TOWNSFOLK_HAIRSTYLES[index % TOWNSFOLK_HAIRSTYLES.length];
+    const person = character(npc.color, longHair, hair);
     person.position.set(npc.x, 0, npc.y);
     const label = textSprite(npc.name.toUpperCase(), 'rgba(24, 40, 37, .9)', 384);
     label.position.y = 95;
@@ -719,6 +731,7 @@ export function createWorld3D(canvas, ground, characterName) {
       const stride = moving ? Math.sin(time / 120) * 0.45 : 0;
       player.userData.legs[0].rotation.x = stride;
       player.userData.legs[1].rotation.x = -stride;
+      swingCharacterArms(player.userData.arms, stride);
       guides.forEach(({ marker, label }, index) => {
         marker.material = material(completed[index] ? '#97c77c' : '#e6bf63');
         marker.rotation.y = time / 1000;

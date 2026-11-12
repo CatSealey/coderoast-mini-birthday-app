@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { HOUSE_BOUNDS, HOUSE_OBJECTS, HOUSE_WALLS } from './abigail-house.js';
-import { CHARACTER_HAIR, PLAYER_OUTFIT, drawCharacterMarker } from '../character-appearance.js';
+import { PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker } from '../character-appearance.js';
+import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
+import { createPlayerLegs } from './character-legs.js';
 
 export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer') {
   const probe = document.createElement('canvas').getContext('webgl2');
@@ -99,25 +101,37 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     parent.add(mesh);
   }
 
-  function person(parent, x, z, color, longHair = false) {
+  function person(parent, x, z, color, longHair = false, belt = '#aa9160', playerStyle = null) {
     const group = new THREE.Group();
     group.position.set(x, 0, z);
     shadow(group, 66, 45);
-    box(group, 25, 38, 15, color, 0, 40, 0);
-    box(group, 17, 18, 17, '#dfb38c', 0, 68, 0);
-    box(group, 19, 6, 19, '#40342d', 0, 79, 0);
-    if (longHair) box(group, 19, 25, 5, CHARACTER_HAIR, 0, 68, -10);
-    box(group, 18, 30, 3, '#725443', 0, 40, -8);
-    box(group, 25, 4, 17, '#aa9160', 0, 25, 0);
-    box(group, 3, 3, 2, '#4d4036', -4, 69, 9);
-    box(group, 3, 3, 2, '#4d4036', 4, 69, 9);
-    const left = box(group, 9, 21, 10, '#342f2b', -7, 11, 0);
-    const right = box(group, 9, 21, 10, '#342f2b', 7, 11, 0);
-    box(left, 10, 4, 13, '#5a4434', 0, -9, 2);
-    box(right, 10, 4, 13, '#5a4434', 0, -9, 2);
-    group.userData.legs = [left, right];
-    box(group, 7, 30, 8, color, -17, 42, 0);
-    box(group, 7, 30, 8, color, 17, 42, 0);
+    if (!geometries.has('character-torso')) geometries.set('character-torso', createCharacterTorsoGeometry());
+    if (!materials.has(color)) materials.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.9 }));
+    const torso = new THREE.Mesh(geometries.get('character-torso'), materials.get(color));
+    torso.position.set(0, 40, 0); torso.scale.set(25, 38, 15); group.add(torso);
+    if (!geometries.has('character-head')) geometries.set('character-head', new THREE.SphereGeometry(0.5, 16, 12));
+    addCharacterHeadDetails((px, py, pz, w, h, d, shade) => box(group, w, h, d, shade, px, py, pz),
+      (px, py, pz, w, h, d, shade) => {
+        if (!materials.has(shade)) materials.set(shade, new THREE.MeshStandardMaterial({ color: shade, roughness: 0.9 }));
+        const part = new THREE.Mesh(geometries.get('character-head'), materials.get(shade));
+        part.position.set(px, py, pz); part.scale.set(w, h, d); group.add(part);
+      }, { headY: 68, width: 17, height: 18, depth: 17, skin: '#dfb38c', longHair });
+    if (!longHair) box(group, 18, 30, 3, '#725443', 0, 40, -8);
+    box(group, 25, 4, 17, belt, 0, 25, 0);
+    const bodyBox = (px, py, pz, w, h, d, shade, owner) => box(owner, w, h, d, shade, px, py, pz);
+    if (playerStyle) {
+      group.userData.legs = createPlayerLegs(group, bodyBox, { offset: 7, height: 21,
+        shoeColor: '#5a4434', shortsColor: playerStyle.shorts, skin: '#dfb38c' });
+    } else {
+      const left = box(group, 9, 21, 10, '#342f2b', -7, 11, 0);
+      const right = box(group, 9, 21, 10, '#342f2b', 7, 11, 0);
+      box(left, 10, 4, 13, '#5a4434', 0, -9, 2);
+      box(right, 10, 4, 13, '#5a4434', 0, -9, 2);
+      group.userData.legs = [left, right];
+    }
+    group.userData.arms = createCharacterArms(group, bodyBox, {
+      offset: 15.5, shoulderY: 57, length: 30, width: 7, depth: 8, color, skin: '#dfb38c'
+    });
     parent.add(group);
     return group;
   }
@@ -128,7 +142,7 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     roomGroup.add(group);
     if (item.radius && item.id !== 'mara') shadow(group, item.radius * 2.8, item.radius * 2.2);
     if (item.id === 'mara') {
-      const mara = person(group, 0, 0, '#75546c');
+      const mara = person(group, 0, 0, '#75546c', true);
       label(mara, 'Mara the Wardkeeper');
     } else if (item.id === 'diary' || item.id === 'book') {
       box(group, 65, 8, 48, '#604437', 0, 32, 0);
@@ -330,7 +344,7 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
       hill.rotation.z = 0.35;
     }
     HOUSE_OBJECTS.forEach(furniture);
-    player = person(roomGroup, 0, 0, PLAYER_OUTFIT, true);
+    player = person(roomGroup, 0, 0, PLAYER_OUTFIT, true, PLAYER_STYLE.belt, PLAYER_STYLE);
     label(player, characterName);
   }
 
@@ -361,17 +375,17 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
 
   function draw(next) {
     state = next;
+    const moving = previousPosition && Math.hypot(state.player.x - previousPosition.x, state.player.y - previousPosition.y) > 0.01;
+    if (moving) walkingPhase += 0.35;
+    const stride = moving ? Math.sin(walkingPhase) * 0.4 : 0;
     if (renderer) {
       if (!roomGroup) buildRoom();
-      const moving = previousPosition && Math.hypot(state.player.x - previousPosition.x, state.player.y - previousPosition.y) > 0.01;
       if (moving) {
         player.rotation.y = Math.atan2(state.player.x - previousPosition.x, state.player.y - previousPosition.y);
-        walkingPhase += 0.35;
       }
-      const stride = moving ? Math.sin(walkingPhase) * 0.4 : 0;
       player.userData.legs[0].rotation.x = stride;
       player.userData.legs[1].rotation.x = -stride;
-      previousPosition = { ...state.player };
+      swingCharacterArms(player.userData.arms, stride);
       player.position.set(state.player.x, 0, state.player.y);
       const cameraX = width < 520 ? Math.max(-240, Math.min(240, state.player.x * 0.55)) : 0;
       const cameraZ = Math.max(0, Math.min(350, state.player.y * 0.75));
@@ -382,6 +396,7 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
       runeMarkers.forEach((marker, rune) => { marker.visible = !state.collectedRunes.includes(rune); });
       wardOrb.material.emissiveIntensity = state.wardSolved ? 0 : 0.6;
       wardOrb.material.color.set(state.wardSolved ? '#777078' : '#b48fca');
+      previousPosition = { ...state.player };
       renderer.render(scene, camera);
       return;
     }
@@ -412,7 +427,8 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
       const p = fallbackPoint(item.x, item.y); context.fillText(item.icon, p.x, p.y);
     });
     const p = fallbackPoint(state.player.x, state.player.y);
-    drawCharacterMarker(context, p.x, p.y, PLAYER_OUTFIT, Math.max(0.7, scale));
+    drawCharacterMarker(context, p.x, p.y, PLAYER_OUTFIT, { ...PLAYER_STYLE, scale: Math.max(0.7, scale), stride });
+    previousPosition = { ...state.player };
   }
 
   function handleClick(event) {

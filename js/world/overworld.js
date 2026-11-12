@@ -7,7 +7,8 @@ import { WORLD_NPCS } from './world-npcs.js';
 import { birthdayProgress } from '../progression.js';
 import { speechBubblePosition } from './speech-bubble.js';
 import { createCollision, findWorldPath, worldObstacles } from './world-collision.js';
-import { CHARACTER_HAIR, PLAYER_OUTFIT } from '../character-appearance.js';
+import { CHARACTER_HAIR, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES } from '../character-appearance.js';
+import { TATTOO_ACCENT, TATTOO_INK } from '../character-body.js';
 
 const WALK_SPEED = 220;
 const PLAYER_RADIUS = 12;
@@ -22,24 +23,35 @@ function entranceLabelOffset(index) {
   return index === 3 ? { x: -90, y: -50 } : { x: 0, y: -35 };
 }
 
-function drawPerson(ctx, color, moving, time, longHair = false) {
+function drawPerson(ctx, color, moving, time, longHair = false, hair = CHARACTER_HAIR, belt = '#dbbd79') {
   const stride = moving ? Math.sin(time / 120) * 5 : 0;
   ctx.fillStyle = 'rgba(10, 20, 15, .38)';
   ctx.beginPath(); ctx.ellipse(4, 2, 19, 7, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#36362e'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+  const isPlayer = color === PLAYER_OUTFIT;
+  ctx.strokeStyle = isPlayer ? '#d7aa83' : '#36362e'; ctx.lineWidth = 7; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(-4, -18); ctx.lineTo(-6 + stride, -2);
   ctx.moveTo(4, -18); ctx.lineTo(6 - stride, -2); ctx.stroke();
+  if (isPlayer) {
+    ctx.strokeStyle = TATTOO_INK; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(4.5, -12); ctx.lineTo(5 - stride * 0.65, -5); ctx.stroke();
+    ctx.fillStyle = TATTOO_ACCENT; ctx.fillRect(4 - stride * 0.4, -9, 2, 2);
+    ctx.fillStyle = PLAYER_STYLE.shorts; ctx.fillRect(-10, -20, 20, 9);
+  }
   ctx.fillStyle = '#392d25'; ctx.fillRect(-12 + stride, -4, 10, 5); ctx.fillRect(2 - stride, -4, 10, 5);
-  ctx.fillStyle = '#d2bd86'; ctx.beginPath(); ctx.moveTo(-9, -42); ctx.lineTo(9, -42);
+  if (longHair) { ctx.fillStyle = hair; ctx.fillRect(-10, -54, 20, 28); }
+  ctx.fillStyle = color === PLAYER_OUTFIT ? color : '#d2bd86'; ctx.beginPath(); ctx.moveTo(-9, -42); ctx.lineTo(9, -42);
   ctx.lineTo(13, -17); ctx.lineTo(-12, -17); ctx.closePath(); ctx.fill();
   ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(-11, -41); ctx.lineTo(0, -36); ctx.lineTo(11, -41);
   ctx.lineTo(9, -16); ctx.lineTo(-10, -16); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = '#dbbd79'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -36); ctx.lineTo(0, -19); ctx.stroke();
-  ctx.strokeStyle = color; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(-10, -37); ctx.lineTo(-15, -23);
-  ctx.moveTo(10, -37); ctx.lineTo(15, -23); ctx.stroke();
-  if (longHair) { ctx.fillStyle = CHARACTER_HAIR; ctx.fillRect(-8, -54, 16, 23); }
+  ctx.strokeStyle = color === PLAYER_OUTFIT ? '#44474b' : '#dbbd79'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -36); ctx.lineTo(0, -19); ctx.stroke();
+  ctx.fillStyle = belt; ctx.fillRect(-10, -20, 20, 3);
+  ctx.strokeStyle = color; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(-10, -37); ctx.lineTo(-15, -23 - stride * 0.5);
+  ctx.moveTo(10, -37); ctx.lineTo(15, -23 + stride * 0.5); ctx.stroke();
   ctx.fillStyle = '#e1b58d'; ctx.beginPath(); ctx.arc(0, -50, 8, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#46342a'; ctx.beginPath(); ctx.arc(0, -54, 8, Math.PI, 0); ctx.lineTo(8, -51); ctx.lineTo(-8, -51); ctx.fill();
+  ctx.fillStyle = hair; ctx.beginPath(); ctx.arc(0, -54, 9, Math.PI, 0); ctx.lineTo(9, -53); ctx.lineTo(-9, -53); ctx.fill();
+  ctx.fillRect(-8, -56, 10, 4);
+  if (longHair) { ctx.fillRect(-10, -52, 3, 22); ctx.fillRect(7, -52, 3, 22); }
+  ctx.fillStyle = '#49382f'; ctx.fillRect(-4, -50, 2, 2); ctx.fillRect(2, -50, 2, 2);
 }
 
 function label(ctx, text, y, color = '#f2e3b1') {
@@ -248,7 +260,8 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
           ctx.lineWidth = 2; ctx.setLineDash([5, 6]); ctx.beginPath();
           ctx.ellipse(0, 0, INTERACTION_RANGE, INTERACTION_RANGE * 0.68, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
         }
-        drawPerson(ctx, index === 4 ? '#765849' : '#725b46', false, state.frame);
+        const { longHair, hair } = GUIDE_HAIRSTYLES[index % GUIDE_HAIRSTYLES.length];
+        drawPerson(ctx, index === 4 ? '#765849' : '#725b46', false, state.frame, longHair, hair);
         ctx.fillStyle = available ? '#d9b866' : '#8b9692';
         ctx.strokeStyle = '#2c2920'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(0, -80, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -268,17 +281,18 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
         ctx.restore();
       }
     }));
-    WORLD_NPCS.forEach((npc) => actors.push({
+    WORLD_NPCS.forEach((npc, index) => actors.push({
       x: npc.x, y: npc.y,
       draw(ctx) {
-        drawPerson(ctx, npc.color, false, state.frame);
+        const { longHair, hair } = TOWNSFOLK_HAIRSTYLES[index % TOWNSFOLK_HAIRSTYLES.length];
+        drawPerson(ctx, npc.color, false, state.frame, longHair, hair);
         label(ctx, npc.name, -78);
       }
     }));
     actors.push({
       ...state.player,
       draw(ctx) {
-        drawPerson(ctx, PLAYER_OUTFIT, Boolean(state.target || state.keys.size || state.heldDirections.size), state.frame, true);
+        drawPerson(ctx, PLAYER_OUTFIT, Boolean(state.target || state.keys.size || state.heldDirections.size), state.frame, true, CHARACTER_HAIR, PLAYER_STYLE.belt);
         label(ctx, `${characterName.toUpperCase()} · ${birthdayProgress(state.completed, state.finaleCompleted).level}`, -70);
       }
     });

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { CELL, FRIGHT_MAZE, FRIGHT_OBJECTS, FRIGHT_THEMES, SIZE } from './fright-logic.js';
-import { CHARACTER_HAIR, PLAYER_OUTFIT, drawCharacterMarker } from '../character-appearance.js';
+import { PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker } from '../character-appearance.js';
+import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
+import { createPlayerLegs } from './character-legs.js';
 
 export function createFrightScene(canvas, onSelect, characterName = 'Adventurer') {
   const probe = document.createElement('canvas').getContext('webgl2');
@@ -15,6 +17,7 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
   const raycaster = new THREE.Raycaster();
   const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const torsoGeometry = createCharacterTorsoGeometry();
   const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
   const coneGeometry = new THREE.ConeGeometry(0.5, 1, 4);
   const sphereGeometry = new THREE.SphereGeometry(0.5, 14, 10);
@@ -297,14 +300,24 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
       mesh.scale.set(w, h, d); mesh.position.set(x, y, z); player.add(mesh);
       return mesh;
     };
-    person(25, 36, 17, PLAYER_OUTFIT, 0, 42, 0);
-    person(18, 19, 18, '#dfb38c', 0, 70, 0);
-    person(20, 6, 20, '#40342d', 0, 82, 0);
-    person(20, 25, 5, CHARACTER_HAIR, 0, 71, -10);
-    const legs = [person(9, 24, 10, '#342f2b', -7, 12, 0), person(9, 24, 10, '#342f2b', 7, 12, 0)];
-    person(7, 28, 8, PLAYER_OUTFIT, -16, 43, 0);
-    person(7, 28, 8, PLAYER_OUTFIT, 16, 43, 0);
-    player.userData.legs = legs;
+    const torso = new THREE.Mesh(torsoGeometry, material(PLAYER_OUTFIT));
+    torso.position.set(0, 42, 0); torso.scale.set(25, 36, 17); player.add(torso);
+    person(25, 4, 18, PLAYER_STYLE.belt, 0, 26, 0);
+    addCharacterHeadDetails((x, y, z, w, h, d, color) => person(w, h, d, color, x, y, z),
+      (x, y, z, w, h, d, color) => {
+        const part = new THREE.Mesh(sphereGeometry, material(color));
+        part.position.set(x, y, z); part.scale.set(w, h, d); player.add(part);
+      }, { headY: 70, width: 18, height: 19, depth: 18, skin: '#dfb38c', longHair: true });
+    const bodyBox = (x, y, z, w, h, d, color, parent) => {
+      const mesh = new THREE.Mesh(geometry, material(color));
+      mesh.scale.set(w, h, d); mesh.position.set(x, y, z); parent.add(mesh);
+      return mesh;
+    };
+    player.userData.legs = createPlayerLegs(player, bodyBox, { offset: 7, height: 24,
+      shoeColor: '#5a4434', shortsColor: PLAYER_STYLE.shorts, skin: '#dfb38c' });
+    player.userData.arms = createCharacterArms(player, bodyBox, {
+      offset: 15, shoulderY: 57, length: 28, width: 7, depth: 8, color: PLAYER_OUTFIT, skin: '#dfb38c'
+    });
     scene.add(player);
     const torch = new THREE.PointLight('#ffd9a0', 4.5, 330, 1.3);
     torch.position.set(0, 60, 25); player.add(torch);
@@ -339,17 +352,17 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
   }
   function draw(next) {
     state = next;
+    const moving = previousPosition && (previousPosition.x !== state.player.x || previousPosition.y !== state.player.y);
+    if (moving) walkingPhase += 0.3;
+    const stride = moving ? Math.sin(walkingPhase) * 0.4 : 0;
     if (renderer) {
       player.position.set(state.player.x, 0, state.player.y);
-      if (previousPosition && (previousPosition.x !== state.player.x || previousPosition.y !== state.player.y)) {
+      if (moving) {
         player.rotation.y = Math.atan2(state.player.x - previousPosition.x, state.player.y - previousPosition.y);
-        walkingPhase += 0.3;
-        player.userData.legs[0].rotation.x = Math.sin(walkingPhase) * 0.4;
-        player.userData.legs[1].rotation.x = -Math.sin(walkingPhase) * 0.4;
-      } else {
-        player.userData.legs[0].rotation.x = 0;
-        player.userData.legs[1].rotation.x = 0;
       }
+      player.userData.legs[0].rotation.x = stride;
+      player.userData.legs[1].rotation.x = -stride;
+      swingCharacterArms(player.userData.arms, stride);
       previousPosition = { ...state.player };
       playerLabel.position.set(state.player.x, 108, state.player.y);
       camera.position.set(state.player.x + 400, 900, state.player.y + 600);
@@ -386,7 +399,8 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
         context.textAlign = 'center'; context.fillText(`${theme.name} ${object.kind}`, p.x, p.y - 20 * scale);
       }
     });
-    drawCharacterMarker(context, width / 2, height / 2, PLAYER_OUTFIT, scale);
+    drawCharacterMarker(context, width / 2, height / 2, PLAYER_OUTFIT, { ...PLAYER_STYLE, scale, stride });
+    previousPosition = { ...state.player };
   }
   function handleClick(event) {
     if (!state) return;
@@ -410,7 +424,7 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
     dispose() {
       canvas.removeEventListener('click', handleClick);
       cancelAnimationFrame(animationFrame);
-      [geometry, cylinderGeometry, coneGeometry, sphereGeometry].forEach((entry) => entry.dispose()); materials.forEach((entry) => entry.dispose()); textures.forEach((entry) => entry.dispose()); renderer?.dispose();
+      [geometry, torsoGeometry, cylinderGeometry, coneGeometry, sphereGeometry].forEach((entry) => entry.dispose()); materials.forEach((entry) => entry.dispose()); textures.forEach((entry) => entry.dispose()); renderer?.dispose();
     }
   };
 }

@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { nearTrophyExit, placeKeepsake, presentAvailable, TROPHY_EXIT } from './trophy-logic.js';
 import { createTrophyModel } from './trophy-models.js';
 import { createCollision, findWorldPath } from '../world/world-collision.js';
-import { createCharacterLegs } from './character-legs.js';
+import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
 import { BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, birthdayArrivalPath, birthdayFamilyPaths, createBirthdayEnding } from './birthday-ending.js';
-import { CAT_OUTFIT, CHARACTER_HAIR, PLAYER_OUTFIT, drawCharacterMarker } from '../character-appearance.js';
+import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker } from '../character-appearance.js';
+import { addJapaneseSleeve, createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 
 const slots = [
   { x: 110, z: 120 }, { x: 255, z: 120 }, { x: 400, z: 120 },
@@ -19,7 +20,7 @@ const padDirections = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] 
 
 export function mountTrophyRoom(root, { characterName, memories, images, completed, displays, onDisplays, onPresent, onLeave, onMessage }) {
   let placed = [...displays], player = { x: 400, z: 490 }, disposed = false, frame = 0, last = 0;
-  let width = 1, height = 1, target = null, path = [], pendingExit = false, walkPhase = 0, facing = 0;
+  let width = 1, height = 1, target = null, path = [], pendingExit = false, walkPhase = 0, facing = 0, playerStride = 0;
   let endingPhase = 'idle', endingLine = null, lovePosition = { ...BIRTHDAY_ENTRANCE }, lovePath = [], loveFacing = 0, loveWalk = 0;
   let familyElapsed = 0, endingPlayerPath = [], ticketReceived = false;
   const keys = new Set(), held = new Set(), textures = [], materials = [];
@@ -65,6 +66,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   if (!renderer && !ctx) throw new Error('Could not initialize the trophy room.');
   const scene = new THREE.Scene(), camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 3000);
   const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const torsoGeometry = createCharacterTorsoGeometry();
   const cylinder = new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
   const orb = new THREE.SphereGeometry(0.5, 16, 10);
   const cone = new THREE.ConeGeometry(0.5, 1, 8);
@@ -313,28 +315,32 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   }
   const person = new THREE.Group(); scene.add(person);
   addShadow(person, 0, 2, 65, 45);
-  box(0, 37, 0, 24, 36, 17, PLAYER_OUTFIT, person);
-  box(0, 37, -10, 20, 30, 3, '#745440', person);
-  box(0, 24, 1, 25, 4, 19, '#bd9e68', person);
-  box(0, 66, 0, 18, 18, 18, '#dfb38c', person);
-  box(0, 77, 0, 20, 6, 20, '#47372e', person);
-  box(0, 66, -10, 20, 25, 5, CHARACTER_HAIR, person);
-  for (const x of [-4, 4]) box(x, 68, 10, 3, 3, 2, '#49382f', person);
-  for (const x of [-16, 16]) box(x, 40, 0, 7, 28, 8, PLAYER_OUTFIT, person);
-  const legs = createCharacterLegs(person, box, 6, '#5a4434');
+  round(torsoGeometry, 0, 37, 0, 24, 36, 17, PLAYER_OUTFIT, person);
+  box(0, 24, 1, 25, 4, 19, PLAYER_STYLE.belt, person);
+  addCharacterHeadDetails((x, y, z, w, h, d, shade) => box(x, y, z, w, h, d, shade, person),
+    (x, y, z, w, h, d, shade) => round(orb, x, y, z, w, h, d, shade, person),
+    { headY: 66, width: 18, height: 18, depth: 18, skin: '#dfb38c', hairLength: PLAYER_STYLE.hairLength });
+  const arms = createCharacterArms(person, box, { offset: 15, shoulderY: 54, length: 28, width: 7, depth: 8, color: PLAYER_OUTFIT, skin: '#dfb38c' });
+  const legs = createPlayerLegs(person, box, { offset: 6, shoeColor: '#5a4434', shortsColor: PLAYER_STYLE.shorts, skin: '#dfb38c' });
   const love = new THREE.Group(); scene.add(love);
   addShadow(love, 0, 2, 65, 45);
-  box(0, 37, 0, 24, 36, 17, CAT_OUTFIT, love);
-  box(0, 24, 1, 25, 4, 19, '#d6b696', love);
-  box(0, 66, 0, 18, 18, 18, '#dfb38c', love);
-  box(0, 77, 0, 20, 6, 20, '#47372e', love);
-  box(0, 66, -10, 20, 25, 5, CHARACTER_HAIR, love);
-  for (const x of [-4, 4]) box(x, 68, 10, 3, 3, 2, '#49382f', love);
-  for (const x of [-16, 16]) {
-    box(x, 40, 4, 7, 24, 8, CAT_OUTFIT, love);
-    box(x / 2, 30, 14, 17, 7, 7, CAT_OUTFIT, love);
+  round(torsoGeometry, 0, 37, 0, 24, 36, 17, CAT_OUTFIT, love);
+  box(0, 24, 1, 25, 4, 19, CAT_STYLE.belt, love);
+  box(0, 24, 11, 5, 3, 2, CAT_STYLE.buckle, love);
+  addCharacterHeadDetails((x, y, z, w, h, d, shade) => box(x, y, z, w, h, d, shade, love),
+    (x, y, z, w, h, d, shade) => round(orb, x, y, z, w, h, d, shade, love),
+    { headY: 66, width: 18, height: 18, depth: 18, skin: '#dfb38c', hairLength: CAT_STYLE.hairLength });
+  for (const x of [-15, 15]) {
+    box(x, 45, 4, 7, 14, 8, CAT_OUTFIT, love);
+    box(x, 35, 4, 7, 7, 8, '#dfb38c', love);
+    box(x / 2, 30, 14, 17, 7, 7, '#dfb38c', love);
+    box(x / 2, 30, 19, 7, 6, 6, '#dfb38c', love);
   }
-  const loveLegs = createCharacterLegs(love, box, 6, '#5a4434');
+  addJapaneseSleeve((...args) => box(...args, love),
+    { x: -15, y: 35, z: 4, width: 7, height: 7, depth: 8 });
+  addJapaneseSleeve((...args) => box(...args, love),
+    { x: -7.5, y: 30, z: 14, width: 17, height: 7, depth: 7 });
+  const loveLegs = createCharacterLegs(love, box, 6, '#5a4434', CAT_STYLE.trousers);
   const ticket = new THREE.Group(); love.add(ticket);
   box(0, 0, 0, 30, 20, 2, '#f2c56b', ticket);
   for (const x of [-10, 10]) for (const y of [-5, 0, 5]) box(x, y, 2, 2, 2, 1, '#9b6739', ticket);
@@ -342,19 +348,20 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   const family = BIRTHDAY_FAMILY.map((member) => {
     const model = new THREE.Group(); scene.add(model); model.scale.setScalar(member.size);
     addShadow(model, 0, 2, 65, 45);
-    box(0, 37, 0, 24, 36, 17, member.outfit, model);
+    round(torsoGeometry, 0, 37, 0, 24, 36, 17, member.outfit, model);
     box(0, 24, 1, 25, 4, 19, '#bd9e68', model);
-    box(0, 66, 0, 18, 18, 18, '#dfb38c', model);
-    box(0, 77, 0, 20, 6, 20, member.hair, model);
-    if (['gran', 'mum', 'sister'].includes(member.id)) box(0, 61, -8, 20, 24, 5, member.hair, model);
-    for (const x of [-4, 4]) box(x, 68, 10, 3, 3, 2, '#49382f', model);
-    for (const x of [-16, 16]) {
-      box(x, 40, 0, 7, 28, 8, member.outfit, model);
-      if (member.id === 'gran') {
+    addCharacterHeadDetails((x, y, z, w, h, d, shade) => box(x, y, z, w, h, d, shade, model),
+      (x, y, z, w, h, d, shade) => round(orb, x, y, z, w, h, d, shade, model),
+      { headY: 66, width: 18, height: 18, depth: 18, skin: '#dfb38c', hair: member.hair,
+        longHair: ['gran', 'mum', 'sister'].includes(member.id) });
+    let guestArms = null;
+    if (member.id === 'gran') {
+      for (const x of [-15, 15]) {
+        box(x, 40, 0, 7, 28, 8, member.outfit, model);
         box(x, 35, 12, 7, 7, 24, member.outfit, model);
         box(x, 35, 25, 7, 6, 8, '#dfb38c', model);
       }
-    }
+    } else guestArms = createCharacterArms(model, box, { offset: 15, shoulderY: 54, length: 28, width: 7, depth: 8, color: member.outfit, skin: '#dfb38c' });
     if (member.id === 'gran') {
       round(cylinder, 0, 40, 25, 36, 3, 36, '#e1cda8', model);
       round(cylinder, 0, 47, 25, 30, 12, 30, '#b77964', model);
@@ -365,7 +372,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
       }
     }
     return {
-      member, model, legs: createCharacterLegs(model, box, 6, '#5a4434'),
+      member, model, arms: guestArms, legs: createCharacterLegs(model, box, 6, '#5a4434'),
       position: { ...BIRTHDAY_ENTRANCE }, route: [], visible: false, facing: 0, walk: 0
     };
   });
@@ -448,9 +455,9 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
         }
       });
       if (ready) { ctx.fillStyle = '#b8495d'; ctx.fillRect(gift.x - 25, gift.z - 25, 50, 50); ctx.fillStyle = '#e8c879'; ctx.fillRect(gift.x - 5, gift.z - 25, 10, 50); }
-      drawCharacterMarker(ctx, player.x, player.z, PLAYER_OUTFIT);
+      drawCharacterMarker(ctx, player.x, player.z, PLAYER_OUTFIT, { ...PLAYER_STYLE, stride: playerStride });
       if (love.visible) {
-        drawCharacterMarker(ctx, lovePosition.x, lovePosition.y, CAT_OUTFIT);
+        drawCharacterMarker(ctx, lovePosition.x, lovePosition.y, CAT_OUTFIT, CAT_STYLE);
         if (ticket.visible) {
           ctx.fillStyle = '#f2c56b'; ctx.fillRect(lovePosition.x - 8, lovePosition.y + 8, 16, 9);
           ctx.fillStyle = '#9b6739'; ctx.fillRect(lovePosition.x - 4, lovePosition.y + 10, 2, 5);
@@ -458,10 +465,9 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
       }
       family.forEach((guest) => {
         if (!guest.model.visible) return;
-        ctx.fillStyle = guest.member.outfit; ctx.beginPath();
-        ctx.arc(guest.position.x, guest.position.y, 16 * guest.member.size, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = guest.member.hair; ctx.beginPath();
-        ctx.arc(guest.position.x, guest.position.y - 3 * guest.member.size, 6 * guest.member.size, 0, Math.PI * 2); ctx.fill();
+        drawCharacterMarker(ctx, guest.position.x, guest.position.y, guest.member.outfit,
+          { scale: guest.member.size, hair: guest.member.hair, hairLength: ['gran', 'mum', 'sister'].includes(guest.member.id) ? 'long' : 'short',
+            stride: guest.member.id === 'gran' ? 0 : guest.legs[0].rotation.x });
         if (guest.member.id === 'gran') {
           ctx.fillStyle = '#f3debd'; ctx.beginPath(); ctx.arc(guest.position.x, guest.position.y + 13, 10, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = '#b77964'; ctx.beginPath(); ctx.arc(guest.position.x, guest.position.y + 13, 7, 0, Math.PI * 2); ctx.fill();
@@ -639,6 +645,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
         if (!guest.route.length) guest.facing = Math.atan2(player.x - guest.position.x, player.z - guest.position.y);
         guest.legs[0].rotation.x = guest.route.length ? Math.sin(guest.walk) * 0.4 : 0;
         guest.legs[1].rotation.x = -guest.legs[0].rotation.x;
+        if (guest.arms) swingCharacterArms(guest.arms, guest.legs[0].rotation.x);
       });
     }
     loveLegs[0].rotation.x = endingPhase === 'arriving' ? Math.sin(loveWalk) * 0.4 : 0;
@@ -665,8 +672,10 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
       facing = Math.atan2(dx, dz);
       walkPhase += dt * 10;
     }
-    legs[0].rotation.x = distance || stagingWalk ? Math.sin(walkPhase) * 0.4 : 0;
-    legs[1].rotation.x = -legs[0].rotation.x;
+    playerStride = distance || stagingWalk ? Math.sin(walkPhase) * 0.4 : 0;
+    legs[0].rotation.x = playerStride;
+    legs[1].rotation.x = -playerStride;
+    swingCharacterArms(arms, playerStride);
     flames.forEach((flame, i) => { flame.scale.y = 18 + Math.sin(time / 180 + i) * 3; });
     sparkles.forEach((sparkle) => { sparkle.position.y = 75 + sparkle.userData.phase % 3 * 10 + Math.sin(time / 500 + sparkle.userData.phase) * 6; });
     render(); frame = requestAnimationFrame(tick);
@@ -684,9 +693,9 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     root.removeEventListener('pointerup', pointerUp); root.removeEventListener('pointercancel', pointerUp);
     document.removeEventListener('keydown', keydown); document.removeEventListener('keyup', keyup); window.removeEventListener('blur', clearInput);
     scene.traverse((object) => {
-      if (object.isMesh && ![geometry, cylinder, orb, cone, shadowGeometry].includes(object.geometry)) object.geometry.dispose();
+      if (object.isMesh && ![geometry, torsoGeometry, cylinder, orb, cone, shadowGeometry].includes(object.geometry)) object.geometry.dispose();
     });
-    [geometry, cylinder, orb, cone, shadowGeometry].forEach((shape) => shape.dispose());
+    [geometry, torsoGeometry, cylinder, orb, cone, shadowGeometry].forEach((shape) => shape.dispose());
     textures.forEach((texture) => texture.dispose()); materials.forEach((mat) => mat.dispose()); renderer?.dispose();
   };
 }
