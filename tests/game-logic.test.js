@@ -227,7 +227,7 @@ test('camera stays within the world or centers a viewport larger than the world'
 
 test('adjoining regions cover the whole world and retain their quest landmarks', () => {
   assert.equal(regionBlendAt(WORLD_SPAWN).region.id, 'home');
-  assert.equal(regionBlendAt(WORLD_SPAWN).region.name, 'LUMBRIDGE CASTLE · GIELINOR');
+  assert.equal(regionBlendAt(WORLD_SPAWN).region.name, 'LUMBRIDGE CASTLE · GAYLINOR');
   const expected = ['escape', 'town', 'park', 'forest', 'harvest'];
   QUEST_LOCATIONS.forEach((quest, index) => {
     assert.equal(regionBlendAt(quest).region.id, expected[index]);

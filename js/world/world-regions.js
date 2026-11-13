@@ -1,7 +1,7 @@
 import { QUEST_LOCATIONS, WORLD_SPAWN } from './world-data.js';
 
 export const WORLD_REGIONS = Object.freeze([
-  Object.freeze({ id: 'home', center: WORLD_SPAWN, name: 'LUMBRIDGE CASTLE · GIELINOR', color: [113, 132, 75] }),
+  Object.freeze({ id: 'home', center: WORLD_SPAWN, name: 'LUMBRIDGE CASTLE · GAYLINOR', color: [113, 132, 75] }),
   Object.freeze({ id: 'escape', center: QUEST_LOCATIONS[0], name: QUEST_LOCATIONS[0].region, color: [68, 78, 70] }),
   Object.freeze({ id: 'town', center: QUEST_LOCATIONS[1], name: QUEST_LOCATIONS[1].region, color: [151, 137, 106] }),
   Object.freeze({ id: 'park', center: QUEST_LOCATIONS[2], name: QUEST_LOCATIONS[2].region, color: [160, 137, 100] }),
