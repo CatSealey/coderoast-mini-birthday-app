@@ -33,7 +33,7 @@ password or rely on it to protect private content.
   story spoilers.
 - [Project guide](docs/PROJECT.md) — architecture, saves, development and tests.
 - [Quest reference](docs/QUESTS.md) — detailed gameplay notes and spoilers.
-- [Deployment guide](docs/DEPLOYMENT.md) — Cloudflare Pages, domain setup and
+- [Deployment guide](docs/DEPLOYMENT.md) — GitHub Pages, domain setup and
   privacy.
 - [Release checklist](docs/RELEASE-CHECKLIST.md) — checks before sharing.
 - [Asset credits and permissions](docs/ASSET-CREDITS.md) — soundtrack and asset

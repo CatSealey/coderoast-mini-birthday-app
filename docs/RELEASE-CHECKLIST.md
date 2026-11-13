@@ -44,7 +44,9 @@ expected outcomes.
 - [ ] Confirm the Pages build succeeded and the intended revision is live.
 - [ ] Check the actual custom domain and HTTPS once configured; test login,
   music, an interaction and save/reload on the deployed site.
-- [ ] If privacy is required, verify that access controls cover the custom
-  domain, production `pages.dev` address and preview URLs, without a bypass.
-- [ ] Remember that progress on `pages.dev` and the custom domain is separate.
-  Test with isolated storage and do not clear a player's existing save.
+- [ ] Remember that GitHub Pages is normally public, even for a private
+  repository. If privacy is required, confirm an appropriate protection
+  arrangement covers every address serving the site before sharing.
+- [ ] Remember that progress on the default GitHub Pages address and the
+  custom domain is separate. Test with isolated storage and do not clear a
+  player's existing save.

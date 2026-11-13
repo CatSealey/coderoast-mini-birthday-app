@@ -1,152 +1,136 @@
 # Deploying the birthday adventure
 
-This guide uses Cloudflare Pages and the GitHub repository
-`CatSealey/coderoast-mini-birthday-app`. The app is a static Vite site: it
-does not need a dedicated server or database. A Git-connected Pages project
-builds the site and publishes `dist/` when its production branch is updated.
+The game is a static Vite site. This guide uses GitHub Pages and the
+`CatSealey/coderoast-mini-birthday-app` repository to publish it at the
+planned address `gaylinor.code-roast.com`. The repository's
+[deployment workflow](../.github/workflows/deploy.yml) builds `dist/` and
+deploys it when changes are pushed to `main` or the workflow is run manually.
 
 ## Before you deploy
 
-- Confirm that the version you want to publish, including the files in
-  `public/music/`, has been committed and pushed to the GitHub branch you
-  intend to deploy.
-- Have access to your Cloudflare account, GitHub repository and the DNS
-  provider for `code-roast.com`.
-- Decide whether to use a subdomain such as `birthday.code-roast.com` or the
-  root domain `code-roast.com`. The subdomain is less likely to affect an
-  existing website.
+- Check your GitHub plan and repository visibility. GitHub Free requires a
+  **public repository** for Pages; some paid plans support Pages from a private
+  repository. Do not make the repository public without first reviewing its
+  contents. GitHub Pages sites are normally **public even if the repository is
+  private**.
 - Confirm you have the rights needed to publish or distribute the music.
-  Recordings in the deployed site can be downloaded by visitors. A private
-  GitHub repository does not make the deployed site private.
-- Decide whether the game needs real access protection. The in-game password
-  is only a casual client-side gate, not authentication. It is embedded in the
-  downloaded JavaScript and can be found or bypassed. Never reuse a sensitive
-  password. See [Privacy and access](#privacy-and-access) before publishing
-  personal content.
+  Anyone who can access the site can download its recordings. See the
+  [asset inventory](ASSET-CREDITS.md).
+- The in-game password is a client-side gate, not real authentication. It is
+  embedded in the site and can be found or bypassed. Don't reuse a sensitive
+  password or publish content that requires privacy.
+- Have access to the repository settings and to the DNS provider for
+  `code-roast.com`. Using a subdomain avoids replacing an existing site at
+  the root domain.
+- Commit and push the workflow and the version you want to publish, including
+  the required files in `public/music/`. **Once Pages and the secret are set
+  up, pushes to `main` automatically deploy.**
 
-## 1. Connect the repository
+## 1. Configure GitHub Pages
 
-1. Sign in to the [Cloudflare dashboard](https://dash.cloudflare.com/) and
-   open **Workers & Pages**.
-2. Select **Create application → Pages → Connect to Git**, connect GitHub and
-   authorize access to the repository.
-3. Select `CatSealey/coderoast-mini-birthday-app` and configure the project:
+1. In the repository on GitHub, open **Settings → Secrets and variables →
+   Actions**. Under **Repository secrets**, add `VITE_APP_PASSWORD` with a
+   password chosen for this game. Do not put its value in the repository or
+   a chat message.
+2. Open **Settings → Pages**. Under **Build and deployment → Source**, select
+   **GitHub Actions**.
+3. Push the workflow to `main`, or open **Actions → Deploy to GitHub Pages**
+   and select **Run workflow** on `main` once the workflow is present.
+4. Open the workflow run in **Actions** to check its progress. The workflow
+   uses Node.js 22, runs `npm ci`, builds with `npm run build -- --base=./`,
+   uploads `dist/` and deploys it to Pages.
 
-   | Setting | Value |
-   | --- | --- |
-   | Production branch | `main` |
-   | Root directory | Repository root |
-   | Build command | `npm run build` |
-   | Build output directory | `dist` |
-   | Node.js | 22 |
+The build deliberately fails if the repository secret is missing. The
+password is read at **build time**, not when a visitor opens the site. After
+changing the secret, run the workflow again or push another change. The local
+`.env.local` file is Git-ignored and is not available to the workflow.
+Although GitHub stores the value as a secret, Vite embeds it in the public
+site, so it must not be a sensitive password.
 
-4. Set the build environment variable `NODE_VERSION` to `22`. Also add
-   `VITE_APP_PASSWORD` with a password chosen for this game. Set the password
-   in the dashboard, not in the repository or a chat message.
-5. Select **Save and Deploy**. If the dashboard requires you to create the
-   project before adding variables, add them under **Settings → Environment
-   variables** for the production environment and then redeploy.
+The relative Vite base allows the same build to load its assets at the
+custom-domain root and under the default project URL,
+`https://catsealey.github.io/coderoast-mini-birthday-app/`. Until the custom
+domain is configured, use the URL shown in **Settings → Pages**; GitHub may
+redirect the default URL after the domain is configured.
 
-The password is evaluated at **build time**. Changing the variable requires a
-new build and deployment. The local `.env.local` file is Git-ignored and is
-not automatically available to Cloudflare. If `VITE_APP_PASSWORD` is missing,
-the login button is disabled. Preview deployments have separate environment
-settings; configure them deliberately if you use previews.
+## 2. Connect `gaylinor.code-roast.com`
 
-Cloudflare provides a `*.pages.dev` address after deployment. Check the build
-logs if deployment fails. The normal Vite large-chunk warning is not itself a
-build failure; the build must still complete successfully.
-
-## 2. Connect `code-roast.com`
-
-### Recommended: a subdomain
-
-These steps use `birthday.code-roast.com` as an example:
-
-1. In the Pages project, open **Custom domains → Set up a domain** and add
-   `birthday.code-roast.com`.
-2. Follow Cloudflare's instructions to create the DNS record. If DNS is
-   managed elsewhere, add the CNAME at that provider:
+1. Verify `code-roast.com` in your GitHub account's Pages settings, following
+   [GitHub's domain verification instructions](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/verifying-your-custom-domain-for-github-pages).
+   This helps prevent domain takeovers.
+2. In the repository's **Settings → Pages**, enter
+   `gaylinor.code-roast.com` under **Custom domain** and save it.
+3. At your DNS provider, add a CNAME:
 
    | Type | Host/name | Target |
    | --- | --- | --- |
-   | CNAME | `birthday` | Your project's exact `*.pages.dev` hostname |
+   | CNAME | `gaylinor` | `catsealey.github.io` |
 
-   DNS providers differ: some expect `birthday`, others the full hostname.
-   Use the value shown by Cloudflare and avoid a conflicting existing record.
-3. Wait until Cloudflare reports the domain and HTTPS certificate are active,
-   then visit `https://birthday.code-roast.com`.
+   Some DNS providers expect the full hostname rather than `gaylinor`.
+   The target is the account's GitHub Pages hostname, **without** the
+   repository name. Avoid conflicting records and wildcard DNS entries.
+4. Wait for DNS and GitHub's certificate to become ready. In **Settings →
+   Pages**, enable **Enforce HTTPS** when available, then visit
+   `https://gaylinor.code-roast.com`.
 
-Adding the CNAME alone is not enough: associate the hostname with the Pages
-project in Cloudflare first. If Cloudflare already manages the domain's DNS,
-the dashboard can create the record for you.
-
-### Alternative: the root domain
-
-For `code-roast.com` itself, Cloudflare Pages requires the domain to be a
-Cloudflare zone and its nameservers to point to Cloudflare. Before changing
-nameservers, check and preserve all existing DNS records, including records
-used by any website, email or other services. Nameserver changes can interrupt
-those services if the records are not configured correctly.
-
-See Cloudflare's [custom domain guide](https://developers.cloudflare.com/pages/configuration/custom-domains/)
-for current instructions.
+Add the domain in GitHub before pointing DNS at it. If Cloudflare manages your
+DNS, use its DNS settings for the CNAME; Cloudflare Pages is not needed.
+Leave existing website and email records unchanged. See GitHub's
+[custom domain instructions](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
+and [HTTPS guide](https://docs.github.com/en/pages/getting-started-with-github-pages/securing-your-github-pages-site-with-https)
+for current details.
 
 ## 3. Verify the deployed game
 
 Test on a PC and, if wanted, a phone:
 
 - The site uses HTTPS, the login is enabled, and the chosen game password works.
-- The home song starts after entering the game. The Settings and action-bar
-  music controls mute and resume it; the displayed track changes by area.
+- Music starts after entering. Both music controls work, and the displayed
+  track changes by area.
 - The world, minimap, keyboard and touch controls work. Visit quest interiors
-  and check that interactions and music work.
-- Make a little progress, reload the page and confirm that it is restored.
-- Check the browser console and Pages build logs if an asset or feature fails.
+  and check interactions and music.
+- Make a little progress in isolated browser storage, reload and confirm it is
+  restored. See the [release checklist](RELEASE-CHECKLIST.md) for a fuller
+  playthrough.
 
 Progress is stored locally in the browser, not in an account. Each browser,
-device and origin has separate storage. For example, progress on `pages.dev`
-does not automatically appear on `birthday.code-roast.com`, and PC and phone
-saves do not sync. Clearing site data or using a private browsing session can
-remove progress. See [Project guide: saves](PROJECT.md#saves-and-progress).
+device and origin has separate storage. Progress made at the default GitHub
+Pages address does not automatically transfer to `gaylinor.code-roast.com`,
+and PC and phone saves do not sync. Clearing site data or using a private
+browsing session can remove progress. See [saves](PROJECT.md#saves-and-progress).
 
 ## Privacy and access
 
-- The client-side game password does not protect the game's assets, music or
-  personal content. Marking the build variable as a secret in the hosting
-  dashboard does not stop Vite from embedding it in the public build.
-- For actual access control, use a service such as
-  [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/)
-  and configure policies for every address that can serve the site. Verify
-  that the custom domain, production `*.pages.dev` address and any preview
-  URLs cannot bypass the intended protection. Preview deployments are public
-  by default; their access controls are separate.
-- Only publish files that you are allowed to distribute. Access protection
-  does not replace the required music permissions.
+- GitHub Pages normally publishes the site publicly, including when its
+  source repository is private. GitHub's private Pages option requires an
+  eligible Enterprise Cloud organization; it is not the ordinary Pages setup.
+- The game password and downloaded assets are accessible to visitors.
+  Storing the password as an Actions secret does not make the built value
+  private. A private repository does not protect the published music.
+- If real access control is required, use a hosting and protection arrangement
+  that covers **every** address serving the site. Protecting only the custom
+  hostname is not enough if another Pages URL remains accessible. Verify this
+  before publishing personal content.
 
 ## Updates and troubleshooting
 
-- **Publish an update:** commit and push changes to the production branch.
-  Pages builds and deploys that revision automatically. Confirm that the new
-  deployment succeeded before sharing it.
-- **Roll back:** in the Pages project's deployments list, find an earlier
-  successful production deployment and choose **Rollback** from its actions.
-  This republishes that build; it does not revert the Git branch, so address
-  the underlying change before the next deployment.
-- **Login disabled:** check the production `VITE_APP_PASSWORD` variable and
-  redeploy after setting or changing it.
-- **Music unavailable:** confirm the six MP3s are committed, use the exact
-  names listed in the [soundtrack table](ASSET-CREDITS.md#soundtrack), and are in
-  the deployed build. Check Settings and the browser console for errors.
-- **Domain does not work:** check that it was added in Pages, the CNAME points
-  to the correct Pages hostname, and DNS and certificate activation have
-  completed. DNS changes may take time.
+- **Publish an update:** commit and push to `main`. Check the Actions run and
+  the live site. You can also manually run the deployment workflow.
+- **Restore an earlier version:** revert the unwanted change on `main` and
+  let the workflow deploy the resulting revision, or manually rerun an
+  appropriate earlier workflow run if available. Check the live result.
+- **Build fails:** check the Actions logs, especially that
+  `VITE_APP_PASSWORD` is configured as a repository secret. Then rerun the
+  workflow.
+- **Music unavailable:** check that the six MP3s are committed and named as
+  in the [soundtrack table](ASSET-CREDITS.md#soundtrack). Check Settings and
+  the browser console for errors.
+- **Domain does not work:** check the GitHub Pages custom domain, the CNAME,
+  DNS propagation and certificate status.
 - **Save seems missing:** check the browser, device and exact site address
   before resetting anything. A new hostname has separate local storage.
 
-Cloudflare's [Git integration guide](https://developers.cloudflare.com/pages/get-started/git-integration/),
-[build configuration](https://developers.cloudflare.com/pages/configuration/build-configuration/)
-and [Pages limits](https://developers.cloudflare.com/pages/platform/limits/)
-are the authoritative references for dashboard changes and current limits.
-The Free plan currently limits each static asset to 25 MiB; the supplied MP3s
-are individually below that limit.
+See GitHub's [Pages setup guide](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site),
+[publishing source guide](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
+and [Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
+for current requirements and limits.
