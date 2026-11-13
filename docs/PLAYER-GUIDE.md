@@ -21,8 +21,9 @@ not create a separate save on the same browser and device.
 
 The map marks quest guides. Speak to a guide and accept their offer to add the
 quest to the journal. Follow its destination to the entrance and interact to
-begin. Select a quest in the journal to help navigate, and open **Quest
-steps** to see your progress. The journal scrolls when the list is long.
+begin. Select a quest in the journal to see its steps; use **Walk to quest**
+within the entry if you want help navigating. The journal scrolls when the
+list is long.
 
 The side-quest list offers optional encounters with Cat. Select an entry to
 find her, then speak to her to begin.
@@ -34,7 +35,8 @@ tap an item to see its name.
 
 Music starts when you enter the game. Use the music button on the action bar
 or **Settings → Music** to turn it off or on. The action bar shows the current
-track when music is playing.
+track when music is playing. A short celebration tune can still play when
+background music is off, and the previous setting returns afterwards.
 
 ## Your progress
 

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { questJournalSteps, trophyJournalSteps } from '../js/quest-journal.js';
 import { newHouseState } from '../js/games/abigail-house.js';
 import { newAdventureState } from '../js/games/adventure-logic.js';
@@ -10,6 +11,22 @@ const done = (steps, phrase) => {
   assert.ok(found, `Missing step: ${phrase}`);
   return found.done;
 };
+
+test('each quest heading expands its own steps and keeps travel as a separate action', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const entries = [...html.matchAll(/<details class="quest-steps">([\s\S]*?)<\/details>/g)];
+  assert.equal(entries.length, 6);
+  entries.forEach(([, content], index) => {
+    const heading = content.match(/<summary\b([^>]*)>[\s\S]*?<\/summary>/);
+    assert.ok(heading, 'the quest heading is a native expandable summary');
+    assert.match(heading[1], new RegExp(`id="${index === 5 ? 'trophyQuestButton' : `qbtn-${index + 1}`}"`));
+    assert.doesNotMatch(heading[1], /data-(?:level|action)=/);
+    assert.doesNotMatch(heading[0], /<button\b/);
+    assert.ok(content.includes(`id="${index === 5 ? 'trophySteps' : `questSteps-${index + 1}`}"`));
+    assert.doesNotMatch(content.match(/<ol\b[^>]*class="quest-steps__list"[^>]*>/)[0], /tabindex=/);
+    assert.ok(content.includes(index === 5 ? 'data-action="trophy-quest"' : `data-level="${index + 1}"`));
+  });
+});
 
 test('all quests start with actionable steps and legacy completions remain complete', () => {
   for (let index = 0; index < 5; index += 1) {

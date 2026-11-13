@@ -226,8 +226,8 @@
 
 .client-icon-button {
   display: grid;
-  width: 35px;
-  height: 35px;
+  width: 40px;
+  height: 40px;
   place-items: center;
   border-radius: 4px;
   font-size: 1rem;
@@ -302,6 +302,16 @@
   font-size: 1rem;
 }
 
+#questPanelTitle {
+  display: block;
+}
+
+#questPanelTitle span {
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+}
+
 .client-panel__count {
   color: #9dafbb;
   font-size: 0.65rem;
@@ -345,15 +355,49 @@
 }
 
 .quest-entry {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 38px;
-  gap: 4px;
+  position: relative;
+  min-width: 0;
 }
 
 .quest-steps {
-  grid-column: 1 / -1;
   min-width: 0;
-  padding: 6px 8px;
+}
+
+.quest-steps > summary {
+  grid-template-columns: 29px minmax(0, 1fr) 10px;
+  padding-right: 52px;
+  list-style: none;
+}
+
+.quest-steps > summary .quest-row__copy strong {
+  overflow: visible;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.quest-steps > summary .quest-row__status {
+  max-width: none;
+  text-align: left;
+}
+
+.quest-steps > summary::-webkit-details-marker {
+  display: none;
+}
+
+.quest-steps > summary::after {
+  color: #e1cc88;
+  content: '▸';
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.quest-steps[open] > summary::after {
+  content: '▾';
+}
+
+.quest-steps__body {
+  margin-top: 4px;
+  padding: 8px;
   border: 1px solid #3c4d59;
   border-radius: 4px;
   background: rgba(5, 11, 16, 0.6);
@@ -362,17 +406,15 @@
   line-height: 1.4;
 }
 
-.quest-steps summary {
+.quest-steps__heading {
+  margin: 0;
   color: #e1cc88;
-  cursor: pointer;
   font-weight: 700;
 }
 
 .quest-steps__list {
-  max-height: 180px;
   margin: 6px 0 0;
   padding: 0;
-  overflow-y: auto;
   overflow-wrap: anywhere;
   list-style: none;
 }
@@ -403,7 +445,21 @@
   list-style: none;
 }
 
+.quest-steps__travel {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+}
+
 .quest-entry__remove {
+  position: absolute;
+  z-index: 1;
+  top: 5px;
+  right: 5px;
+  width: 38px;
   min-height: 44px;
   border: 1px solid #674b48;
   border-radius: 4px;

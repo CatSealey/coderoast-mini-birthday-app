@@ -332,9 +332,10 @@ export function startGame(characterName) {
       item.append(marker, content);
       return item;
     }
-    const scrollTop = list.scrollTop;
+    const journal = list.closest('.quest-journal__scroll');
+    const scrollTop = journal.scrollTop;
     list.replaceChildren(...steps.map(renderStep));
-    list.scrollTop = scrollTop;
+    journal.scrollTop = scrollTop;
   }
 
   function renderJournalSteps(index) {
@@ -379,13 +380,11 @@ export function startGame(characterName) {
 
   function renderChapterNavigation() {
     chapters.forEach((chapter, index) => {
-      const button = document.querySelector(`#qbtn-${index + 1}`);
+      const heading = document.querySelector(`#qbtn-${index + 1}`);
       const status = document.querySelector(`#qstatus-${index + 1}`);
       document.querySelector(`#qentry-${index + 1}`).hidden = !accepted[index] && !completed[index];
-      button.disabled = false;
-      button.classList.remove('opacity-60');
-      if (index === activeChapter) button.setAttribute('aria-current', 'step');
-      else button.removeAttribute('aria-current');
+      if (index === activeChapter) heading.setAttribute('aria-current', 'step');
+      else heading.removeAttribute('aria-current');
       status.textContent = completed[index] ? 'Completed ✓' : 'Accepted';
       status.className = `quest-row__status ${completed[index] ? 'quest-row__status--complete' : 'quest-row__status--available'}`;
       renderJournalSteps(index);
@@ -397,7 +396,7 @@ export function startGame(characterName) {
     renderTrophySteps();
     renderSideQuests();
     document.querySelector('#questJournalHint').textContent = accepted.some(Boolean) || trophyQuest.accepted
-      ? 'Select an accepted quest to travel to its entrance.'
+      ? 'Select a quest to see its steps and travel options.'
       : 'Find quest givers marked on the world map, or explore the side quests below.';
   }
 

@@ -4,7 +4,7 @@ export const AREA_TRACKS = Object.freeze({
   escape: Object.freeze({ file: `${musicBase}abigail.mp3`, title: 'Talking Body — Tove Lo' }),
   town: Object.freeze({ file: `${musicBase}lucky-chucks.mp3`, title: 'Addicted — Haley Joelle' }),
   park: Object.freeze({ file: `${musicBase}thirteen.mp3`, title: 'Ocean Eyes — Billie Eilish' }),
-  forest: Object.freeze({ file: `${musicBase}goape.mp3`, title: 'Stay — Rihanna' }),
+  forest: Object.freeze({ file: `${musicBase}goape.mp3`, title: 'Follow You — Bring Me The Horizon' }),
   harvest: Object.freeze({ file: `${musicBase}fright-nights.mp3`, title: 'Take on the World — You Me At Six' })
 });
 
@@ -15,7 +15,7 @@ const happyBirthdayNotes = [
   [698, 0.18], [698, 0.18], [659, 0.36], [523, 0.36], [587, 0.36], [523, 0.84]
 ];
 
-export function createAudioController(button, environment = window, { settingsButton, onStatus = () => {} } = {}) {
+export function createAudioController(button, environment = window, { settingsButton, onStatus = () => { } } = {}) {
   const AudioContextConstructor = environment.AudioContext || environment.webkitAudioContext;
   const icon = button.querySelector('#audioIcon');
   const label = button.querySelector('#audioText');
@@ -26,7 +26,6 @@ export function createAudioController(button, environment = window, { settingsBu
   let context = null;
   let timer = 0;
   let playing = false;
-  let userChoseMusic = false;
   let celebrationPrepared = false;
   let celebrationActive = false;
   let celebrationAutoEnabled = false;
@@ -164,7 +163,7 @@ export function createAudioController(button, environment = window, { settingsBu
   }
 
   async function toggleMusic() {
-    userChoseMusic = true;
+    if (celebrationActive) celebrationAutoEnabled = false;
     playing = !playing;
     updateButton();
     if (playing) {
@@ -194,20 +193,19 @@ export function createAudioController(button, environment = window, { settingsBu
   async function prepareBirthdayCelebration() {
     const generation = ++celebrationGeneration;
     celebrationPrepared = true;
-    if (!AudioContextConstructor || (userChoseMusic && !playing)) return;
     try {
       await ensureContext();
     } catch (error) {
-      if (generation === celebrationGeneration) celebrationPrepared = false;
+      if (generation === celebrationGeneration) stopBirthdayCelebration();
       throw error;
     }
     if (!disposed && generation === celebrationGeneration && celebrationPrepared && celebrationActive && playing) startMusic();
   }
 
   function startBirthdayCelebration() {
-    if (!celebrationPrepared || !AudioContextConstructor) return;
+    if (!celebrationPrepared || !AudioContextConstructor || celebrationActive) return;
     celebrationActive = true;
-    celebrationAutoEnabled = !userChoseMusic;
+    celebrationAutoEnabled = !playing;
     if (celebrationAutoEnabled) playing = true;
     updateButton();
     startMusic();
@@ -219,7 +217,7 @@ export function createAudioController(button, environment = window, { settingsBu
     celebrationPrepared = false;
     const wasActive = celebrationActive;
     celebrationActive = false;
-    if (celebrationAutoEnabled && !userChoseMusic) playing = false;
+    if (celebrationAutoEnabled) playing = false;
     celebrationAutoEnabled = false;
     if (wasActive) {
       updateButton();

@@ -23,3 +23,19 @@ test('stylesheet entry imports every valid stylesheet module exactly once', asyn
   }
   assert.equal(files[0], './parts/foundation.css');
 });
+
+test('quest steps grow naturally inside the scrollable journal', async () => {
+  const css = await readFile(new URL('../css/parts/client-shell-journal.css', import.meta.url), 'utf8');
+  const root = postcss.parse(css);
+  const declarations = (selector) => {
+    const properties = new Map();
+    root.walkRules(selector, (rule) => rule.walkDecls((decl) => properties.set(decl.prop, decl.value)));
+    return properties;
+  };
+  assert.equal(declarations('.quest-journal__scroll').get('overflow-y'), 'auto');
+  const steps = declarations('.quest-steps__list');
+  assert.ok(steps.size > 0);
+  assert.equal(steps.has('max-height'), false);
+  assert.equal(steps.has('overflow-y'), false);
+  assert.equal(steps.has('overflow'), false);
+});

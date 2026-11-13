@@ -4,7 +4,7 @@ const entries = [
   { title: 'Nope.', offset: [250, 200], prop: 'doll', dialogue: 'I am not going to touch that, you will have to do it!' },
   { title: 'Nervous...', offset: [-550, 300], prop: 'pace', dialogue: 'I thought you were never going to kiss me.' },
   { title: 'How much?!', offset: [-250, 300], prop: 'cup', dialogue: '£50 for a cup seems a bit excessive!' },
-  { title: 'David White', offset: [-250, 200], prop: 'grave', dialogue: 'Little girl.... little grave!' },
+  { title: 'Tiny, Small, ___', offset: [-250, 200], prop: 'grave', dialogue: 'Little girl.... little grave!' },
   { title: 'What Tickets?', offset: [250, 220], prop: 'tickets', dialogue: 'We had fast track this whole time...' }
 ];
 

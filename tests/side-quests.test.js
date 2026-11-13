@@ -7,7 +7,7 @@ import { WORLD_NPCS } from '../js/world/world-npcs.js';
 
 test('side quests preserve the requested titles, scenes and dialogue', () => {
   assert.deepEqual(SIDE_QUESTS.map(({ title }) => title),
-    ['Nope.', 'Nervous...', 'How much?!', 'David White', 'What Tickets?']);
+    ['Nope.', 'Nervous...', 'How much?!', 'Tiny, Small, ___', 'What Tickets?']);
   assert.deepEqual(SIDE_QUESTS.map(({ prop }) => prop), ['doll', 'pace', 'cup', 'grave', 'tickets']);
   assert.deepEqual(SIDE_QUESTS.map(({ dialogue }) => dialogue), [
     'I am not going to touch that, you will have to do it!',

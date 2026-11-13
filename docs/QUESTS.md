@@ -6,7 +6,7 @@ For a spoiler-free introduction, see the [player guide](PLAYER-GUIDE.md).
 ## Progress
 
 The main journal starts empty. Speak to a guide to accept a quest; the five
-keepsake quests can be completed in any order. Open **Quest steps** for
+keepsake quests can be completed in any order. Expand a quest in the journal for
 milestones, including items already used. Completed quests stay complete until
 removed from the journal.
 

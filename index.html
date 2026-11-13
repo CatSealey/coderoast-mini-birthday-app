@@ -65,62 +65,92 @@
           <div class="quest-journal__scroll" role="region" aria-label="Quest journal entries" tabindex="0">
           <nav class="quest-list" aria-label="Birthday quest chapters">
             <div class="quest-entry" id="qentry-1" hidden>
-              <button id="qbtn-1" type="button" data-level="1" class="quest-row">
-                <span class="quest-row__icon" aria-hidden="true">⌖</span>
-                <span class="quest-row__copy"><strong>Abigail Escape</strong><small>Kettering · Escape room</small></span>
-                <span id="qstatus-1" class="quest-row__status">Available</span>
-              </button>
+              <details class="quest-steps">
+                <summary id="qbtn-1" class="quest-row">
+                  <span class="quest-row__icon" aria-hidden="true">⌖</span>
+                  <span class="quest-row__copy"><strong>Abigail Escape</strong><small>Kettering · Escape room</small><span id="qstatus-1" class="quest-row__status">Available</span></span>
+                </summary>
+                <div class="quest-steps__body">
+                  <p class="quest-steps__heading">Quest steps <span id="questStepsCount-1"></span></p>
+                  <ol id="questSteps-1" class="quest-steps__list" aria-label="Abigail Escape quest steps"></ol>
+                  <button type="button" class="rs3-btn quest-steps__travel" data-level="1">Walk to quest</button>
+                </div>
+              </details>
               <button type="button" class="quest-entry__remove" data-remove-quest="0" aria-label="Remove Abigail Escape from journal">✕</button>
-              <details class="quest-steps"><summary>Quest steps <span id="questStepsCount-1"></span></summary><ol id="questSteps-1" class="quest-steps__list" tabindex="0" aria-label="Abigail Escape quest steps"></ol></details>
             </div>
             <div class="quest-entry" id="qentry-2" hidden>
-              <button id="qbtn-2" type="button" data-level="2" class="quest-row">
-                <span class="quest-row__icon" aria-hidden="true">◉</span>
-                <span class="quest-row__copy"><strong>Lucky Chucks</strong><small>Pool hall · Trick shot</small></span>
-                <span id="qstatus-2" class="quest-row__status">Locked</span>
-              </button>
+              <details class="quest-steps">
+                <summary id="qbtn-2" class="quest-row">
+                  <span class="quest-row__icon" aria-hidden="true">◉</span>
+                  <span class="quest-row__copy"><strong>Lucky Chucks</strong><small>Pool hall · Trick shot</small><span id="qstatus-2" class="quest-row__status">Locked</span></span>
+                </summary>
+                <div class="quest-steps__body">
+                  <p class="quest-steps__heading">Quest steps <span id="questStepsCount-2"></span></p>
+                  <ol id="questSteps-2" class="quest-steps__list" aria-label="Lucky Chucks quest steps"></ol>
+                  <button type="button" class="rs3-btn quest-steps__travel" data-level="2">Walk to quest</button>
+                </div>
+              </details>
               <button type="button" class="quest-entry__remove" data-remove-quest="1" aria-label="Remove Lucky Chucks from journal">✕</button>
-              <details class="quest-steps"><summary>Quest steps <span id="questStepsCount-2"></span></summary><ol id="questSteps-2" class="quest-steps__list" tabindex="0" aria-label="Lucky Chucks quest steps"></ol></details>
             </div>
             <div class="quest-entry" id="qentry-3" hidden>
-              <button id="qbtn-3" type="button" data-level="3" class="quest-row">
-                <span class="quest-row__icon" aria-hidden="true">↗</span>
-                <span class="quest-row__copy"><strong>Thirteen</strong><small>Alton Towers · Coaster drop</small></span>
-                <span id="qstatus-3" class="quest-row__status">Locked</span>
-              </button>
+              <details class="quest-steps">
+                <summary id="qbtn-3" class="quest-row">
+                  <span class="quest-row__icon" aria-hidden="true">↗</span>
+                  <span class="quest-row__copy"><strong>Thirteen</strong><small>Alton Towers · Coaster drop</small><span id="qstatus-3" class="quest-row__status">Locked</span></span>
+                </summary>
+                <div class="quest-steps__body">
+                  <p class="quest-steps__heading">Quest steps <span id="questStepsCount-3"></span></p>
+                  <ol id="questSteps-3" class="quest-steps__list" aria-label="Thirteen quest steps"></ol>
+                  <button type="button" class="rs3-btn quest-steps__travel" data-level="3">Walk to quest</button>
+                </div>
+              </details>
               <button type="button" class="quest-entry__remove" data-remove-quest="2" aria-label="Remove Thirteen from journal">✕</button>
-              <details class="quest-steps"><summary>Quest steps <span id="questStepsCount-3"></span></summary><ol id="questSteps-3" class="quest-steps__list" tabindex="0" aria-label="Thirteen quest steps"></ol></details>
             </div>
             <div class="quest-entry" id="qentry-4" hidden>
-              <button id="qbtn-4" type="button" data-level="4" class="quest-row">
-                <span class="quest-row__icon" aria-hidden="true">♧</span>
-                <span class="quest-row__copy"><strong>GoApe After Dark</strong><small>Canopy · Zip-line</small></span>
-                <span id="qstatus-4" class="quest-row__status">Locked</span>
-              </button>
+              <details class="quest-steps">
+                <summary id="qbtn-4" class="quest-row">
+                  <span class="quest-row__icon" aria-hidden="true">♧</span>
+                  <span class="quest-row__copy"><strong>GoApe After Dark</strong><small>Canopy · Zip-line</small><span id="qstatus-4" class="quest-row__status">Locked</span></span>
+                </summary>
+                <div class="quest-steps__body">
+                  <p class="quest-steps__heading">Quest steps <span id="questStepsCount-4"></span></p>
+                  <ol id="questSteps-4" class="quest-steps__list" aria-label="GoApe quest steps"></ol>
+                  <button type="button" class="rs3-btn quest-steps__travel" data-level="4">Walk to quest</button>
+                </div>
+              </details>
               <button type="button" class="quest-entry__remove" data-remove-quest="3" aria-label="Remove GoApe After Dark from journal">✕</button>
-              <details class="quest-steps"><summary>Quest steps <span id="questStepsCount-4"></span></summary><ol id="questSteps-4" class="quest-steps__list" tabindex="0" aria-label="GoApe quest steps"></ol></details>
             </div>
             <div class="quest-entry" id="qentry-5" hidden>
-              <button id="qbtn-5" type="button" data-level="5" class="quest-row">
-                <span class="quest-row__icon" aria-hidden="true">✦</span>
-                <span class="quest-row__copy"><strong>Fright Nights</strong><small>Earls Barton · Corn maze</small></span>
-                <span id="qstatus-5" class="quest-row__status">Locked</span>
-              </button>
+              <details class="quest-steps">
+                <summary id="qbtn-5" class="quest-row">
+                  <span class="quest-row__icon" aria-hidden="true">✦</span>
+                  <span class="quest-row__copy"><strong>Fright Nights</strong><small>Earls Barton · Corn maze</small><span id="qstatus-5" class="quest-row__status">Locked</span></span>
+                </summary>
+                <div class="quest-steps__body">
+                  <p class="quest-steps__heading">Quest steps <span id="questStepsCount-5"></span></p>
+                  <ol id="questSteps-5" class="quest-steps__list" aria-label="Fright Nights quest steps"></ol>
+                  <button type="button" class="rs3-btn quest-steps__travel" data-level="5">Walk to quest</button>
+                </div>
+              </details>
               <button type="button" class="quest-entry__remove" data-remove-quest="4" aria-label="Remove Fright Nights from journal">✕</button>
-              <details class="quest-steps"><summary>Quest steps <span id="questStepsCount-5"></span></summary><ol id="questSteps-5" class="quest-steps__list" tabindex="0" aria-label="Fright Nights quest steps"></ol></details>
             </div>
             <div class="quest-entry" id="trophyQuestEntry" hidden>
-              <button id="trophyQuestButton" type="button" class="quest-row" data-action="trophy-quest">
-                <span class="quest-row__icon" aria-hidden="true">✧</span>
-                <span class="quest-row__copy"><strong>The Hall of Memories</strong><small>Lumbridge Castle · Birthday finale</small></span>
-                <span id="trophyQuestStatus" class="quest-row__status">Accepted</span>
-              </button>
+              <details class="quest-steps">
+                <summary id="trophyQuestButton" class="quest-row">
+                  <span class="quest-row__icon" aria-hidden="true">✧</span>
+                  <span class="quest-row__copy"><strong>The Hall of Memories</strong><small>Lumbridge Castle · Birthday finale</small><span id="trophyQuestStatus" class="quest-row__status">Accepted</span></span>
+                </summary>
+                <div class="quest-steps__body">
+                  <p class="quest-steps__heading">Quest steps <span id="trophyStepsCount"></span></p>
+                  <ol id="trophySteps" class="quest-steps__list" aria-label="The Hall of Memories quest steps"></ol>
+                  <button type="button" class="rs3-btn quest-steps__travel" data-action="trophy-quest">Walk to castle</button>
+                </div>
+              </details>
               <button type="button" class="quest-entry__remove" data-action="remove-trophy-quest" aria-label="Remove The Hall of Memories from journal">✕</button>
-              <details class="quest-steps"><summary>Quest steps <span id="trophyStepsCount"></span></summary><ol id="trophySteps" class="quest-steps__list" tabindex="0" aria-label="The Hall of Memories quest steps"></ol></details>
             </div>
           </nav>
           <section class="side-quests" aria-labelledby="sideQuestTitle">
-            <h3 id="sideQuestTitle">SIDE QUESTS</h3>
+            <h3 id="sideQuestTitle"><span aria-hidden="true">⚍</span> SIDE QUESTS</h3>
             <div id="sideQuestList" class="side-quests__list"></div>
           </section>
           </div>
@@ -298,8 +328,8 @@
     <div class="rs3-panel modal-panel max-w-md w-full p-5 rounded-xl border border-yellow-400/70 relative" role="dialog"
       aria-modal="true" aria-labelledby="itemModalTitle">
       <button type="button" aria-label="Close keepsake details" data-action="close-item"
-        class="absolute top-2 right-2 text-amber-400 hover:text-white text-lg font-bold">✕</button>
-      <div class="flex items-center gap-3 mb-3">
+        class="item-modal__close absolute top-2 right-2 text-amber-400 hover:text-white text-lg font-bold">✕</button>
+      <div class="flex items-center gap-3 mb-3 pr-12">
         <div id="itemModalIcon" class="text-4xl bg-black/50 p-2 rounded border border-amber-700">🎒</div>
         <div>
           <h3 id="itemModalTitle" class="rune-font text-xs text-yellow-400">Item Name</h3>
@@ -309,7 +339,7 @@
       <div class="rs3-dialogue p-3 rounded text-sm text-amber-100 mb-4" id="itemModalDesc">
         Memory description goes here...
       </div>
-      <button type="button" data-action="close-item" class="w-full rs3-btn py-2 text-sm rounded-lg">Close
+      <button type="button" data-action="close-item" class="w-full rs3-btn game-control py-2 text-sm rounded-lg">Close
         keepsake</button>
     </div>
   </div>

@@ -18,7 +18,7 @@ permissions have not been verified in this document.
 | `abigail.mp3` | Talking Body — Tove Lo | To be verified |
 | `lucky-chucks.mp3` | Addicted — Haley Joelle | To be verified |
 | `thirteen.mp3` | Ocean Eyes — Billie Eilish | To be verified |
-| `goape.mp3` | Stay — Rihanna | To be verified |
+| `goape.mp3` | Follow You — Bring Me The Horizon | To be verified |
 | `fright-nights.mp3` | Take on the World — You Me At Six | To be verified |
 
 Confirm the necessary rights for both the recordings and compositions for the

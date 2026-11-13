@@ -99,8 +99,8 @@ test('the melody finishes after dialogue ends and restores previously enabled mu
   audio.dispose();
 });
 
-test('celebration temporarily replaces enabled music and respects an explicit mute', async () => {
-  const { audio, button, notes, timers, media } = audioFixture();
+test('celebration replaces enabled music and plays even after an explicit mute', async () => {
+  const { audio, button, notes, timers, media, nextNote } = audioFixture();
   await audio.toggleMusic();
   assert.equal(media.plays.at(-1), AREA_TRACKS.home.file);
   await audio.prepareBirthdayCelebration();
@@ -114,13 +114,14 @@ test('celebration temporarily replaces enabled music and respects an explicit mu
   const count = notes.length;
   await audio.prepareBirthdayCelebration();
   audio.startBirthdayCelebration();
-  assert.equal(notes.length, count);
+  assert.equal(notes.length, count + 1);
+  assert.equal(notes.at(-1), 392);
+  assert.equal(button.attributes['aria-pressed'], 'true');
+  for (let i = 0; i < 25; i += 1) nextNote();
   assert.equal(timers.size, 0);
   assert.equal(button.attributes['aria-pressed'], 'false');
-  await audio.toggleMusic();
-  assert.equal(notes.at(-1), 392);
-  audio.stopBirthdayCelebration();
-  assert.equal(media.plays.at(-1), AREA_TRACKS.home.file);
+  assert.equal(media.paused, true);
+  assert.equal(media.plays.length, 2);
   audio.dispose();
 });
 
@@ -219,8 +220,8 @@ test('a later media error is reported without falsely showing the track as playi
   audio.dispose();
 });
 
-test('muting auto-started celebration music stops it and remains muted on replay', async () => {
-  const { audio, notes, timers, button } = audioFixture();
+test('muting an active celebration stops it, and a later celebration can play', async () => {
+  const { audio, notes, timers, button, nextNote } = audioFixture();
   await audio.prepareBirthdayCelebration();
   audio.startBirthdayCelebration();
   await audio.toggleMusic();
@@ -228,8 +229,22 @@ test('muting auto-started celebration music stops it and remains muted on replay
   audio.stopBirthdayCelebration();
   await audio.prepareBirthdayCelebration();
   audio.startBirthdayCelebration();
-  assert.deepEqual(notes, [392]);
+  assert.deepEqual(notes, [392, 392]);
+  for (let i = 0; i < 25; i += 1) nextNote();
   assert.equal(button.attributes['aria-pressed'], 'false');
+  audio.dispose();
+});
+
+test('enabling music during a previously muted celebration keeps it on afterwards', async () => {
+  const { audio, button, media, nextNote } = audioFixture();
+  await audio.prepareBirthdayCelebration();
+  audio.startBirthdayCelebration();
+  await audio.toggleMusic();
+  await audio.toggleMusic();
+  for (let i = 0; i < 25; i += 1) nextNote();
+  assert.equal(button.attributes['aria-pressed'], 'true');
+  assert.equal(media.paused, false);
+  assert.equal(media.plays.at(-1), AREA_TRACKS.home.file);
   audio.dispose();
 });
 
@@ -240,6 +255,22 @@ test('audio failures propagate without presenting music as playing', async () =>
   assert.notEqual(button.attributes['aria-pressed'], 'true');
   await assert.rejects(audio.toggleMusic(), /Audio blocked/);
   assert.equal(button.attributes['aria-pressed'], 'false');
+  audio.dispose();
+});
+
+test('a late preparation failure restores the muted setting', async () => {
+  let rejectResume;
+  const resumePromise = new Promise((resolve, reject) => { rejectResume = reject; });
+  const { audio, button, settingsButton, notes, timers } = audioFixture({ resumePromise });
+  const preparation = audio.prepareBirthdayCelebration();
+  audio.startBirthdayCelebration();
+  assert.equal(button.attributes['aria-pressed'], 'true');
+  rejectResume(new Error('Audio blocked'));
+  await assert.rejects(preparation, /Audio blocked/);
+  assert.equal(button.attributes['aria-pressed'], 'false');
+  assert.equal(settingsButton.textContent, 'Music: Off');
+  assert.deepEqual(notes, []);
+  assert.equal(timers.size, 0);
   audio.dispose();
 });
 

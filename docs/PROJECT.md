@@ -126,8 +126,9 @@ being an independent authoritative save.
 overworld chooses the area from the player's region; entering a quest selects
 that quest's music. On leaving, the overworld region's track resumes. The
 current title and artist appear beside the action-bar music button, and
-Settings exposes the same on/off control. The birthday melody temporarily
-replaces area music and respects an explicit mute.
+Settings exposes the same on/off control. The birthday melody plays even when
+area music is off, then restores the previous music setting. It can still be
+muted while it is playing.
 
 Vite copies `public/` into the build. Keep filenames and the track mapping in
 sync, and only distribute recordings you have permission to publish. Music

@@ -84,8 +84,8 @@
 }
 
 .quest-window__footer .game-control {
-  min-height: 38px;
-  padding: 6px 12px;
+  min-height: 44px;
+  padding: 8px 12px;
   border-radius: 3px;
   font-size: 0.7rem;
 }
@@ -101,4 +101,3 @@
   background: rgba(58, 100, 54, 0.42);
   color: #bbdf9e;
 }
-

@@ -16,7 +16,7 @@
   backdrop-filter: blur(3px);
 }
 
-.quest-remove-dialog {
+.quest-dialog.quest-remove-dialog {
   width: min(440px, calc(100vw - 28px));
   padding: 20px;
 }
@@ -29,22 +29,57 @@
 }
 
 .quest-remove-dialog p {
+  margin: 0 0 18px;
   line-height: 1.5;
 }
 
 .quest-remove-dialog__actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
+}
+
+.quest-remove-dialog .game-control {
+  min-width: 0;
+  min-height: 46px;
+  padding: 10px 16px;
+  border-radius: 5px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.quest-remove-dialog__actions .game-control {
+  flex: 1 1 150px;
+}
+
+.quest-remove-dialog [data-action="request-restart"],
+.quest-remove-dialog [data-action="confirm-restart"],
+.quest-remove-dialog [data-action="confirm-remove-quest"] {
+  border-color: #b98571;
+  background: linear-gradient(180deg, #76483d, #4e302d);
+}
+
+.quest-remove-dialog [data-action="request-restart"]:hover,
+.quest-remove-dialog [data-action="confirm-restart"]:hover,
+.quest-remove-dialog [data-action="confirm-remove-quest"]:hover {
+  border-color: #e2ab8f;
+  background: linear-gradient(180deg, #925b49, #613b34);
+}
+
+.quest-remove-dialog [data-action="request-restart"]:active,
+.quest-remove-dialog [data-action="confirm-restart"]:active,
+.quest-remove-dialog [data-action="confirm-remove-quest"]:active {
+  background: #482b28;
 }
 
 .settings-options {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 18px;
 }
 
 .settings-options p {
@@ -82,8 +117,8 @@
 }
 
 .quest-window__close {
-  width: 36px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border-radius: 3px;
 }
 
