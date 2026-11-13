@@ -107,11 +107,11 @@ test('pub fallback displays character names without furniture labels', () => {
   globalThis.document = { createElement: () => ({ getContext: () => null }) };
   globalThis.window = { devicePixelRatio: 1 };
   try {
-    const scene = createAdventureScene(canvas, 1, () => { }, 'Dani');
+    const scene = createAdventureScene(canvas, 1, () => { }, 'Player');
     scene.resize(1000, 700);
     assert.ok(scene.objectPosition('love'), 'restored speech can be positioned before the first draw');
     scene.draw(newAdventureState(1));
-    assert.deepEqual(labels, ['Jamie the Bartender', 'Cat', 'Dani']);
+    assert.deepEqual(labels, ['Jamie the Bartender', 'Cat', 'Player']);
     assert.ok(colors.includes(PLAYER_OUTFIT));
     assert.ok(colors.includes(CAT_OUTFIT));
     assert.ok(colors.includes(CHARACTER_HAIR));
@@ -129,18 +129,18 @@ test('pub fallback selects the bartender separately from the counter', () => {
   const selections = [];
   let click;
   const ctx = {
-    setTransform() {}, fillRect() {}, beginPath() {}, arc() {}, ellipse() {}, fill() {}, fillText() {}
+    setTransform() { }, fillRect() { }, beginPath() { }, arc() { }, ellipse() { }, fill() { }, fillText() { }
   };
   const canvas = {
     getContext: () => ctx,
     addEventListener(type, handler) { if (type === 'click') click = handler; },
-    removeEventListener() {},
+    removeEventListener() { },
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 1000, height: 700 })
   };
   globalThis.document = { createElement: () => ({ getContext: () => null }) };
   globalThis.window = { devicePixelRatio: 1 };
   try {
-    const scene = createAdventureScene(canvas, 1, (selection) => selections.push(selection), 'Dani');
+    const scene = createAdventureScene(canvas, 1, (selection) => selections.push(selection), 'Player');
     scene.resize(1000, 700);
     scene.draw(newAdventureState(1));
     const scale = 700 / 750;
@@ -161,14 +161,14 @@ test('pub player turns when walking and keeps facing after stopping', () => {
   const previousDocument = globalThis.document, previousWindow = globalThis.window;
   const eyes = [];
   const ctx = {
-    setTransform() {}, fillRect(x, y) { if (this.fillStyle === '#49382f') eyes.push({ x, y }); },
-    beginPath() {}, arc() {}, ellipse() {}, fill() {}, fillText() {}
+    setTransform() { }, fillRect(x, y) { if (this.fillStyle === '#49382f') eyes.push({ x, y }); },
+    beginPath() { }, arc() { }, ellipse() { }, fill() { }, fillText() { }
   };
-  const canvas = { getContext: () => ctx, addEventListener() {}, removeEventListener() {} };
+  const canvas = { getContext: () => ctx, addEventListener() { }, removeEventListener() { } };
   globalThis.document = { createElement: () => ({ getContext: () => null }) };
   globalThis.window = { devicePixelRatio: 1 };
   try {
-    const scene = createAdventureScene(canvas, 1, () => {}, 'Dani');
+    const scene = createAdventureScene(canvas, 1, () => { }, 'Player');
     scene.resize(1000, 700);
     const state = newAdventureState(1);
     scene.draw(state);
@@ -201,22 +201,22 @@ test('fallback exit shows the pair side by side with a hand link', () => {
   const previousDocument = globalThis.document, previousWindow = globalThis.window;
   const labels = [], lines = [], characters = [];
   const ctx = {
-    setTransform() {}, fillRect() {}, beginPath() {}, arc() {}, ellipse(x, y) { characters.push({ x, y }); }, fill() {},
+    setTransform() { }, fillRect() { }, beginPath() { }, arc() { }, ellipse(x, y) { characters.push({ x, y }); }, fill() { },
     fillText(text, x, y) { labels.push({ text, x, y }); },
-    moveTo(x, y) { lines.push({ x, y }); }, lineTo(x, y) { lines.push({ x, y }); }, stroke() {}
+    moveTo(x, y) { lines.push({ x, y }); }, lineTo(x, y) { lines.push({ x, y }); }, stroke() { }
   };
-  const canvas = { getContext: () => ctx, addEventListener() {}, removeEventListener() {} };
+  const canvas = { getContext: () => ctx, addEventListener() { }, removeEventListener() { } };
   globalThis.document = { createElement: () => ({ getContext: () => null }) };
   globalThis.window = { devicePixelRatio: 1 };
   try {
-    const scene = createAdventureScene(canvas, 1, () => {}, 'Dani');
+    const scene = createAdventureScene(canvas, 1, () => { }, 'Player');
     scene.resize(1000, 700);
     const state = { ...newAdventureState(1), pubTogether: true, coupleFacing: Math.PI / 2 };
     scene.draw(state);
     const [, cat, player] = characters;
     assert.ok(cat.x < player.x);
     assert.equal(cat.y, player.y);
-    assert.equal(labels.some((label) => label.text === 'Cat' || label.text === 'Dani'), false);
+    assert.equal(labels.some((label) => label.text === 'Cat' || label.text === 'Player'), false);
     assert.equal(lines.length, 2);
     assert.ok(lines[0].x < lines[1].x);
     assert.equal(lines[0].y, lines[1].y);
@@ -245,7 +245,7 @@ test('Thirteen fallback keeps the locker visible without its floating label', ()
   globalThis.document = { createElement: () => ({ getContext: (type) => type === '2d' ? iconCtx : null }) };
   globalThis.window = { devicePixelRatio: 1 };
   try {
-    const scene = createAdventureScene(canvas, 2, () => { }, 'Dani');
+    const scene = createAdventureScene(canvas, 2, () => { }, 'Player');
     scene.resize(1000, 700);
     scene.draw(newAdventureState(2));
     assert.ok(labels.includes('Thirteen carriage'));
@@ -276,7 +276,7 @@ test('Thirteen fallback keeps missed items visible through each ride phase', () 
   globalThis.document = { createElement: () => ({ getContext: (type) => type === '2d' ? iconCtx : null }) };
   globalThis.window = { devicePixelRatio: 1 };
   try {
-    const scene = createAdventureScene(canvas, 2, () => { }, 'Dani');
+    const scene = createAdventureScene(canvas, 2, () => { }, 'Player');
     scene.resize(1000, 700);
     const state = newAdventureState(2);
     scene.draw(state);
@@ -974,14 +974,14 @@ test('GoApe zip-wire stops the walking animation and walking resumes afterwards'
   const previousDocument = globalThis.document, previousWindow = globalThis.window;
   const shoes = [];
   const ctx = {
-    setTransform() {}, fillRect(x, y) { if (this.fillStyle === '#594336') shoes.push({ x, y }); },
-    strokeRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, arc() {}, ellipse() {}, fill() {}, fillText() {}
+    setTransform() { }, fillRect(x, y) { if (this.fillStyle === '#594336') shoes.push({ x, y }); },
+    strokeRect() { }, beginPath() { }, moveTo() { }, lineTo() { }, stroke() { }, arc() { }, ellipse() { }, fill() { }, fillText() { }
   };
-  const canvas = { getContext: () => ctx, addEventListener() {}, removeEventListener() {} };
+  const canvas = { getContext: () => ctx, addEventListener() { }, removeEventListener() { } };
   globalThis.document = { createElement: () => ({ getContext: () => null }) };
   globalThis.window = { devicePixelRatio: 1 };
   try {
-    const scene = createAdventureScene(canvas, 3, () => {}, 'Dani');
+    const scene = createAdventureScene(canvas, 3, () => { }, 'Player');
     scene.resize(1000, 700);
     const state = newAdventureState(3);
     const drawFeet = (next, dt = 0.05) => {

@@ -55,28 +55,76 @@ redirect the default URL after the domain is configured.
 
 ## 2. Connect `gaylinor.code-roast.com`
 
-1. Verify `code-roast.com` in your GitHub account's Pages settings, following
-   [GitHub's domain verification instructions](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/verifying-your-custom-domain-for-github-pages).
-   This helps prevent domain takeovers.
-2. In the repository's **Settings → Pages**, enter
-   `gaylinor.code-roast.com` under **Custom domain** and save it.
-3. At your DNS provider, add a CNAME:
+These instructions use GoDaddy for DNS. Owning the domain through GoDaddy
+doesn't necessarily mean GoDaddy manages its DNS: check the domain's
+nameservers in GoDaddy first. If they point to another DNS provider, add the
+records at that provider instead. Don't change nameservers just for this
+subdomain; doing so could affect an existing website or email.
 
-   | Type | Host/name | Target |
-   | --- | --- | --- |
-   | CNAME | `gaylinor` | `catsealey.github.io` |
+### A. Verify ownership with GitHub
 
-   Some DNS providers expect the full hostname rather than `gaylinor`.
-   The target is the account's GitHub Pages hostname, **without** the
-   repository name. Avoid conflicting records and wildcard DNS entries.
-4. Wait for DNS and GitHub's certificate to become ready. In **Settings →
-   Pages**, enable **Enforce HTTPS** when available, then visit
-   `https://gaylinor.code-roast.com`.
+GitHub recommends verifying the domain first to help prevent domain
+takeovers. This is separate from adding the custom domain to the repository.
 
-Add the domain in GitHub before pointing DNS at it. If Cloudflare manages your
-DNS, use its DNS settings for the CNAME; Cloudflare Pages is not needed.
-Leave existing website and email records unchanged. See GitHub's
-[custom domain instructions](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
+1. On GitHub, open your **profile picture → Settings → Pages**. This is your
+   account settings page, not the repository's settings.
+2. Select **Add a domain**, enter `code-roast.com`, and follow the prompts.
+   GitHub will show a TXT record name and a verification value.
+3. Sign in to your GoDaddy **Domain Portfolio**, select `code-roast.com`, and
+   select **DNS**. Choose **Add New Record** and select **TXT**.
+4. Enter the record name and value supplied by GitHub. GoDaddy's **Name**
+   field takes the part before `.code-roast.com`; its **Value** field takes
+   GitHub's verification value. Leave **TTL** at its default and select
+   **Save**.
+5. Return to GitHub and select **Verify**. If it isn't ready, wait and retry;
+   if you leave the page, use **Continue verifying** from the account's Pages
+   settings. Keep the TXT record after verification.
+
+See GitHub's [domain verification instructions](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/verifying-your-custom-domain-for-github-pages)
+and GoDaddy's [TXT record guide](https://www.godaddy.com/help/add-a-txt-record-19232)
+if the screens have changed.
+
+### B. Add the custom domain to the repository
+
+In the game repository on GitHub, open **Settings → Pages**. Under **Custom
+domain**, enter `gaylinor.code-roast.com` and select **Save**.
+
+Add it in GitHub **before** pointing the CNAME at GitHub Pages; otherwise
+someone else could potentially claim the subdomain.
+
+### C. Add the CNAME in GoDaddy
+
+1. In GoDaddy's **Domain Portfolio**, select `code-roast.com` and open
+   **DNS**.
+2. Choose **Add New Record** and select **CNAME** as the type.
+3. Enter:
+
+   | GoDaddy field | Value |
+   | --- | --- |
+   | Name | `gaylinor` |
+   | Value | `catsealey.github.io` |
+   | TTL | Default (usually 1 hour) |
+
+4. Select **Save**. GoDaddy may ask for an identity verification code.
+
+Enter only `gaylinor` in the Name field: GoDaddy adds `.code-roast.com`.
+The Value is the account's GitHub Pages hostname, **without** the repository
+name or `https://`. If a record already uses `gaylinor`, investigate the
+conflict before changing it. Don't use a wildcard record or alter unrelated
+website and email records.
+
+GoDaddy says DNS changes usually take effect within an hour but can take up to
+48 hours globally. See its [CNAME record guide](https://www.godaddy.com/help/add-a-cname-record-19236)
+for current interface details.
+
+### D. Enable HTTPS
+
+When GitHub's DNS check and certificate are ready, return to the repository's
+**Settings → Pages** and enable **Enforce HTTPS**. Then visit
+`https://gaylinor.code-roast.com`. The HTTPS option may not be available
+immediately while DNS and the certificate are being set up.
+
+See GitHub's [custom domain instructions](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
 and [HTTPS guide](https://docs.github.com/en/pages/getting-started-with-github-pages/securing-your-github-pages-site-with-https)
 for current details.
 

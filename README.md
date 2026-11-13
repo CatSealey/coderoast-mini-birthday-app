@@ -38,6 +38,8 @@ password or rely on it to protect private content.
 - [Release checklist](docs/RELEASE-CHECKLIST.md) — checks before sharing.
 - [Asset credits and permissions](docs/ASSET-CREDITS.md) — soundtrack and asset
   sources to verify before publishing.
+- [Contributing](CONTRIBUTING.md) and [licence](LICENSE) — contribution
+  guidance and rights for project materials.
 
 ## Checks
 
