@@ -71,7 +71,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   const probe = document.createElement('canvas').getContext('webgl2');
   const hasWebGL = Boolean(probe);
   probe?.getExtension('WEBGL_lose_context')?.loseContext();
-  const world3d = hasWebGL ? createWorld3D(worldCanvas, art.ground, characterName) : null;
+  const world3d = hasWebGL ? createWorld3D(worldCanvas, art.ground, characterName, art.surroundings) : null;
   const renderNotice = document.querySelector('#worldRenderNotice');
   if (!world3d && renderNotice) renderNotice.hidden = false;
   const context = world3d ? null : worldCanvas.getContext('2d');

@@ -3,8 +3,9 @@ import { regionBlendAt } from './world-regions.js';
 import { drawParkRide, PARK_RIDES } from './park-scenery.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { worldCornWalls, worldTrees } from './world-collision.js';
-import { CANOPY_OFFSET, placeQuestDecorations } from './world-scenery-data.js';
+import { CANOPY_OFFSET, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_PLAZA, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
+import { createSurroundingTerrain, SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -20,12 +21,12 @@ export function unprojectWorld(position, camera, zoom) {
 export function cameraFor(player, width, height, zoom) {
   const viewWidth = width / zoom;
   const viewHeight = height / (zoom * TILT);
-  const axis = (position, view, size, offset) => view >= size
-    ? (size - view) / 2
-    : Math.max(0, Math.min(size - view, position - view * offset));
+  const axis = (position, view, min, max, offset) => view >= max - min
+    ? (min + max - view) / 2
+    : Math.max(min, Math.min(max - view, position - view * offset));
   return {
-    x: axis(player.x, viewWidth, WORLD_SIZE.width, 0.5),
-    y: axis(player.y, viewHeight, WORLD_SIZE.height, 0.62)
+    x: axis(player.x, viewWidth, SURROUNDINGS_BOUNDS.left, SURROUNDINGS_BOUNDS.right, 0.5),
+    y: axis(player.y, viewHeight, SURROUNDINGS_BOUNDS.top, SURROUNDINGS_BOUNDS.bottom, 0.62)
   };
 }
 
@@ -204,7 +205,7 @@ function addProps() {
   });
   add('mazeGate', harvest.x - 175, harvest.y - 175, 1);
   worldCornWalls().forEach((wall) => add('cornWall', wall.x, wall.y, 1, Number(wall.vertical)));
-  placeQuestDecorations(harvest, 'harvest', 35, 760, 48).forEach(({ x, y, scale }) => add('pumpkin', x, y, scale));
+  harvestPumpkins().forEach(({ x, y, scale }) => add('pumpkin', x, y, scale));
   [WORLD_SPAWN, escape, park, harvest].forEach((quest) => {
     add('lamp', quest.x - 75, quest.y - 50);
     add('lamp', quest.x + 95, quest.y + 75);
@@ -220,7 +221,7 @@ function addProps() {
       if (i % 4 === 0) add('banner', x, y, 0.7, Math.floor(i / 4) % 2);
     }
   }
-  worldTrees().forEach(({ x, z, size, variant, region }) => {
+  [...worldTrees(), ...surroundingTrees()].forEach(({ x, z, size, variant, region }) => {
     add(region === 'forest' ? 'pine' : region === 'escape' ? 'deadTree' : 'tree', x, z, size, variant);
     if (variant === 0) add('rock', x + 48, z + 18, 1);
   });
@@ -555,15 +556,18 @@ function drawProp(ctx, prop) {
 
 export function createWorldArt() {
   const { ground, minimap } = makeGround();
+  const surroundings = createSurroundingTerrain();
   const props = addProps();
   return {
-    ground, minimap,
+    ground, minimap, surroundings,
     draw(ctx, camera, zoom, width, height, actors) {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = '#283e30';
       ctx.fillRect(0, 0, width, height);
       ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom * TILT, -camera.x * dpr * zoom, -camera.y * dpr * zoom * TILT);
+      ctx.drawImage(surroundings, SURROUNDINGS_BOUNDS.left, SURROUNDINGS_BOUNDS.top,
+        SURROUNDINGS_BOUNDS.right - SURROUNDINGS_BOUNDS.left, SURROUNDINGS_BOUNDS.bottom - SURROUNDINGS_BOUNDS.top);
       ctx.drawImage(ground, 0, 0, WORLD_SIZE.width, WORLD_SIZE.height);
       const visible = props.filter((prop) => {
         const point = projectWorld(prop, camera, zoom);

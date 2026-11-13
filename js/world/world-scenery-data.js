@@ -76,7 +76,28 @@ export function placeQuestDecorations(center, region, count, radius, seed) {
       && SIDE_QUESTS.every((quest) => Math.hypot(point.x - quest.x, point.y - quest.y) > 95)
   });
 }
-import { WORLD_SIZE } from './world-data.js';
+
+export function harvestPumpkins() {
+  const harvest = QUEST_LOCATIONS[4];
+  const pumpkins = placeQuestDecorations(harvest, 'harvest', 35, 760, 48);
+  const graves = placeQuestDecorations(QUEST_LOCATIONS[0], 'escape', 22, 560, 12);
+  const transition = scatterScenery({
+    center: harvest, count: 3, radius: 760, seed: 318,
+    accept: (point) => {
+      const { region, neighbor, blend } = regionBlendAt(point);
+      return point.x > 40 && point.x < WORLD_SIZE.width - 40
+        && point.y > 40 && point.y < WORLD_SIZE.height - 40
+        && region.id === 'escape' && neighbor.id === 'harvest' && blend > 0
+        && roadDistance(point) > 85
+        && [...QUEST_LOCATIONS, ...WORLD_NPCS].every((npc) => Math.hypot(point.x - npc.x, point.y - npc.y) > 100)
+        && [...pumpkins, ...graves].every((item) => Math.hypot(point.x - item.x, point.y - item.y) > 50);
+    }
+  });
+  return [...pumpkins, ...transition];
+}
+
+import { QUEST_LOCATIONS, WORLD_SIZE } from './world-data.js';
 import { roadDistance } from './world-art.js';
 import { regionBlendAt } from './world-regions.js';
 import { SIDE_QUESTS } from '../side-quests.js';
+import { WORLD_NPCS } from './world-npcs.js';

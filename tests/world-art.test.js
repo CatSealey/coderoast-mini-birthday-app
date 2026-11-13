@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createWorldArt } from '../js/world/world-art.js';
+import { cameraFor, createWorldArt } from '../js/world/world-art.js';
 import { QUEST_LOCATIONS, WORLD_SIZE } from '../js/world/world-data.js';
 import { TOWN_PLAZA } from '../js/world/town-scenery.js';
+import { SURROUNDINGS_BOUNDS } from '../js/world/world-surroundings.js';
 
 test('minimap preserves unpaved town terrain while retaining the rest of the world ground', () => {
   const previousDocument = globalThis.document;
+  const previousWindow = globalThis.window;
   const canvases = [], events = [];
   globalThis.document = {
     createElement(tag) {
@@ -61,8 +63,22 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
     assert.deepEqual(route.filter((event) => event.method === 'lineTo').at(-1).args,
       [QUEST_LOCATIONS[1].x / WORLD_SIZE.width * art.minimap.width, QUEST_LOCATIONS[1].y / WORLD_SIZE.height * art.minimap.height]);
     assert.equal(route.at(-1).method, 'stroke');
+
+    globalThis.window = { devicePixelRatio: 1 };
+    const drawnImages = [];
+    const context = new Proxy({
+      drawImage: (...args) => drawnImages.push(args),
+      createRadialGradient: () => ({ addColorStop: () => {} })
+    }, { get: (target, key) => target[key] || (() => {}) });
+    const position = { x: WORLD_SIZE.width, y: 0 };
+    art.draw(context, cameraFor(position, 800, 600, 1), 1, 800, 600, []);
+    assert.deepEqual(drawnImages[0], [art.surroundings, SURROUNDINGS_BOUNDS.left, SURROUNDINGS_BOUNDS.top,
+      SURROUNDINGS_BOUNDS.right - SURROUNDINGS_BOUNDS.left, SURROUNDINGS_BOUNDS.bottom - SURROUNDINGS_BOUNDS.top]);
+    assert.deepEqual(drawnImages[1], [art.ground, 0, 0, WORLD_SIZE.width, WORLD_SIZE.height]);
   } finally {
     if (previousDocument === undefined) delete globalThis.document;
     else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
   }
 });

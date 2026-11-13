@@ -214,15 +214,16 @@ test('graveyard and pumpkin decorations stay in their regions and clear of route
   }
 });
 
-test('camera stays within the world or centers a viewport larger than the world', () => {
+test('fallback camera follows the player at the playable edge and centers a larger viewport', () => {
   const topLeft = cameraFor({ x: 0, y: 0 }, 800, 600, 1);
-  assert.deepEqual(topLeft, { x: 0, y: 0 });
+  assert.equal(topLeft.x, -400);
+  assert.ok(Math.abs(topLeft.y - (-600 / 0.68 * 0.62)) < 1e-9);
   const bottomRight = cameraFor({ x: WORLD_SIZE.width, y: WORLD_SIZE.height }, 800, 600, 1);
-  assert.equal(bottomRight.x, WORLD_SIZE.width - 800);
-  assert.ok(Math.abs(bottomRight.y - (WORLD_SIZE.height - 600 / 0.68)) < 1e-9);
-  const wide = cameraFor(WORLD_SPAWN, 6000, 3000, 1);
-  assert.equal(wide.x, -300);
-  assert.ok(Math.abs(wide.y - (WORLD_SIZE.height - 3000 / 0.68) / 2) < 1e-9);
+  assert.equal(bottomRight.x, WORLD_SIZE.width - 400);
+  assert.ok(Math.abs(bottomRight.y - (WORLD_SIZE.height - 600 / 0.68 * 0.62)) < 1e-9);
+  const wide = cameraFor(WORLD_SPAWN, 12000, 7000, 1);
+  assert.equal(wide.x, (WORLD_SIZE.width - 12000) / 2);
+  assert.ok(Math.abs(wide.y - (WORLD_SIZE.height - 7000 / 0.68) / 2) < 1e-9);
 });
 
 test('adjoining regions cover the whole world and retain their quest landmarks', () => {

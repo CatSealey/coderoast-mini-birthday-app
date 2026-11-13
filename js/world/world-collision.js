@@ -2,7 +2,7 @@ import { CASTLE_ENTRANCE, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_
 import { regionBlendAt } from './world-regions.js';
 import { roadDistance } from './world-art.js';
 import { WORLD_NPCS } from './world-npcs.js';
-import { CANOPY_OFFSET, CANOPY_PLATFORMS, placeQuestDecorations } from './world-scenery-data.js';
+import { CANOPY_OFFSET, CANOPY_PLATFORMS, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
 import { PARK_RIDES } from './park-scenery.js';
 import { createMazeWalls } from './maze-scenery.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
@@ -13,6 +13,26 @@ const random = (index, salt) => {
   return value - Math.floor(value);
 };
 export const WORLD_CHARACTER_RADIUS = 16;
+const HARVEST_MAZE_OFFSET = Object.freeze({ x: -200, y: 150 });
+export const MAZE_REGION_CLEARANCE = 80;
+
+function mazeWallFitsHarvest(wall) {
+  const halfWidth = (wall.vertical ? 12 : 75) + MAZE_REGION_CLEARANCE;
+  const halfHeight = (wall.vertical ? 75 : 12) + MAZE_REGION_CLEARANCE;
+  const xSteps = Math.ceil(halfWidth * 2 / 10);
+  const ySteps = Math.ceil(halfHeight * 2 / 10);
+  for (let x = 0; x <= xSteps; x += 1) {
+    for (let y = 0; y <= ySteps; y += 1) {
+      const point = {
+        x: wall.x - halfWidth + 2 * halfWidth * x / xSteps,
+        y: wall.y - halfHeight + 2 * halfHeight * y / ySteps
+      };
+      if (point.x < 0 || point.y < 0 || point.x > WORLD_SIZE.width || point.y > WORLD_SIZE.height
+        || regionBlendAt(point).region.id !== 'harvest') return false;
+    }
+  }
+  return true;
+}
 
 export function worldTrees() {
   const forest = QUEST_LOCATIONS[3], trees = [];
@@ -39,8 +59,8 @@ export function worldCornWalls() {
   const harvest = QUEST_LOCATIONS[4];
   const tickets = SIDE_QUESTS[4];
   return createMazeWalls(8, 8).map((wall) => ({
-    x: harvest.x + (wall.x - 4 + (wall.vertical ? 0 : 0.5)) * 135,
-    y: harvest.y + (wall.y - 4 + (wall.vertical ? 0.5 : 0)) * 135,
+    x: harvest.x + HARVEST_MAZE_OFFSET.x + (wall.x - 4 + (wall.vertical ? 0 : 0.5)) * 135,
+    y: harvest.y + HARVEST_MAZE_OFFSET.y + (wall.y - 4 + (wall.vertical ? 0.5 : 0)) * 135,
     vertical: wall.vertical
   })).filter((wall) => Math.hypot(wall.x - harvest.x, wall.y - harvest.y) >= 190
     && !(Math.abs(wall.x - tickets.x) < (wall.vertical ? 7 : 67.5) + 85
@@ -48,7 +68,8 @@ export function worldCornWalls() {
       && wall.y + (wall.vertical ? 67.5 : 7) > tickets.y - 80)
     && ![-0.5, 0, 0.5].some((offset) => roadDistance({
       x: wall.x + (wall.vertical ? 0 : offset * 135), y: wall.y + (wall.vertical ? offset * 135 : 0)
-    }) < 105));
+    }) < 105)
+    && mazeWallFitsHarvest(wall));
 }
 
 export function worldObstacles(trees = worldTrees()) {
@@ -86,7 +107,7 @@ export function worldObstacles(trees = worldTrees()) {
     circle(park.x - 310, park.y - 210, 68));
   worldCornWalls().forEach((wall) => obstacles.push(rect(wall.x, wall.y, wall.vertical ? 14 : 135, wall.vertical ? 135 : 14)));
   placeQuestDecorations(escape, 'escape', 22, 560, 12).forEach(({ x, y, scale }) => obstacles.push(circle(x, y, 14 * scale)));
-  placeQuestDecorations(harvest, 'harvest', 35, 760, 48).forEach(({ x, y, scale }) => obstacles.push(circle(x, y, 15 * scale)));
+  harvestPumpkins().forEach(({ x, y, scale }) => obstacles.push(circle(x, y, 15 * scale)));
   return obstacles;
 }
 

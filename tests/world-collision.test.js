@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCollision, findCharacterApproach, findWorldPath, worldObstacles, worldTrees } from '../js/world/world-collision.js';
-import { CASTLE_ENTRANCE, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SPAWN } from '../js/world/world-data.js';
+import { createCollision, findCharacterApproach, findWorldPath, MAZE_REGION_CLEARANCE, worldCornWalls, worldObstacles, worldTrees } from '../js/world/world-collision.js';
+import { CASTLE_ENTRANCE, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from '../js/world/world-data.js';
 import { WORLD_NPCS } from '../js/world/world-npcs.js';
-import { CANOPY_OFFSET, CANOPY_PLATFORMS } from '../js/world/world-scenery-data.js';
+import { CANOPY_OFFSET, CANOPY_PLATFORMS, harvestPumpkins, placeQuestDecorations } from '../js/world/world-scenery-data.js';
+import { regionBlendAt } from '../js/world/world-regions.js';
+import { roadDistance } from '../js/world/world-art.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from '../js/world/town-scenery.js';
 
 test('castle, buildings and tree trunks are solid without blocking nearby entrances', () => {
@@ -133,6 +135,56 @@ test('tree rocks use the original collision footprint', () => {
   const tree = { x: 100, z: 200, size: 1, variant: 0 };
   assert.ok(worldObstacles([tree]).some((obstacle) =>
     obstacle.x === 148 && obstacle.y === 218 && obstacle.radius === 13));
+});
+
+test('the harvest maze stays within its region with clear space around every wall', () => {
+  const walls = worldCornWalls();
+  const obstacles = worldObstacles();
+  assert.equal(MAZE_REGION_CLEARANCE, 80);
+  assert.ok(walls.length >= 60, 'the maze retains its structure');
+  assert.deepEqual(walls, worldCornWalls());
+  for (const wall of walls) {
+    assert.ok(obstacles.some((item) => item.x === wall.x && item.y === wall.y
+      && item.width === (wall.vertical ? 14 : 135) && item.depth === (wall.vertical ? 135 : 14)),
+    'the rendered wall has a matching collision obstacle');
+    const halfWidth = (wall.vertical ? 12 : 75) + MAZE_REGION_CLEARANCE;
+    const halfHeight = (wall.vertical ? 75 : 12) + MAZE_REGION_CLEARANCE;
+    const xSteps = Math.ceil(halfWidth * 2 / 7);
+    const ySteps = Math.ceil(halfHeight * 2 / 7);
+    for (let x = 0; x <= xSteps; x += 1) {
+      for (let y = 0; y <= ySteps; y += 1) {
+        const point = {
+          x: wall.x - halfWidth + 2 * halfWidth * x / xSteps,
+          y: wall.y - halfHeight + 2 * halfHeight * y / ySteps
+        };
+        assert.ok(point.x >= 0 && point.x <= WORLD_SIZE.width && point.y >= 0 && point.y <= WORLD_SIZE.height);
+        assert.equal(regionBlendAt(point).region.id, 'harvest', `maze wall at ${wall.x}, ${wall.y}`);
+      }
+    }
+  }
+});
+
+test('pumpkins can cross the blended border without losing the original harvest decorations', () => {
+  const pumpkins = harvestPumpkins();
+  const original = placeQuestDecorations(QUEST_LOCATIONS[4], 'harvest', 35, 760, 48);
+  assert.deepEqual(pumpkins.slice(0, original.length), original);
+  assert.deepEqual(pumpkins, harvestPumpkins());
+  const transition = pumpkins.slice(original.length);
+  assert.equal(transition.length, 3);
+  const obstacles = worldObstacles();
+  const graves = placeQuestDecorations(QUEST_LOCATIONS[0], 'escape', 22, 560, 12);
+  for (const [index, pumpkin] of transition.entries()) {
+    const { region, neighbor, blend } = regionBlendAt(pumpkin);
+    assert.equal(region.id, 'escape');
+    assert.equal(neighbor.id, 'harvest');
+    assert.ok(blend > 0);
+    assert.ok(roadDistance(pumpkin) > 85);
+    assert.ok([...QUEST_LOCATIONS, ...WORLD_NPCS].every((npc) => Math.hypot(pumpkin.x - npc.x, pumpkin.y - npc.y) > 100));
+    assert.ok([...original, ...graves].every((item) => Math.hypot(pumpkin.x - item.x, pumpkin.y - item.y) > 50));
+    assert.ok(transition.slice(0, index).every((item) => Math.hypot(pumpkin.x - item.x, pumpkin.y - item.y) >= 38));
+    assert.ok(obstacles.some((item) => item.x === pumpkin.x && item.y === pumpkin.y && item.radius === 15 * pumpkin.scale),
+      'the rendered pumpkin has a matching collision obstacle');
+  }
 });
 
 test('GoApe canopy stays behind the entrance and its platform trees have clearance', () => {

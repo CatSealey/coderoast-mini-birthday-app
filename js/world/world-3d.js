@@ -4,13 +4,14 @@ import { regionBlendAt } from './world-regions.js';
 import { PARK_RIDES } from './park-scenery.js';
 import { roadDistance } from './world-art.js';
 import { WORLD_NPCS } from './world-npcs.js';
-import { CANOPY_LINKS, CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, placeQuestDecorations } from './world-scenery-data.js';
+import { CANOPY_LINKS, CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
 import { worldCornWalls, worldTrees } from './world-collision.js';
 import { CAT_OUTFIT, CAT_STYLE, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, addCharacterHeadDetails } from '../character-appearance.js';
 import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 import { createCharacterLegs, createPlayerLegs } from '../games/character-legs.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { sideQuestPosition } from '../side-quests.js';
+import { SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -34,7 +35,7 @@ export function groundPointAt(camera, width, height, point) {
   return { x: hit.x, y: hit.z };
 }
 
-export function createWorld3D(canvas, ground, characterName) {
+export function createWorld3D(canvas, ground, characterName, surroundings) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -144,6 +145,20 @@ export function createWorld3D(canvas, ground, characterName) {
   groundTexture.colorSpace = THREE.SRGBColorSpace;
   groundTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   textures.add(groundTexture);
+  const surroundingTexture = new THREE.CanvasTexture(surroundings);
+  surroundingTexture.colorSpace = THREE.SRGBColorSpace;
+  surroundingTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+  textures.add(surroundingTexture);
+  const surroundingGeometry = new THREE.PlaneGeometry(
+    SURROUNDINGS_BOUNDS.right - SURROUNDINGS_BOUNDS.left,
+    SURROUNDINGS_BOUNDS.bottom - SURROUNDINGS_BOUNDS.top
+  );
+  geometries.add(surroundingGeometry);
+  const surroundingMaterial = new THREE.MeshStandardMaterial({ map: surroundingTexture, roughness: 1 });
+  const surroundingFloor = new THREE.Mesh(surroundingGeometry, surroundingMaterial);
+  surroundingFloor.rotation.x = -Math.PI / 2;
+  surroundingFloor.position.set(WORLD_SIZE.width / 2, -1, WORLD_SIZE.height / 2);
+  scene.add(surroundingFloor);
   const groundGeometry = new THREE.PlaneGeometry(WORLD_SIZE.width, WORLD_SIZE.height);
   geometries.add(groundGeometry);
   const groundMaterial = new THREE.MeshStandardMaterial({ map: groundTexture, roughness: 1 });
@@ -624,7 +639,7 @@ export function createWorld3D(canvas, ground, characterName) {
       corn.push({ x: x + (wall.vertical ? 0 : offset), z: z + (wall.vertical ? offset : 0), size: 0.8 + random(i + x, z) * 0.35 });
     }
   });
-  placeQuestDecorations(harvest, 'harvest', 35, 760, 48).forEach(({ x, y, variant, scale, rotation }) => {
+  harvestPumpkins().forEach(({ x, y, variant, scale, rotation }) => {
     const pumpkin = groupAt(x, y);
     pumpkin.rotation.y = rotation;
     pumpkin.scale.setScalar(scale);
@@ -635,7 +650,7 @@ export function createWorld3D(canvas, ground, characterName) {
     box(pumpkin, 10, 2, 2, '#4d3827', 0, 8, 15);
   });
 
-  const treeData = worldTrees();
+  const treeData = [...worldTrees(), ...surroundingTrees()];
   function instances(data, geometry, color, transform) {
     geometries.add(geometry);
     const instanced = new THREE.InstancedMesh(geometry, material(color), data.length);
@@ -886,6 +901,7 @@ export function createWorld3D(canvas, ground, characterName) {
       materials.forEach((item) => item.dispose());
       textures.forEach((texture) => texture.dispose());
       groundMaterial.dispose();
+      surroundingMaterial.dispose();
       renderer.dispose();
     }
   };

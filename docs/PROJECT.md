@@ -140,6 +140,12 @@ and on the action bar.
   Collision and route finding are in `world-collision.js`; the 3D world,
   illustrated fallback and minimap use separate rendering code. Check
   interaction ranges and navigable paths when moving scenery or characters.
+- `js/world/world-surroundings.js` provides decorative terrain and trees
+  outside the playable boundary for both world renderers. They do not change
+  movement, collisions, quest locations or the minimap.
+- The overworld harvest maze uses shared wall positions and a region-clearance
+  check in `world-collision.js`. Pumpkins can extend into the blended
+  neighbouring region; their shared placement is in `world-scenery-data.js`.
 - The player and Cat share appearance helpers in `character-appearance.js`,
   `character-body.js` and `games/character-legs.js`. Check quest scenes as
   well as the overworld when changing them.
