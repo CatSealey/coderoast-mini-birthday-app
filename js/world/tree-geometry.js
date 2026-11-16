@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const LIMBS = [
+const DEAD_LIMBS = [
   [[0, 0, 0, 14], [-1, 18, 0, 12], [2, 42, -1, 10], [-2, 69, 0, 8], [2, 91, -2, 6], [0, 113, -4, 3.5], [-8, 139, -5, 0.5]],
   [[-1, 42, 0, 8], [-15, 58, 0, 7], [-24, 78, 1, 5], [-28, 102, 3, 3], [-39, 125, 3, 0.5]],
   [[-24, 78, 1, 4], [-34, 88, -2, 3], [-40, 108, -3, 2], [-44, 119, -4, 0.4]],
@@ -17,19 +17,22 @@ const LIMBS = [
 ];
 
 export function createDeadTreeGeometry(variant) {
-  if (!Number.isInteger(variant) || variant < 0 || variant > 2) throw new RangeError('Unknown dead tree variant.');
+  return createTreeBranchGeometry(DEAD_LIMBS, variant);
+}
+
+export function createTreeBranchGeometry(limbs, variant, { sides = 8, segmentsPerSpan = 5, minimumSegments = 8 } = {}) {
+  if (!Number.isInteger(variant) || variant < 0 || variant > 2) throw new RangeError('Unknown tree variant.');
   const positions = [], colors = [], uvs = [], indices = [];
   const bark = new THREE.Color('#725742');
   const angle = (variant - 1) * 0.22;
   const cos = Math.cos(angle), sin = Math.sin(angle);
 
-  LIMBS.forEach((limb, limbIndex) => {
+  limbs.forEach((limb, limbIndex) => {
     const points = limb.map(([x, y, z]) => new THREE.Vector3(
       x * cos - z * sin, y * (1 + (variant - 1) * 0.025), x * sin + z * cos
     ));
     const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
-    const segments = Math.max(8, (points.length - 1) * 5);
-    const sides = 8;
+    const segments = Math.max(minimumSegments, (points.length - 1) * segmentsPerSpan);
     const frames = curve.computeFrenetFrames(segments, false);
     const first = positions.length / 3;
     for (let i = 0; i <= segments; i += 1) {

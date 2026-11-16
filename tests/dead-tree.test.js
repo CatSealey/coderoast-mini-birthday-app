@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDeadTreeGeometry } from '../js/world/dead-tree.js';
+import { createDeadTreeGeometry } from '../js/world/tree-geometry.js';
 import { worldObstacles } from '../js/world/world-collision.js';
 
 test('dead trees have deterministic, branching, shaded geometry', () => {

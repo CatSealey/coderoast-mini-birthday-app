@@ -12,7 +12,8 @@ import { createCharacterLegs, createPlayerLegs } from '../games/character-legs.j
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { sideQuestPosition } from '../side-quests.js';
 import { SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
-import { createDeadTreeGeometry } from './dead-tree.js';
+import { createDeadTreeGeometry } from './tree-geometry.js';
+import { createFoliageTexture, createLeafyBranches, createLeafyCanopy } from './leafy-tree.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -678,49 +679,10 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       o.rotation.z = -side * 0.65; o.scale.setScalar(stalk.size);
     });
   }
-  instances(treeData.filter((t) => t.region !== 'escape'), new THREE.CylinderGeometry(6, 10, 70, 6), '#5a4733', (o, t) => {
-    o.position.set(t.x, 35 * t.size, t.z); o.scale.setScalar(t.size);
-  });
-  const leafTrees = treeData.filter((t) => t.region !== 'escape' && t.region !== 'forest');
-  const leafColors = [
-    ['#456b40', '#5a824c', '#6c9457'],
-    ['#5b7141', '#819154', '#9ba668'],
-    ['#3d6652', '#527b61', '#72937a']
-  ];
-  leafColors.forEach((colors, variant) => {
-    const trees = leafTrees.filter((tree) => tree.variant === variant);
-    instances(trees, new THREE.IcosahedronGeometry(38, 1), colors[0], (o, t) => {
-      o.position.set(t.x, 92 * t.size, t.z);
-      o.rotation.y = t.angle;
-      o.scale.set(t.size * (variant === 1 ? 1.25 : 1), t.size * (variant === 2 ? 1.3 : 1), t.size);
-    });
-    for (const [side, radius, height, color] of [[-1, 29, 103, colors[1]], [1, 26, 112, colors[2]]]) {
-      instances(trees, new THREE.IcosahedronGeometry(radius, 1), color, (o, t) => {
-        o.position.set(t.x + side * Math.cos(t.angle) * 24 * t.size, height * t.size,
-          t.z + side * Math.sin(t.angle) * 24 * t.size);
-        o.rotation.y = t.angle;
-        o.scale.set(t.size, t.size * (variant === 2 ? 1.25 : 1), t.size);
-      });
-    }
-  });
-  const pines = treeData.filter((t) => t.region === 'forest');
-  const pineColors = [['#274d3d', '#305d49', '#3a6950'], ['#334d3c', '#41664e', '#55775a'], ['#1e453e', '#28584b', '#396d5b']];
-  pineColors.forEach((colors, variant) => {
-    const trees = pines.filter((tree) => tree.variant === variant);
-    [[48, 75, 75], [39, 72, 110], [27, 62, 145]].forEach(([radius, height, y], layer) => {
-      if (variant === 1 && layer === 1) return;
-      instances(trees, new THREE.ConeGeometry(radius, height, variant === 2 ? 6 : 8), colors[layer], (o, t) => {
-        o.position.set(t.x, y * t.size, t.z);
-        o.rotation.y = t.angle;
-        o.scale.set(t.size * (variant === 1 ? 0.75 : 1), t.size * (variant === 1 ? 1.2 : 1), t.size * (variant === 1 ? 0.75 : 1));
-      });
-    });
-  });
-  const deadTrees = treeData.filter((t) => t.region === 'escape');
   const barkImage = document.createElement('canvas');
   barkImage.width = 256; barkImage.height = 512;
   const barkContext = barkImage.getContext('2d');
-  if (!barkContext) throw new Error('Could not create the dead tree bark texture.');
+  if (!barkContext) throw new Error('Could not create the tree bark texture.');
   barkContext.fillStyle = '#ede4d6'; barkContext.fillRect(0, 0, 256, 512);
   for (let i = 0; i < 120; i += 1) {
     const x = random(i, 91) * 256;
@@ -740,14 +702,47 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   barkTexture.wrapS = THREE.RepeatWrapping; barkTexture.wrapT = THREE.RepeatWrapping;
   barkTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   textures.add(barkTexture);
-  const deadTreeMaterial = new THREE.MeshStandardMaterial({ map: barkTexture, vertexColors: true, roughness: 1 });
-  materials.set('dead-tree-bark', deadTreeMaterial);
+  const treeBarkMaterial = new THREE.MeshStandardMaterial({ map: barkTexture, vertexColors: true, roughness: 1 });
+  materials.set('tree-bark', treeBarkMaterial);
+  const foliageTexture = createFoliageTexture();
+  foliageTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+  textures.add(foliageTexture);
+  const foliageMaterial = new THREE.MeshStandardMaterial({ map: foliageTexture, vertexColors: true, roughness: 1 });
+  materials.set('tree-foliage', foliageMaterial);
+  const leafTrees = treeData.filter((t) => t.region !== 'escape' && t.region !== 'forest');
+  for (let variant = 0; variant < 3; variant += 1) {
+    const trees = leafTrees.filter((tree) => tree.variant === variant);
+    const placeTree = (o, t) => {
+      o.position.set(t.x, 0, t.z);
+      o.rotation.y = t.angle;
+      o.scale.setScalar(t.size);
+    };
+    instances(trees, createLeafyBranches(variant), null, placeTree, treeBarkMaterial);
+    instances(trees, createLeafyCanopy(variant), null, placeTree, foliageMaterial);
+  }
+  const pines = treeData.filter((t) => t.region === 'forest');
+  instances(pines, new THREE.CylinderGeometry(6, 10, 70, 6), '#5a4733', (o, t) => {
+    o.position.set(t.x, 35 * t.size, t.z); o.scale.setScalar(t.size);
+  });
+  const pineColors = [['#274d3d', '#305d49', '#3a6950'], ['#334d3c', '#41664e', '#55775a'], ['#1e453e', '#28584b', '#396d5b']];
+  pineColors.forEach((colors, variant) => {
+    const trees = pines.filter((tree) => tree.variant === variant);
+    [[48, 75, 75], [39, 72, 110], [27, 62, 145]].forEach(([radius, height, y], layer) => {
+      if (variant === 1 && layer === 1) return;
+      instances(trees, new THREE.ConeGeometry(radius, height, variant === 2 ? 6 : 8), colors[layer], (o, t) => {
+        o.position.set(t.x, y * t.size, t.z);
+        o.rotation.y = t.angle;
+        o.scale.set(t.size * (variant === 1 ? 0.75 : 1), t.size * (variant === 1 ? 1.2 : 1), t.size * (variant === 1 ? 0.75 : 1));
+      });
+    });
+  });
+  const deadTrees = treeData.filter((t) => t.region === 'escape');
   for (let variant = 0; variant < 3; variant += 1) {
     instances(deadTrees.filter((tree) => tree.variant === variant), createDeadTreeGeometry(variant), null, (o, t) => {
       o.position.set(t.x, 0, t.z);
       o.rotation.y = t.angle;
       o.scale.setScalar(t.size);
-    }, deadTreeMaterial);
+    }, treeBarkMaterial);
   }
   const rocks = treeData.filter((t) => t.variant === 0);
   instances(rocks, new THREE.IcosahedronGeometry(13, 0), '#888b78', (o, t) => {

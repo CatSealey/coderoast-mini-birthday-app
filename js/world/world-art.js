@@ -246,14 +246,30 @@ function tree(ctx, pine, variant) {
       ctx.lineTo(0, -112 - i * 12); ctx.lineTo(-2, -35 - i * 24); ctx.closePath(); ctx.fill();
     });
   } else {
-    const colors = variant === 1 ? ['#274a30', '#3c653b', '#779252'] : ['#264d35', '#416c40', '#82a15d'];
-    ellipse(ctx, 2, -80, 46, 31, colors[0]);
-    ellipse(ctx, -20, -93, 30, 25, colors[1]);
-    ellipse(ctx, 19, -96, 33, 25, colors[1]);
-    ellipse(ctx, -5, -111, 32, 23, colors[2]);
-    ellipse(ctx, -16, -117, 18, 8, 'rgba(221, 220, 159, .12)');
-    for (let i = 0; i < 13; i += 1) {
-      ellipse(ctx, (random(i, variant) - 0.5) * 64, -80 - random(i, 8) * 39, 7, 4, 'rgba(208, 216, 145, .16)');
+    ctx.fillStyle = '#594735';
+    ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-7, -13); ctx.lineTo(-5, -58);
+    ctx.lineTo(-22, -80); ctx.lineTo(-19, -83); ctx.lineTo(0, -67); ctx.lineTo(18, -85);
+    ctx.lineTo(22, -82); ctx.lineTo(7, -58); ctx.lineTo(8, -12); ctx.lineTo(12, 0);
+    ctx.lineTo(5, -3); ctx.lineTo(0, 1); ctx.lineTo(-4, -3); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#8d7852'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-3, -4); ctx.bezierCurveTo(1, -22, -4, -38, -1, -60);
+    ctx.moveTo(4, -8); ctx.bezierCurveTo(1, -27, 4, -42, 3, -60); ctx.stroke();
+    ctx.fillStyle = variant === 1 ? '#526c3c' : variant === 2 ? '#3d6c51' : '#446c39';
+    ctx.beginPath(); ctx.moveTo(-45, -76);
+    ctx.bezierCurveTo(-55, -87, -50, -102, -39, -105);
+    ctx.bezierCurveTo(-42, -119, -27, -127, -16, -123);
+    ctx.bezierCurveTo(-7, -138, 12, -133, 18, -123);
+    ctx.bezierCurveTo(33, -130, 45, -117, 43, -107);
+    ctx.bezierCurveTo(57, -101, 55, -86, 45, -79);
+    ctx.bezierCurveTo(39, -67, 25, -68, 17, -70);
+    ctx.bezierCurveTo(8, -62, -5, -64, -12, -70);
+    ctx.bezierCurveTo(-23, -65, -38, -67, -45, -76); ctx.closePath(); ctx.fill();
+    for (let i = 0; i < 48; i += 1) {
+      const x = (random(i, variant + 1) - 0.5) * 76;
+      const y = -78 - random(i, 8) * 43;
+      if ((x / 43) ** 2 + ((y + 99) / 30) ** 2 > 1) continue;
+      ellipse(ctx, x, y, 2 + random(i, 10) * 2, 1.5 + random(i, 11),
+        i % 3 ? 'rgba(206, 225, 160, .24)' : 'rgba(24, 55, 33, .24)');
     }
   }
 }
