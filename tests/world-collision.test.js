@@ -9,6 +9,7 @@ import { roadDistance } from '../js/world/world-art.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from '../js/world/town-scenery.js';
 import { WORLD_SUPPLIES } from '../js/world/world-supplies.js';
 import { castleSupplyStyle } from '../js/world/castle-scenery.js';
+import { FRIGHT_MARQUEE } from '../js/world/fright-marquee.js';
 
 test('castle, buildings and tree trunks are solid without blocking nearby entrances', () => {
   const trees = worldTrees(), collision = createCollision(worldObstacles(trees));
@@ -242,6 +243,25 @@ test('the harvest maze stays within its region with clear space around every wal
       }
     }
   }
+});
+
+test('Fright Nights marquee clears the corn and leaves a walkable entrance', () => {
+  const entrance = QUEST_LOCATIONS[4].entrance;
+  const { halfWidth, back, front } = FRIGHT_MARQUEE.clearance;
+  const obstacles = worldObstacles();
+  for (const wall of worldCornWalls()) {
+    const halfWallWidth = wall.vertical ? 12 : 75;
+    const halfWallDepth = wall.vertical ? 75 : 12;
+    assert.ok(Math.abs(wall.x - entrance.x) >= halfWidth + halfWallWidth
+      || wall.y - halfWallDepth >= entrance.y + front
+      || wall.y + halfWallDepth <= entrance.y - back);
+  }
+  const collision = createCollision(obstacles);
+  for (const side of [-1, 1]) {
+    assert.ok(collision.blocked({ x: entrance.x + side * FRIGHT_MARQUEE.postOffset, y: entrance.y }));
+  }
+  assert.ok(collision.clearSegment({ x: entrance.x, y: entrance.y + front },
+    { x: entrance.x, y: entrance.y - 90 }));
 });
 
 test('pumpkins can cross the blended border without losing the original harvest decorations', () => {

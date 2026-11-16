@@ -9,6 +9,7 @@ import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_V
 import { PACE_DISTANCE, SIDE_QUESTS } from '../side-quests.js';
 import { ESCAPE_DECORATIVE_TREE, spaceDeadTrees } from './tree-spacing.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
+import { FRIGHT_MARQUEE } from './fright-marquee.js';
 
 const random = (index, salt) => {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -67,6 +68,9 @@ export function worldCornWalls() {
     y: harvest.y + HARVEST_MAZE_OFFSET.y + (wall.y - 4 + (wall.vertical ? 0.5 : 0)) * 135,
     vertical: wall.vertical
   })).filter((wall) => Math.hypot(wall.x - harvest.x, wall.y - harvest.y) >= 190
+    && !(Math.abs(wall.x - harvest.entrance.x) < FRIGHT_MARQUEE.clearance.halfWidth + (wall.vertical ? 12 : 75)
+      && wall.y - (wall.vertical ? 75 : 12) < harvest.entrance.y + FRIGHT_MARQUEE.clearance.front
+      && wall.y + (wall.vertical ? 75 : 12) > harvest.entrance.y - FRIGHT_MARQUEE.clearance.back)
     && !(Math.abs(wall.x - tickets.x) < (wall.vertical ? 7 : 67.5) + 85
       && wall.y - (wall.vertical ? 67.5 : 7) < tickets.y + 180
       && wall.y + (wall.vertical ? 67.5 : 7) > tickets.y - 80)
@@ -102,8 +106,9 @@ export function worldObstacles(trees = worldTrees()) {
     ...TOWN_LAMPS.map(({ x, y, radius }) => circle(x, y, radius)),
     ...[[park.x + 205, park.y + 45], [park.x - 380, park.y + 260], [park.x + 350, park.y + 300]]
       .map(([x, y]) => rect(x, y, 82, 45)),
-    ...[park.entrance, forest.entrance, harvest.entrance].flatMap(({ x, y }) =>
+    ...[park.entrance, forest.entrance].flatMap(({ x, y }) =>
       [-65, 65].map((offset) => rect(x + offset, y, 18, 20))),
+    ...[-1, 1].map((side) => rect(harvest.entrance.x + side * FRIGHT_MARQUEE.postOffset, harvest.entrance.y, 18, 20)),
     ...trees.flatMap((tree) => [circle(tree.x, tree.z, (tree.region === 'escape' ? 20 : 10) * tree.size),
       ...(tree.variant === 0 ? [circle(tree.x + 48, tree.z + 18, 13)] : [])])
   ];

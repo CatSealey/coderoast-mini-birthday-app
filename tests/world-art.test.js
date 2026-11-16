@@ -110,6 +110,10 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
       art.draw(townContext, cameraFor(venue, 800, 600, 1), 1, 800, 600, []);
       assert.ok(labels.some(([text]) => text === venue.name));
     }
+    labels.length = 0;
+    art.draw(townContext, cameraFor(QUEST_LOCATIONS[4].entrance, 800, 600, 1), 1, 800, 600, []);
+    assert.ok(labels.some(([text]) => text === 'FRIGHT NIGHTS'));
+    assert.ok(labels.some(([text]) => text === 'THE CORN MAZE'));
     const supplyEvents = [];
     const supplyContext = new Proxy({
       translate: (...args) => supplyEvents.push({ type: 'translate', args }),

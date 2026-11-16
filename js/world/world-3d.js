@@ -24,6 +24,7 @@ import { createGamesSignTexture } from './games-sign.js';
 import { createVenueSignTexture } from './venue-sign.js';
 import { CASTLE_GATE_PLANKS, CASTLE_PALETTE, CASTLE_TOWER_WINDOWS, castleFlagPosition, castleSupplyStyle, createCastleArchGeometry, createCastleBannerGeometry, createCastleFlagGeometry } from './castle-scenery.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
+import { createFrightMarqueeTexture, FRIGHT_MARQUEE } from './fright-marquee.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -665,6 +666,26 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     const sign = textSprite(label, 'rgba(63, 48, 35, .92)', 320);
     sign.position.set(0, 88, 8); g.add(sign);
   }
+  function frightMarquee(x, z) {
+    const g = groupAt(x, z);
+    for (const side of [-1, 1]) {
+      const postX = side * FRIGHT_MARQUEE.postOffset;
+      texturedBox(g, 14, 128, 16, '#644735', postX, 64, 0);
+      box(g, 20, 7, 22, '#9d774d', postX, 4, 0);
+      box(g, 18, 6, 20, '#a68050', postX, 118, 0);
+    }
+    box(g, 178, 5, 50, '#493128', 0, 162, -14);
+    for (let i = 0; i < 9; i += 1) {
+      box(g, 19.5, 3, 46, i % 2 ? '#c29c62' : '#773f34', -78 + i * 19.5, 166, -14);
+    }
+    box(g, 178, 54, 12, '#493128', 0, 137, 8);
+    const texture = createFrightMarqueeTexture();
+    textures.add(texture);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(174, 50), new THREE.MeshBasicMaterial({ map: texture }));
+    geometries.add(sign.geometry);
+    sign.position.set(0, 137, 14.1);
+    g.add(sign);
+  }
   [WORLD_SPAWN, escape, park, harvest].forEach((location) => {
     lamp(location.x - 75, location.y - 50);
     lamp(location.x + 95, location.y + 75);
@@ -676,7 +697,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   stall(park.x - 380, park.y + 260, '#788a88');
   stall(park.x + 350, park.y + 300, '#a56e50');
   gate(park.x - 180, park.y - 60, 'THIRTEEN', '#79594e');
-  gate(harvest.x - 175, harvest.y - 175, 'Fright Nights', '#674e36');
+  frightMarquee(harvest.entrance.x, harvest.entrance.y);
   gate(forest.entrance.x, forest.entrance.y, 'GOAPE', '#4b6348');
 
   placeQuestDecorations(escape, 'escape', 22, 560, 12).forEach(({ x, y, variant, scale, rotation }) => {

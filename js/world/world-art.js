@@ -14,6 +14,7 @@ import { drawVenueSign } from './venue-sign.js';
 import { drawCastle, drawCastleSupply } from './castle-scenery.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
 import { drawRoofTiles } from './town-textures.js';
+import { drawFrightMarqueeSign, FRIGHT_MARQUEE } from './fright-marquee.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -218,7 +219,7 @@ function addProps() {
   [[-165, -20], [155, -65], [-125, 165], [180, 190], [-285, -285], [295, -290]].forEach(([dx, dy], index) => {
     add('fairyLight', forest.x + dx, forest.y + dy, 0.9, index % 4);
   });
-  add('mazeGate', harvest.x - 175, harvest.y - 175, 1);
+  add('mazeGate', harvest.entrance.x, harvest.entrance.y, 1);
   worldCornWalls().forEach((wall) => add('cornWall', wall.x, wall.y, 1, Number(wall.vertical)));
   harvestPumpkins().forEach(({ x, y, scale, variant }) => add('pumpkin', x, y, scale, variant));
   [WORLD_SPAWN, escape, park, harvest].forEach((quest) => {
@@ -624,10 +625,20 @@ function drawProp(ctx, prop) {
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -68); ctx.stroke();
     drawLight(ctx, 0, -68, colors[prop.variant]);
   } else if (prop.type === 'mazeGate') {
-    ctx.fillStyle = '#514334'; ctx.fillRect(-57, -100, 10, 100); ctx.fillRect(47, -100, 10, 100);
-    ctx.fillStyle = paletteColor(['#9b713a', '#a67b42', '#8e7042', '#ad8248'], prop.x, prop.y, 62);
-    ctx.fillRect(-66, -102, 132, 22);
-    drawSignText(ctx, 'Fright Nights', -86, 100, '#e8b670');
+    ctx.fillStyle = '#644735';
+    for (const side of [-1, 1]) {
+      const x = side * FRIGHT_MARQUEE.postOffset;
+      ctx.fillRect(x - 7, -128, 14, 128);
+      ctx.fillStyle = '#9d774d'; ctx.fillRect(x - 10, -7, 20, 7);
+      ctx.fillStyle = '#644735';
+    }
+    ctx.fillStyle = '#493128'; ctx.fillRect(-89, -167, 178, 7);
+    for (let i = 0; i < 9; i += 1) {
+      ctx.fillStyle = i % 2 ? '#c29c62' : '#773f34';
+      ctx.fillRect(-88 + i * 19.5, -171, 19.5, 5);
+    }
+    ctx.save(); ctx.translate(-87, -162); ctx.scale(174 / 512, 50 / 160);
+    drawFrightMarqueeSign(ctx); ctx.restore();
   } else if (prop.type === 'scarecrow') {
     ctx.strokeStyle = '#59452f'; ctx.lineWidth = 6;
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -70); ctx.moveTo(-30, -45); ctx.lineTo(30, -45); ctx.stroke();
