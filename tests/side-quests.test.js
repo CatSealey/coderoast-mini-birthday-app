@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { PACE_DISTANCE, SIDE_QUESTS, restoreSideQuestProgress, sideQuestPosition } from '../js/side-quests.js';
 import { createCollision, findCharacterApproach, worldCornWalls, worldObstacles, worldTrees } from '../js/world/world-collision.js';
 import { INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SPAWN } from '../js/world/world-data.js';
@@ -29,6 +30,14 @@ test('side quest completion restores safely for new, old and partially saved gam
   assert.deepEqual(restoreSideQuestProgress([true, false, true, 'true', null]), [true, false, true, false, false]);
   assert.deepEqual(restoreSideQuestProgress([true]), [true, false, false, false, false]);
   assert.notStrictEqual(restoreSideQuestProgress(null), restoreSideQuestProgress(null));
+});
+
+test('selecting a side quest leaves the world heading unchanged', async () => {
+  const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+  const handler = app.match(/if \(button\.dataset\.sideQuest !== undefined\) \{([\s\S]*?)\n {4}\}/);
+  assert.ok(handler, 'side quest selection handler exists');
+  assert.match(handler[1], /world\.selectSideQuest\(index\)/);
+  assert.doesNotMatch(handler[1], /stageTitle\.textContent\s*=/);
 });
 
 test('each scene has a solid, reachable Cat and the pacing area remains solid', () => {

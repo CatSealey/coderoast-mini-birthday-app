@@ -851,7 +851,6 @@ export function startGame(characterName) {
       if (!SIDE_QUESTS[index]) return;
       leaveWorldQuest(); leaveTrophyRoom();
       activeChapter = null;
-      stageTitle.textContent = `Find Cat · ${SIDE_QUESTS[index].title}`;
       setStageStatus('Destination set', '');
       world.selectSideQuest(index);
       return;

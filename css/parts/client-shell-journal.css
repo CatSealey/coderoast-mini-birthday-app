@@ -364,9 +364,13 @@
 }
 
 .quest-steps > summary {
-  grid-template-columns: 29px minmax(0, 1fr) 10px;
+  grid-template-columns: 30px minmax(0, 1fr) 10px;
   padding-right: 52px;
   list-style: none;
+}
+
+.quest-steps > summary .quest-row__copy {
+  display: block;
 }
 
 .quest-steps > summary .quest-row__copy strong {
@@ -375,7 +379,13 @@
   white-space: normal;
 }
 
+.quest-steps > summary .quest-row__copy small {
+  overflow: visible;
+  white-space: normal;
+}
+
 .quest-steps > summary .quest-row__status {
+  display: block;
   max-width: none;
   text-align: left;
 }
@@ -447,7 +457,7 @@
 
 .quest-steps__travel {
   width: 100%;
-  min-height: 44px;
+  min-height: 24px;
   margin-top: 8px;
   padding: 8px 10px;
   border-radius: 4px;
@@ -458,17 +468,31 @@
   position: absolute;
   z-index: 1;
   top: 5px;
-  right: 5px;
-  width: 38px;
-  min-height: 44px;
+  right: 2px;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.quest-entry__remove span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
   border: 1px solid #674b48;
   border-radius: 4px;
   background: #302628;
   color: #e4b7a9;
-  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
 }
 
-.quest-entry__remove:hover {
+.quest-entry__remove:hover span {
   border-color: #d3a08d;
   background: #4a3030;
 }
@@ -482,7 +506,7 @@
   display: grid;
   width: 100%;
   min-height: 53px;
-  grid-template-columns: 29px minmax(0, 1fr) auto;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
   align-items: center;
   gap: 7px;
   padding: 6px 7px;
@@ -519,14 +543,19 @@
 
 .quest-row__icon {
   display: grid;
-  width: 27px;
-  height: 27px;
+  width: 30px;
+  height: 30px;
   place-items: center;
   border: 1px solid #506170;
   border-radius: 4px;
   background: #17232c;
   color: #c3ad70;
-  font-size: 1.05rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.quest-row__icon-symbol--abigail {
+  transform: translateY(-2px);
 }
 
 .quest-row__copy {
@@ -573,7 +602,7 @@
 
 .client-chat {
   margin-top: auto;
-  padding: 10px 9px;
+  padding: 7px 9px;
   border: 1px solid #3c4d59;
   border-radius: 4px;
   background: rgba(5, 11, 16, 0.6);

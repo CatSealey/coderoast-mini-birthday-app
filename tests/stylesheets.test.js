@@ -39,3 +39,22 @@ test('quest steps grow naturally inside the scrollable journal', async () => {
   assert.equal(steps.has('overflow-y'), false);
   assert.equal(steps.has('overflow'), false);
 });
+
+test('quest icons and remove controls have matching visible boxes and a usable target', async () => {
+  const css = await readFile(new URL('../css/parts/client-shell-journal.css', import.meta.url), 'utf8');
+  const root = postcss.parse(css);
+  const declarations = (selector) => {
+    const properties = new Map();
+    root.walkRules(selector, (rule) => rule.walkDecls((decl) => properties.set(decl.prop, decl.value)));
+    return properties;
+  };
+  const icon = declarations('.quest-row__icon');
+  const removeBox = declarations('.quest-entry__remove span');
+  const removeButton = declarations('.quest-entry__remove');
+  for (const property of ['width', 'height', 'font-size', 'line-height']) {
+    assert.equal(icon.get(property), removeBox.get(property));
+  }
+  assert.equal(icon.get('width'), '30px');
+  assert.equal(removeButton.get('width'), '44px');
+  assert.equal(removeButton.get('height'), '44px');
+});

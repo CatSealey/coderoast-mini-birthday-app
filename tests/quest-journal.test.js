@@ -22,6 +22,7 @@ test('each quest heading expands its own steps and keeps travel as a separate ac
     assert.match(heading[1], new RegExp(`id="${index === 5 ? 'trophyQuestButton' : `qbtn-${index + 1}`}"`));
     assert.doesNotMatch(heading[1], /data-(?:level|action)=/);
     assert.doesNotMatch(heading[0], /<button\b/);
+    assert.match(heading[0], /<strong>[^<]+<\/strong> <small>[^<]+<\/small>/);
     assert.ok(content.includes(`id="${index === 5 ? 'trophySteps' : `questSteps-${index + 1}`}"`));
     assert.doesNotMatch(content.match(/<ol\b[^>]*class="quest-steps__list"[^>]*>/)[0], /tabindex=/);
     assert.ok(content.includes(index === 5 ? 'data-action="trophy-quest"' : `data-level="${index + 1}"`));
