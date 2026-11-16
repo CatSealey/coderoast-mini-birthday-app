@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CASTLE_EXTERIOR_SUPPLIES, CASTLE_FRONT_WINDOWS, CASTLE_KEEP_WIDTH, CASTLE_LAYOUT, CASTLE_ROOF_SUPPLIES, CASTLE_SIDE_BATTLEMENT_Z, CASTLE_TOWERS, CASTLE_WINDOW_LEVELS, CASTLE_WINDOW_WIDTH_SCALE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
 import { regionBlendAt } from './world-regions.js';
-import { PARK_RIDES } from './park-scenery.js';
+import { PARK_BANNERS, PARK_MAIN_COASTER, PARK_RELOCATED_STALL, PARK_RIDES, PARK_WHEEL } from './park-scenery.js';
 import { roadDistance } from './world-art.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { CANOPY_LINKS, CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
@@ -29,7 +29,7 @@ import { createGravestoneGeometry, createGravestoneTexture, gravestoneLean, grav
 import { WORLD_LAMPS } from './world-lamps.js';
 import { ENTRANCE_MARKER_RADIUS, entranceMarkerHit } from './entrance-marker.js';
 import { createCanopyDeckTexture } from './canopy-platform.js';
-import { PARK_PALETTE } from './park-style.js';
+import { PARK_FLAG_COLORS, PARK_PALETTE } from './park-style.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -709,7 +709,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   TOWN_TABLES.forEach(({ x, y }) => cafeTable(x, y));
   stall(park.x + 205, park.y + 45, '#9e6254');
   stall(park.x - 380, park.y + 260, '#788a88');
-  stall(park.x + 350, park.y + 300, '#a56e50');
+  stall(PARK_RELOCATED_STALL.x, PARK_RELOCATED_STALL.y, '#a56e50');
   gate(park.x - 180, park.y - 60, 'THIRTEEN', '#79594e');
   frightMarquee(harvest.entrance.x, harvest.entrance.y);
   gate(forest.entrance.x, forest.entrance.y, 'GOAPE', '#4b6348');
@@ -729,7 +729,20 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     const face = mesh(graveFaceGeometry, stone, grave, 0, 5 + GRAVESTONE_HEIGHT / 2, GRAVESTONE_DEPTH / 2 + 0.05);
     face.material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
   });
+  const parkFlagGeometry = createCastleFlagGeometry();
+  for (const [index, color] of PARK_FLAG_COLORS.entries()) {
+    materials.set(`park-flag:${index}`, new THREE.MeshStandardMaterial({ color, roughness: 0.9, side: THREE.DoubleSide }));
+  }
+  PARK_BANNERS.forEach(({ x, y, size, variant }) => {
+    const banner = groupAt(x, y); banner.scale.setScalar(size);
+    box(banner, 10, 5, 10, '#4b4035', 0, 2.5, 0);
+    box(banner, 5, 82, 5, '#6f5842', 0, 41, 0);
+    mesh(new THREE.SphereGeometry(3, 6, 4), PARK_PALETTE.brass, banner, 0, 84, 0);
+    const flag = mesh(parkFlagGeometry, PARK_FLAG_COLORS[variant], banner, 3, 60, 0);
+    flag.material = materials.get(`park-flag:${variant}`);
+  });
   const coasterTrains = [];
+  const parkRivetGeometry = new THREE.SphereGeometry(1.7, 6, 4);
   function parkBeam(parent, from, to, width, color) {
     const direction = to.clone().sub(from);
     const center = from.clone().add(to).multiplyScalar(0.5);
@@ -764,9 +777,13 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       const t = i / 72;
       const point = curve.getPointAt(t);
       const across = lateral(t);
-      const tie = box(group, 4, 4, 22, '#b9a184', point.x, point.y, point.z);
+      const tie = box(group, 4, 4, 22, i % 2 ? '#a58c70' : '#c6ad8c', point.x, point.y, point.z);
       tie.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), across);
       if (i % (type === 'woodCoaster' ? 3 : 6) === 0) {
+        for (const side of [-8, 8]) {
+          const rivet = point.clone().addScaledVector(across, side);
+          mesh(parkRivetGeometry, '#e1c89d', group, rivet.x, rivet.y + 2.5, rivet.z);
+        }
         const supports = [];
         for (const side of [-13, 13]) {
           const support = point.clone().addScaledVector(across, side);
@@ -774,6 +791,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
           box(group, 5, support.y, 5, type === 'woodCoaster' ? '#735039' : '#756657',
             support.x, support.y / 2, support.z);
           box(group, 10, 4, 10, '#5a5046', support.x, 2, support.z);
+          box(group, 7, 3, 7, '#aa9880', support.x, 5, support.z);
         }
         if (supports.every((support) => support.y > 30)) {
           const lower = supports[0].clone().setY(supports[0].y * 0.18);
@@ -792,21 +810,21 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       const car = new THREE.Group();
       train.add(car);
       box(car, 20, 12, 18, '#73423a', 0, 10, 0);
+      box(car, 20, 3, 18, '#4d302c', 0, 5, 0);
+      box(car, 17, 2, 1, '#c49c71', 0, 10, 9.5);
       box(car, 18, 3, 19, PARK_PALETTE.brass, 0, 14, 0);
       box(car, 14, 8, 12, '#52382e', 0, 19, -2);
       box(car, 10, 5, 10, '#d0aa72', 0, 21, 1);
+      box(car, 13, 2, 2, '#e3ca9c', 0, 23, 7);
       for (const cx of [-8, 8]) for (const cz of [-9, 9]) {
         mesh(new THREE.SphereGeometry(3, 6, 4), '#2f302e', car, cx, 5, cz);
       }
     }
     coasterTrains.push({ curve, cars: train.children, offset: random(x, z) });
   }
-  coaster(park.x + 40, park.y - 185, 'thirteen', '#b26b59');
-  PARK_RIDES.filter((ride) => ride.type.includes('Coaster')).forEach((ride, index) => {
-    const type = index === 2 ? 'twistingCoaster' : ride.type;
-    coaster(ride.x, ride.y, type, index === 1 ? '#c5a36d' : index === 2 ? '#6d8392' : '#a34d4d',
-      ride.size, index === 2 ? 0.55 : index === 1 ? -0.3 : 0.2);
-  });
+  coaster(PARK_MAIN_COASTER.x, PARK_MAIN_COASTER.y, 'thirteen', '#b26b59', PARK_MAIN_COASTER.size);
+  PARK_RIDES.filter((ride) => ride.type.includes('Coaster')).forEach((ride) =>
+    coaster(ride.x, ride.y, ride.trackType, ride.color, ride.size, ride.rotation));
   const towerRide = PARK_RIDES.find((ride) => ride.type === 'dropTower');
   if (!towerRide) throw new Error('The theme park is missing its drop tower.');
   const tower = groupAt(towerRide.x, towerRide.y);
@@ -826,28 +844,37 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     box(towerSeats, 11, 4, 12, '#d1b88a', x, 5, 18);
     box(towerSeats, 12, 3, 3, '#d7c79e', x, 13, 23);
   }
-  const wheel = groupAt(park.x + 320, park.y - 260);
+  const wheel = groupAt(PARK_WHEEL.x, PARK_WHEEL.y);
   for (const side of [-1, 1]) {
-    parkBeam(wheel, new THREE.Vector3(side * 58, 2, 0), new THREE.Vector3(0, 125, 0), 7, '#856f5b');
-    box(wheel, 16, 6, 20, '#635748', side * 58, 3, 0);
+    for (const depth of [-12, 12]) {
+      parkBeam(wheel, new THREE.Vector3(side * 58, 2, depth), new THREE.Vector3(0, 125, depth / 2), 7, '#856f5b');
+      box(wheel, 16, 6, 20, '#635748', side * 58, 3, depth);
+    }
+    box(wheel, 6, 4, 24, '#c0a789', side * 35, 51, 0);
   }
   const wheelRotor = new THREE.Group();
   wheelRotor.position.y = 125;
   wheel.add(wheelRotor);
-  mesh(new THREE.TorusGeometry(82, 4, 6, 32), '#e0b574', wheelRotor);
-  mesh(new THREE.TorusGeometry(74, 1.5, 5, 32), '#9f7959', wheelRotor, 0, 0, -5);
+  const wheelRim = new THREE.TorusGeometry(82, 3, 6, 48);
+  for (const z of [-8, 8]) mesh(wheelRim, '#e0b574', wheelRotor, 0, 0, z);
+  mesh(new THREE.TorusGeometry(74, 1.5, 5, 48), '#9f7959', wheelRotor);
   mesh(new THREE.SphereGeometry(9, 10, 8), '#b17d59', wheelRotor);
   const gondolas = [];
   for (let i = 0; i < 8; i += 1) {
     const angle = i * Math.PI / 4;
     const spoke = box(wheelRotor, 82, 3, 3, '#d0b38b', Math.cos(angle) * 41, Math.sin(angle) * 41, 0);
     spoke.rotation.z = angle;
+    box(wheelRotor, 4, 4, 20, '#c2a073', Math.cos(angle) * 82, Math.sin(angle) * 82, 0);
+    mesh(parkRivetGeometry, '#f2d89b', wheelRotor, Math.cos(angle) * 82, Math.sin(angle) * 82, 10);
     const gondola = new THREE.Group();
     gondola.position.set(Math.cos(angle) * 82, Math.sin(angle) * 82, 0); wheelRotor.add(gondola);
     box(gondola, 2, 11, 2, PARK_PALETTE.ironLight, 0, -4, 0);
     box(gondola, 18, 13, 15, i % 2 ? '#b96753' : '#6a8191', 0, -13, 0);
     box(gondola, 16, 3, 16, PARK_PALETTE.brass, 0, -19, 0);
     box(gondola, 12, 5, 1, '#e1cba1', 0, -11, 8);
+    box(gondola, 20, 2, 17, '#e1cba1', 0, -6, 0);
+    box(gondola, 2, 9, 2, '#4e4a42', -9, -12, 7);
+    box(gondola, 2, 9, 2, '#4e4a42', 9, -12, 7);
     gondolas.push(gondola);
   }
   const carousel = groupAt(park.x - 310, park.y - 210);

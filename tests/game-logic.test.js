@@ -9,7 +9,7 @@ import { WORLD_NPCS } from '../js/world/world-npcs.js';
 import { cameraFor, projectWorld, roadDistance, unprojectWorld } from '../js/world/world-art.js';
 import { createMazeWalls } from '../js/world/maze-scenery.js';
 import { regionBlendAt, WORLD_REGIONS } from '../js/world/world-regions.js';
-import { PARK_RIDES } from '../js/world/park-scenery.js';
+import { PARK_MAIN_COASTER, PARK_RIDES, PARK_WHEEL } from '../js/world/park-scenery.js';
 import { CatmullRomCurve3, OrthographicCamera, Vector3 } from 'three';
 import { configureWorldCamera, groundPointAt } from '../js/world/world-3d.js';
 import { CANOPY_LINKS, CANOPY_PLATFORMS, COASTER_TRACKS, placeQuestDecorations, scatterScenery } from '../js/world/world-scenery-data.js';
@@ -257,6 +257,54 @@ test('additional park rides are distributed within the park and clear of the que
     assert.ok(ride.x > 250 && ride.x < WORLD_SIZE.width - 250);
     assert.ok(ride.y > 250 && ride.y < WORLD_SIZE.height - 250);
     assert.ok(distanceBetween(ride, park) > 500);
+  }
+});
+
+test('enlarged outdoor coasters stay within the world and visually clear of the wheel', () => {
+  const rides = [
+    { ...PARK_MAIN_COASTER, trackType: 'thirteen', rotation: 0 },
+    ...PARK_RIDES.filter((ride) => ride.type.includes('Coaster'))
+  ];
+  assert.ok(PARK_MAIN_COASTER.size >= 1.4);
+  assert.ok(PARK_MAIN_COASTER.illustratedSize >= 1.57);
+  assert.deepEqual(rides.slice(1).map((ride) => ride.size), [1.4, 1.35, 1.25]);
+  assert.equal(regionBlendAt(PARK_WHEEL).region.id, 'park');
+  assert.ok(roadDistance(PARK_WHEEL) > 120);
+  for (const ride of rides.slice(1)) {
+    assert.ok(ride.x - 216 * ride.size > 0 && ride.x + 216 * ride.size < WORLD_SIZE.width,
+      `${ride.trackType} illustrated track stays inside the world`);
+  }
+
+  const cameraLength = Math.hypot(650, 970);
+  const depthFactor = 650 / cameraLength, heightFactor = 970 / cameraLength;
+  const wheelTop = (PARK_WHEEL.y - 20) * depthFactor - 224 * heightFactor;
+  const wheelBottom = (PARK_WHEEL.y + 20) * depthFactor;
+  const projectedTracks = [];
+  for (const ride of rides) {
+    const curve = new CatmullRomCurve3(COASTER_TRACKS[ride.trackType].map((point) => new Vector3(...point)),
+      true, 'centripetal');
+    let clearance = Infinity;
+    const projectedTrack = [];
+    for (let i = 0; i < 500; i += 1) {
+      const point = curve.getPointAt(i / 500);
+      const x = ride.x + ride.size * (point.x * Math.cos(ride.rotation) + point.z * Math.sin(ride.rotation));
+      const z = ride.y + ride.size * (-point.x * Math.sin(ride.rotation) + point.z * Math.cos(ride.rotation));
+      const projectedY = z * depthFactor - point.y * ride.size * heightFactor;
+      assert.ok(x > 15 && x < WORLD_SIZE.width - 15 && z > 15 && z < WORLD_SIZE.height - 15);
+      projectedTrack.push({ x, y: projectedY });
+      const dx = Math.max(PARK_WHEEL.x - 100 - x, 0, x - PARK_WHEEL.x - 100);
+      const dy = Math.max(wheelTop - projectedY, 0, projectedY - wheelBottom);
+      clearance = Math.min(clearance, Math.hypot(dx, dy));
+    }
+    assert.ok(clearance >= 45, `${ride.trackType} leaves visible space around the wheel`);
+    for (const other of projectedTracks) {
+      let separation = Infinity;
+      for (const point of projectedTrack) for (const otherPoint of other) {
+        separation = Math.min(separation, Math.hypot(point.x - otherPoint.x, point.y - otherPoint.y));
+      }
+      assert.ok(separation >= 80, `${ride.trackType} leaves visible space between coaster tracks`);
+    }
+    projectedTracks.push(projectedTrack);
   }
 });
 

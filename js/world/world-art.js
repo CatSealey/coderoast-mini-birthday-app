@@ -1,6 +1,6 @@
 import { CASTLE_EXTERIOR_SUPPLIES, CASTLE_LAYOUT, QUEST_LOCATIONS, WORLD_ROUTES, WORLD_SCALE, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
 import { regionBlendAt } from './world-regions.js';
-import { drawParkRide, PARK_RIDES } from './park-scenery.js';
+import { drawParkRide, PARK_BANNERS, PARK_MAIN_COASTER, PARK_RELOCATED_STALL, PARK_RIDES, PARK_WHEEL } from './park-scenery.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { worldCornWalls, worldTrees } from './world-collision.js';
 import { CANOPY_OFFSET, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
@@ -18,7 +18,7 @@ import { drawFrightMarqueeSign, FRIGHT_MARQUEE } from './fright-marquee.js';
 import { drawGravestoneFace, gravestoneLean, gravestoneStyle, GRAVESTONE_HEIGHT, GRAVESTONE_WIDTH } from './gravestones.js';
 import { WORLD_LAMPS } from './world-lamps.js';
 import { drawCanopyPlatformFace } from './canopy-platform.js';
-import { PARK_PALETTE } from './park-style.js';
+import { PARK_FLAG_COLORS, PARK_PALETTE } from './park-style.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -200,22 +200,19 @@ function addProps() {
   TOWN_BENCHES.forEach(({ x, y }) => add('bench', x, y));
   WORLD_LAMPS.forEach(({ x, y }) => add('lamp', x, y));
 
-  add('coaster', park.x + 40, park.y - 185, 1.2);
+  add('coaster', PARK_MAIN_COASTER.x, PARK_MAIN_COASTER.y, PARK_MAIN_COASTER.illustratedSize);
   add('parkGate', park.x - 180, park.y - 60, 1);
   add('stall', park.x + 205, park.y + 45, 1, 1);
-  add('banner', park.x - 135, park.y + 105, 1);
-  add('banner', park.x + 140, park.y + 100, 1);
-  add('wheel', park.x + 320, park.y - 260, 1.05);
+  PARK_BANNERS.forEach(({ x, y, size, variant }) => add('banner', x, y, size, variant));
+  add('wheel', PARK_WHEEL.x, PARK_WHEEL.y, PARK_WHEEL.size);
   add('carousel', park.x - 310, park.y - 210, 1);
   add('stall', park.x - 380, park.y + 260, 1, 1);
-  add('stall', park.x + 350, park.y + 300, 1);
+  add('stall', PARK_RELOCATED_STALL.x, PARK_RELOCATED_STALL.y, 1);
   add('parkGate', park.x - 475, park.y + 350, 0.8);
   PARK_RIDES.forEach((ride) => add(ride.type, ride.x, ride.y, ride.size));
   add('queue', park.x - 155, park.y + 195, 1);
   add('queue', park.x + 260, park.y + 155, 0.8);
   add('bench', park.x - 290, park.y + 110, 0.9);
-  add('banner', park.x - 330, park.y - 30, 0.9, 1);
-  add('banner', park.x + 320, park.y - 15, 0.9);
   [[-35, -190, 1.15], [-370, 240, 0.85], [340, 230, 0.9],
     [-350, -440, 0.85], [340, -430, 0.8]].forEach(([dx, dy, scale]) => {
     add('canopy', forest.x + CANOPY_OFFSET.x + dx, forest.y + CANOPY_OFFSET.z + dy, scale);
@@ -234,7 +231,9 @@ function addProps() {
       || Math.hypot(x - WORLD_SPAWN.x, y - WORLD_SPAWN.y) < 220) continue;
     const region = regionBlendAt({ x, y }).region.id;
     if (region === 'park') {
-      if (i % 4 === 0) add('banner', x, y, 0.7, Math.floor(i / 4) % 2);
+      if (i % 4 === 0 && Math.hypot(x - PARK_WHEEL.x, y - PARK_WHEEL.y) > 160) {
+        add('banner', x, y, 0.7, Math.floor(i / 4) % 2);
+      }
     }
   }
   [...worldTrees(), ...surroundingTrees()].forEach(({ x, z, size, variant, region }) => {
@@ -360,6 +359,7 @@ function drawCoaster(ctx) {
   for (const [x, top] of [[-145, -45], [-95, -78], [-45, -111], [5, -147], [55, -165], [105, -75], [150, -40]]) {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, top); ctx.stroke();
     ctx.fillStyle = '#8b7b68'; ctx.fillRect(x - 6, -4, 12, 4);
+    ctx.fillStyle = '#d3b998'; ctx.fillRect(x - 4, -3, 2, 2); ctx.fillRect(x + 2, -3, 2, 2);
     ctx.strokeStyle = '#ae9a7f'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(x + 2, -3); ctx.lineTo(x + 2, top + 3); ctx.stroke();
     ctx.strokeStyle = '#615646'; ctx.lineWidth = 7;
@@ -437,6 +437,7 @@ function drawWheel(ctx) {
     ctx.fillStyle = '#4a4038'; ctx.fillRect(x - 11, y + 5, 22, 14);
     ctx.fillStyle = i % 2 ? '#ad6250' : '#6a8191'; ctx.fillRect(x - 9, y + 6, 18, 10);
     ctx.fillStyle = '#dfc99e'; ctx.fillRect(x - 7, y + 8, 14, 2); ctx.fillRect(x - 10, y + 17, 20, 2);
+    ctx.fillRect(x - 11, y + 4, 22, 2);
     drawLight(ctx, x, y, '#f2d694');
   }
   ellipse(ctx, 0, -115, 7, 7, '#c9895e');
@@ -683,7 +684,7 @@ function drawProp(ctx, prop) {
   } else if (prop.type === 'banner') {
     ctx.fillStyle = '#4b4035'; ctx.fillRect(-5, -5, 10, 5);
     ctx.fillStyle = '#6f5842'; ctx.fillRect(-3, -82, 6, 82);
-    ctx.fillStyle = prop.variant ? '#ccad6c' : '#b5614c'; ctx.beginPath(); ctx.moveTo(3, -80); ctx.lineTo(35, -72); ctx.lineTo(3, -58); ctx.fill();
+    ctx.fillStyle = PARK_FLAG_COLORS[prop.variant]; ctx.beginPath(); ctx.moveTo(3, -80); ctx.lineTo(35, -72); ctx.lineTo(3, -58); ctx.fill();
     ctx.strokeStyle = 'rgba(247, 221, 175, .65)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(5, -77); ctx.lineTo(29, -72); ctx.lineTo(5, -62); ctx.stroke();
     ellipse(ctx, 0, -83, 3, 3, '#d7bc82');

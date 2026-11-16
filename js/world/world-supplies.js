@@ -1,5 +1,6 @@
 import { QUEST_LOCATIONS, WORLD_SPAWN } from './world-data.js';
 import { TOWN_VENUES } from './town-scenery.js';
+import { PARK_RELOCATED_STALL } from './park-scenery.js';
 
 const [escape, , park] = QUEST_LOCATIONS;
 const venue = (name) => {
@@ -34,5 +35,5 @@ export const WORLD_SUPPLIES = Object.freeze([
   Object.freeze({ kind: 'crate', x: park.x + 264, y: park.y + 55, size: 0.8, variant: 2, rotation: 0.18 }),
   Object.freeze({ kind: 'barrel', x: park.x + 267, y: park.y + 25, size: 0.75, variant: 0, rotation: -0.15 }),
   Object.freeze({ kind: 'barrel', x: park.x - 440, y: park.y + 269, size: 0.9, variant: 2, rotation: 0.1 }),
-  Object.freeze({ kind: 'crate', x: park.x + 410, y: park.y + 310, size: 0.9, variant: 1, rotation: -0.2 })
+  Object.freeze({ kind: 'crate', x: PARK_RELOCATED_STALL.x + 60, y: PARK_RELOCATED_STALL.y + 10, size: 0.9, variant: 1, rotation: -0.2 })
 ]);

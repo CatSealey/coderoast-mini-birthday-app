@@ -3,7 +3,7 @@ import { regionBlendAt } from './world-regions.js';
 import { roadDistance } from './world-art.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { CANOPY_OFFSET, CANOPY_PLATFORMS, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
-import { PARK_RIDES } from './park-scenery.js';
+import { PARK_RELOCATED_STALL, PARK_RIDES, PARK_WHEEL } from './park-scenery.js';
 import { createMazeWalls } from './maze-scenery.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { PACE_DISTANCE, SIDE_QUESTS } from '../side-quests.js';
@@ -105,7 +105,7 @@ export function worldObstacles(trees = worldTrees()) {
     ...TOWN_TABLES.map(({ x, y, radius }) => circle(x, y, radius)),
     ...TOWN_BENCHES.map(({ x, y, width, depth }) => rect(x, y, width, depth)),
     ...WORLD_LAMPS.map(({ x, y, radius }) => circle(x, y, radius)),
-    ...[[park.x + 205, park.y + 45], [park.x - 380, park.y + 260], [park.x + 350, park.y + 300]]
+    ...[[park.x + 205, park.y + 45], [park.x - 380, park.y + 260], [PARK_RELOCATED_STALL.x, PARK_RELOCATED_STALL.y]]
       .map(([x, y]) => rect(x, y, 82, 45)),
     ...[park.entrance, forest.entrance].flatMap(({ x, y }) =>
       [-65, 65].map((offset) => rect(x + offset, y, 18, 20))),
@@ -118,7 +118,7 @@ export function worldObstacles(trees = worldTrees()) {
   });
   const tower = PARK_RIDES.find((ride) => ride.type === 'dropTower');
   if (!tower) throw new Error('The theme park is missing its drop tower.');
-  obstacles.push(rect(tower.x, tower.y, 34, 34), rect(park.x + 320, park.y - 260, 10, 12),
+  obstacles.push(rect(tower.x, tower.y, 34, 34), rect(PARK_WHEEL.x, PARK_WHEEL.y, 10, 12),
     circle(park.x - 310, park.y - 210, 68));
   worldCornWalls().forEach((wall) => obstacles.push(rect(wall.x, wall.y, wall.vertical ? 14 : 135, wall.vertical ? 135 : 14)));
   placeQuestDecorations(escape, 'escape', 22, 560, 12).forEach(({ x, y, scale }) => obstacles.push(circle(x, y, 14 * scale)));

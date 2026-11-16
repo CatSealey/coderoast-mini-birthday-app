@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createCollision, findCharacterApproach, findWorldPath, MAZE_REGION_CLEARANCE, worldCornWalls, worldObstacles, worldTrees } from '../js/world/world-collision.js';
 import { CASTLE_BARREL_COLLISION_RADIUS, CASTLE_CRATE_COLLISION_SIZE, CASTLE_ENTRANCE, CASTLE_EXTERIOR_SUPPLIES, CASTLE_LAYOUT, CASTLE_TOWERS, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from '../js/world/world-data.js';
 import { WORLD_NPCS } from '../js/world/world-npcs.js';
-import { CANOPY_OFFSET, CANOPY_PLATFORMS, harvestPumpkins, placeQuestDecorations } from '../js/world/world-scenery-data.js';
+import { CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, harvestPumpkins, placeQuestDecorations } from '../js/world/world-scenery-data.js';
 import { regionBlendAt } from '../js/world/world-regions.js';
 import { roadDistance } from '../js/world/world-art.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from '../js/world/town-scenery.js';
@@ -11,6 +11,26 @@ import { WORLD_SUPPLIES } from '../js/world/world-supplies.js';
 import { castleSupplyStyle } from '../js/world/castle-scenery.js';
 import { FRIGHT_MARQUEE } from '../js/world/fright-marquee.js';
 import { WORLD_LAMPS } from '../js/world/world-lamps.js';
+import { PARK_BANNERS, PARK_MAIN_COASTER, PARK_RELOCATED_STALL, PARK_RIDES, PARK_WHEEL } from '../js/world/park-scenery.js';
+import { CatmullRomCurve3, Vector3 } from 'three';
+
+function coasterSupportPositions(ride, trackType, rotation = 0) {
+  const curve = new CatmullRomCurve3(COASTER_TRACKS[trackType].map((point) => new Vector3(...point)), true, 'centripetal');
+  const frames = curve.computeFrenetFrames(320, true);
+  const sides = Math.abs(frames.normals[0].y) < Math.abs(frames.binormals[0].y) ? frames.normals : frames.binormals;
+  const supports = [];
+  for (let i = 0; i < 72; i += 6) {
+    const t = i / 72, point = curve.getPointAt(t), across = sides[Math.round(t * 320)];
+    for (const side of [-13, 13]) {
+      const support = point.clone().addScaledVector(across, side);
+      supports.push({
+        x: ride.x + ride.size * (support.x * Math.cos(rotation) + support.z * Math.sin(rotation)),
+        y: ride.y + ride.size * (-support.x * Math.sin(rotation) + support.z * Math.cos(rotation))
+      });
+    }
+  }
+  return supports;
+}
 
 test('castle, buildings and tree trunks are solid without blocking nearby entrances', () => {
   const trees = worldTrees(), collision = createCollision(worldObstacles(trees));
@@ -62,6 +82,68 @@ test('lamps stay clear of quest entrances, building doors and their approaches',
     'the relocated lamp does not overlap other scenery');
   assert.ok(!obstacles.some((item) => item.x === escape.x - 75 && item.y === escape.y - 50 && item.radius === 7),
     'the old lamp has no invisible collision');
+});
+
+test('the relocated park wheel keeps its collision and clears existing scenery', () => {
+  const obstacles = worldObstacles();
+  const wheel = obstacles.find((item) => item.x === PARK_WHEEL.x && item.y === PARK_WHEEL.y
+    && item.width === 10 && item.depth === 12);
+  assert.ok(wheel);
+  assert.ok(createCollision(obstacles).blocked(PARK_WHEEL));
+  assert.ok(!createCollision(obstacles.filter((item) => item !== wheel), 75).blocked(PARK_WHEEL));
+  const park = QUEST_LOCATIONS[2];
+  assert.ok(!obstacles.some((item) => item.x === park.x + 320 && item.y === park.y - 260
+    && item.width === 10 && item.depth === 12));
+});
+
+test('park banners leave the paths and solid scenery clear', () => {
+  const collision = createCollision(worldObstacles(), 15);
+  for (const banner of PARK_BANNERS) {
+    assert.ok(roadDistance(banner) > 40);
+    assert.ok(!collision.blocked(banner));
+  }
+});
+
+test('the enlarged Thirteen coaster supports clear the entrance', () => {
+  const entrance = QUEST_LOCATIONS[2].entrance;
+  for (const support of coasterSupportPositions(PARK_MAIN_COASTER, 'thirteen')) {
+    assert.ok(Math.hypot(support.x - entrance.x, support.y - entrance.y) >= 60);
+  }
+});
+
+test('the relocated blue coaster and stall clear GoApe and the road', () => {
+  const ride = PARK_RIDES.find((item) => item.trackType === 'twistingCoaster');
+  assert.ok(ride);
+  const forest = QUEST_LOCATIONS[3], obstacles = worldObstacles();
+  const collision = createCollision(obstacles);
+  const curve = new CatmullRomCurve3(COASTER_TRACKS[ride.trackType].map((point) => new Vector3(...point)),
+    true, 'centripetal');
+  for (let i = 0; i < 500; i += 1) {
+    const point = curve.getPointAt(i / 500);
+    const x = ride.x + ride.size * (point.x * Math.cos(ride.rotation) + point.z * Math.sin(ride.rotation));
+    const y = ride.y + ride.size * (-point.x * Math.sin(ride.rotation) + point.z * Math.cos(ride.rotation));
+    for (const platform of CANOPY_PLATFORMS) {
+      assert.ok(Math.hypot(x - forest.x - CANOPY_OFFSET.x - platform.x,
+        y - forest.y - CANOPY_OFFSET.z - platform.z) >= platform.size / 2 + 300);
+    }
+  }
+  for (const support of coasterSupportPositions(ride, ride.trackType, ride.rotation)) {
+    assert.ok(roadDistance(support) > 75);
+    assert.ok(!collision.blocked(support));
+  }
+  assert.ok(obstacles.some((item) => item.x === PARK_RELOCATED_STALL.x && item.y === PARK_RELOCATED_STALL.y
+    && item.width === 82 && item.depth === 45));
+  assert.ok(WORLD_SUPPLIES.some((item) => item.kind === 'crate'
+    && item.x === PARK_RELOCATED_STALL.x + 60 && item.y === PARK_RELOCATED_STALL.y + 10));
+  const otherObstacles = obstacles.filter((item) =>
+    !(item.x === PARK_RELOCATED_STALL.x && item.y === PARK_RELOCATED_STALL.y)
+    && !(item.x === PARK_RELOCATED_STALL.x + 60 && item.y === PARK_RELOCATED_STALL.y + 10));
+  assert.ok(!createCollision(otherObstacles, 45).blocked(PARK_RELOCATED_STALL));
+  const park = QUEST_LOCATIONS[2];
+  assert.ok(!obstacles.some((item) => item.x === park.x + 350 && item.y === park.y + 300
+    && item.width === 82 && item.depth === 45));
+  assert.ok(!WORLD_SUPPLIES.some((item) => item.kind === 'crate' && item.x === park.x + 410 && item.y === park.y + 310));
+  assert.ok(roadDistance(PARK_RELOCATED_STALL) > 100);
 });
 
 test('the enlarged castle covers every corner tower and keeps trees and rocks clear', () => {

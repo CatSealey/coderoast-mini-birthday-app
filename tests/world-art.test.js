@@ -7,6 +7,7 @@ import { CHURCH_STONE, CHURCH_WOOD, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURC
 import { SURROUNDINGS_BOUNDS } from '../js/world/world-surroundings.js';
 import { WORLD_SUPPLIES } from '../js/world/world-supplies.js';
 import { WORLD_LAMPS } from '../js/world/world-lamps.js';
+import { PARK_FLAG_COLORS } from '../js/world/park-style.js';
 
 test('minimap preserves unpaved town terrain while retaining the rest of the world ground', () => {
   const previousDocument = globalThis.document;
@@ -174,6 +175,20 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
     art.draw(townContext, { x: castle.x - 400, y: castle.y - 490 / 0.68 }, 1, 800, 100, []);
     assert.ok(paintedRectangles.some(({ color, args }) => color === CASTLE_PALETTE.tower
       && args[0] === -125 && args[1] === -247), 'rear towers remain visible when the castle base is below the viewport');
+
+    const flagColors = [];
+    let flagPath = false;
+    const flagContext = new Proxy({
+      beginPath: () => { flagPath = false; },
+      moveTo: (x, y) => { flagPath = x === 3 && y === -80; },
+      lineTo: () => {},
+      fill: () => { if (flagPath) flagColors.push(flagContext.fillStyle); },
+      createLinearGradient: () => ({ addColorStop: () => {} }),
+      createRadialGradient: () => ({ addColorStop: () => {} })
+    }, { get: (target, key) => target[key] || (() => {}) });
+    art.draw(flagContext, cameraFor(QUEST_LOCATIONS[2], 1000, 800, 0.6), 0.6, 1000, 800, []);
+    assert.ok(flagColors.length >= 6);
+    assert.deepEqual(new Set(flagColors), new Set(PARK_FLAG_COLORS));
   } finally {
     if (previousDocument === undefined) delete globalThis.document;
     else globalThis.document = previousDocument;

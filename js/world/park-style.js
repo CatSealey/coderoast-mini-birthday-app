@@ -6,6 +6,8 @@ export const PARK_PALETTE = Object.freeze({
   teal: '#6d8d89', cream: '#e5d2a7'
 });
 
+export const PARK_FLAG_COLORS = Object.freeze(['#4d6f91', '#769ab6']);
+
 function random(index, salt) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
   return value - Math.floor(value);

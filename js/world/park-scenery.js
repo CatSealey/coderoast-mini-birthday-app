@@ -3,10 +3,21 @@ import { PARK_PALETTE } from './park-style.js';
 
 const park = QUEST_LOCATIONS[2];
 
+export const PARK_MAIN_COASTER = Object.freeze({ x: park.x + 140, y: park.y - 220, size: 1.4, illustratedSize: 1.57 });
+export const PARK_WHEEL = Object.freeze({ x: park.x - 130, y: park.y - 570, size: 1.05 });
+export const PARK_RELOCATED_STALL = Object.freeze({ x: park.x + 700, y: park.y + 570 });
+export const PARK_BANNERS = Object.freeze([
+  [-135, 105, 1, 0], [140, 100, 1, 0], [-330, -30, 0.9, 1], [320, -15, 0.9, 0],
+  [-320, -480, 1, 1], [80, -490, 1, 0]
+].map(([x, y, size, variant]) => Object.freeze({ x: park.x + x, y: park.y + y, size, variant })));
+
 export const PARK_RIDES = Object.freeze([
-  Object.freeze({ type: 'loopCoaster', x: park.x - 600, y: park.y - 350, size: 1 }),
-  Object.freeze({ type: 'woodCoaster', x: park.x + 540, y: park.y - 310, size: 1 }),
-  Object.freeze({ type: 'loopCoaster', x: park.x + 480, y: park.y + 450, size: 0.85 }),
+  Object.freeze({ type: 'loopCoaster', trackType: 'loopCoaster', color: '#a34d4d', rotation: 0.2,
+    x: park.x - 670, y: park.y - 370, size: 1.4 }),
+  Object.freeze({ type: 'woodCoaster', trackType: 'woodCoaster', color: '#c5a36d', rotation: -0.3,
+    x: park.x + 570, y: park.y - 600, size: 1.35 }),
+  Object.freeze({ type: 'loopCoaster', trackType: 'twistingCoaster', color: '#6d8392', rotation: 0.55,
+    x: park.x + 580, y: park.y + 200, size: 1.25 }),
   Object.freeze({ type: 'dropTower', x: park.x - 450, y: park.y + 500, size: 1 })
 ]);
 
@@ -46,6 +57,7 @@ function drawLoopCoaster(ctx) {
   for (const [x, y] of [[-170, -45], [-105, -75], [-55, -65], [35, -130], [125, -55], [180, -35]]) {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, y); ctx.stroke();
     ctx.fillStyle = '#7e766a'; ctx.fillRect(x - 6, -3, 12, 4);
+    ctx.fillStyle = '#c9b797'; ctx.fillRect(x - 4, -2, 2, 2); ctx.fillRect(x + 2, -2, 2, 2);
   }
   ctx.strokeStyle = '#a69a87'; ctx.lineWidth = 2;
   for (const [x, y] of [[-170, -45], [-105, -75], [-55, -65], [35, -130], [125, -55], [180, -35]]) {
@@ -73,6 +85,7 @@ function drawWoodCoaster(ctx) {
     ctx.fillStyle = '#a7875d'; ctx.fillRect(x - 5, -4, 10, 4);
     ctx.strokeStyle = '#a17c52'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(x, -height * 0.45); ctx.lineTo(x + 26, -height * 0.45); ctx.stroke();
+    ctx.fillStyle = '#d1b384'; ctx.fillRect(x - 2, -height * 0.45 - 1, 3, 3);
     ctx.strokeStyle = '#755839'; ctx.lineWidth = 5;
   }
   const trace = (c) => {
