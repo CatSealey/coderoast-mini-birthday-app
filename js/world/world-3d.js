@@ -9,7 +9,7 @@ import { worldCornWalls, worldTrees } from './world-collision.js';
 import { CAT_OUTFIT, CAT_STYLE, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, addCharacterHeadDetails } from '../character-appearance.js';
 import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 import { createCharacterLegs, createPlayerLegs } from '../games/character-legs.js';
-import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
+import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { sideQuestPosition } from '../side-quests.js';
 import { SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
 import { createDeadTreeGeometry, createTreeBarkTexture } from './tree-geometry.js';
@@ -21,11 +21,13 @@ import { cornStalks, createCornGeometry, createCornTexture } from './corn-scener
 import { createPumpkinGeometry, pumpkinHasFace } from './pumpkin-scenery.js';
 import { createRoofTileGeometry, createTownTexture } from './town-textures.js';
 import { createGamesSignTexture } from './games-sign.js';
-import { createVenueSignTexture } from './venue-sign.js';
+import { createVenueSignTexture, ESCAPE_SIGN } from './venue-sign.js';
 import { CASTLE_GATE_PLANKS, CASTLE_PALETTE, CASTLE_TOWER_WINDOWS, castleFlagPosition, castleSupplyStyle, createCastleArchGeometry, createCastleBannerGeometry, createCastleFlagGeometry } from './castle-scenery.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
 import { createFrightMarqueeTexture, FRIGHT_MARQUEE } from './fright-marquee.js';
 import { createGravestoneGeometry, createGravestoneTexture, gravestoneLean, gravestoneStyle, GRAVESTONE_DEPTH, GRAVESTONE_HEIGHT, GRAVESTONE_WIDTH } from './gravestones.js';
+import { WORLD_LAMPS } from './world-lamps.js';
+import { ENTRANCE_MARKER_RADIUS, entranceMarkerHit } from './entrance-marker.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -513,14 +515,11 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     person.add(label);
     return person;
   });
-  const entrances = QUEST_LOCATIONS.map((quest, index) => {
+  const entrances = QUEST_LOCATIONS.map((quest) => {
     const marker = groupAt(quest.entrance.x, quest.entrance.y);
-    const ring = mesh(new THREE.TorusGeometry(21, 3, 6, 24), '#e6bf63', marker, 0, 3, 0);
+    const ring = mesh(new THREE.TorusGeometry(ENTRANCE_MARKER_RADIUS, 3, 6, 24), '#e6bf63', marker, 0, 3, 0);
     ring.rotation.x = Math.PI / 2;
-    const label = textSprite(`ENTER · ${quest.entrance.name.toUpperCase()}`, 'rgba(38, 48, 34, .94)', 512);
-    label.position.set(index === 3 ? -90 : 0, index === 1 ? 32 : 48, index === 3 ? 40 : index === 1 ? 55 : 0);
-    marker.add(label);
-    return label;
+    return ring;
   });
 
   castle(CASTLE_LAYOUT.x, CASTLE_LAYOUT.y);
@@ -528,7 +527,12 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   WORLD_SUPPLIES.forEach((item) => supply(worldSupplyGroup, { ...item, z: item.y }, 0));
   house(WORLD_SPAWN.x - 205, WORLD_SPAWN.y - 95, false, 0.8);
   const [escape, , park, forest, harvest] = QUEST_LOCATIONS;
-  house(escape.x - 70, escape.y - 185, true, 1.15);
+  const escapeBuilding = house(escape.x - 70, escape.y - 185, true, 1.15);
+  const escapeTexture = createVenueSignTexture(ESCAPE_SIGN.name, ESCAPE_SIGN.motif);
+  textures.add(escapeTexture);
+  const escapeSign = new THREE.Sprite(new THREE.SpriteMaterial({ map: escapeTexture, transparent: true, depthTest: false }));
+  escapeSign.scale.set(106.67, 16.67, 1);
+  escapeSign.position.set(0, 110, 56); escapeBuilding.add(escapeSign);
   TOWN_VENUES.forEach((venue) => {
     const building = house(venue.x, venue.y, false, venue.size);
     if (venue.kind !== 'games') {
@@ -590,9 +594,6 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     box(g, 18, 2, 7, CHURCH_STONE.trim, 0, 108, 86);
   }
   church();
-  const escapeSign = textSprite('ESCAPE ROOM', 'rgba(36, 41, 38, .95)');
-  escapeSign.position.set(escape.x - 70, 120, escape.y - 125); scene.add(escapeSign);
-
   function lamp(x, z, color) {
     const g = groupAt(x, z);
     const frame = paletteColor(['#5e594c', '#615848', '#685846', '#575548'], x, z, 91);
@@ -687,11 +688,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     sign.position.set(0, 137, 14.1);
     g.add(sign);
   }
-  [WORLD_SPAWN, escape, park, harvest].forEach((location) => {
-    lamp(location.x - 75, location.y - 50);
-    lamp(location.x + 95, location.y + 75);
-  });
-  TOWN_LAMPS.forEach(({ x, y }) => lamp(x, y));
+  WORLD_LAMPS.forEach(({ x, y }) => lamp(x, y));
   TOWN_BENCHES.forEach(({ x, y }) => bench(x, y));
   TOWN_TABLES.forEach(({ x, y }) => cafeTable(x, y));
   stall(park.x + 205, park.y + 45, '#9e6254');
@@ -1171,11 +1168,11 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       });
     },
     entranceAt(point) {
-      return entrances.findIndex((label) => {
-        const projected = label.getWorldPosition(new THREE.Vector3()).project(camera);
+      return entrances.findIndex((ring) => {
+        const projected = ring.getWorldPosition(new THREE.Vector3()).project(camera);
         const x = (projected.x + 1) * width / 2;
         const y = (1 - projected.y) * height / 2;
-        return projected.z >= -1 && projected.z <= 1 && Math.abs(point.x - x) <= 65 && Math.abs(point.y - y) <= 18;
+        return projected.z >= -1 && projected.z <= 1 && entranceMarkerHit(point, { x, y }, currentZoom);
       });
     },
     dispose() {

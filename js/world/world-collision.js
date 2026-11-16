@@ -5,11 +5,12 @@ import { WORLD_NPCS } from './world-npcs.js';
 import { CANOPY_OFFSET, CANOPY_PLATFORMS, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
 import { PARK_RIDES } from './park-scenery.js';
 import { createMazeWalls } from './maze-scenery.js';
-import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
+import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { PACE_DISTANCE, SIDE_QUESTS } from '../side-quests.js';
 import { ESCAPE_DECORATIVE_TREE, spaceDeadTrees } from './tree-spacing.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
 import { FRIGHT_MARQUEE } from './fright-marquee.js';
+import { WORLD_LAMPS } from './world-lamps.js';
 
 const random = (index, salt) => {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -103,7 +104,7 @@ export function worldObstacles(trees = worldTrees()) {
     rect(TOWN_CHURCH.x, TOWN_CHURCH.y, TOWN_CHURCH.width, TOWN_CHURCH.depth),
     ...TOWN_TABLES.map(({ x, y, radius }) => circle(x, y, radius)),
     ...TOWN_BENCHES.map(({ x, y, width, depth }) => rect(x, y, width, depth)),
-    ...TOWN_LAMPS.map(({ x, y, radius }) => circle(x, y, radius)),
+    ...WORLD_LAMPS.map(({ x, y, radius }) => circle(x, y, radius)),
     ...[[park.x + 205, park.y + 45], [park.x - 380, park.y + 260], [park.x + 350, park.y + 300]]
       .map(([x, y]) => rect(x, y, 82, 45)),
     ...[park.entrance, forest.entrance].flatMap(({ x, y }) =>
@@ -114,9 +115,6 @@ export function worldObstacles(trees = worldTrees()) {
   ];
   WORLD_NPCS.filter((npc) => npc.prop === 'grave').forEach((npc) => {
     obstacles.push(rect(npc.x + 48, npc.y, 58, 32));
-  });
-  [WORLD_SPAWN, escape, park, harvest].forEach((location) => {
-    obstacles.push(circle(location.x - 75, location.y - 50, 7), circle(location.x + 95, location.y + 75, 7));
   });
   const tower = PARK_RIDES.find((ride) => ride.type === 'dropTower');
   if (!tower) throw new Error('The theme park is missing its drop tower.');

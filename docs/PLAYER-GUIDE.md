@@ -15,7 +15,8 @@ not create a separate save on the same browser and device.
 - On a phone, use the on-screen movement controls or tap the world or minimap.
 - Walk near a person, entrance or object and press **E** or use the on-screen
   interaction button. You can also click or tap people and objects to approach
-  them. Some quests provide their own controls on screen.
+  them. Click or tap a gold entrance ring to approach a quest entrance. Some
+  quests provide their own controls on screen.
 
 ## Find quests
 

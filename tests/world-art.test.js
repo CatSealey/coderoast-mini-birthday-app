@@ -6,6 +6,7 @@ import { CASTLE_PALETTE, castleSupplyStyle } from '../js/world/castle-scenery.js
 import { CHURCH_STONE, CHURCH_WOOD, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_PLAZA, TOWN_VENUES } from '../js/world/town-scenery.js';
 import { SURROUNDINGS_BOUNDS } from '../js/world/world-surroundings.js';
 import { WORLD_SUPPLIES } from '../js/world/world-supplies.js';
+import { WORLD_LAMPS } from '../js/world/world-lamps.js';
 
 test('minimap preserves unpaved town terrain while retaining the rest of the world ground', () => {
   const previousDocument = globalThis.document;
@@ -117,6 +118,21 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
     art.draw(townContext, cameraFor(QUEST_LOCATIONS[4].entrance, 800, 600, 1), 1, 800, 600, []);
     assert.ok(labels.some(([text]) => text === 'FRIGHT NIGHTS'));
     assert.ok(labels.some(([text]) => text === 'THE CORN MAZE'));
+    const lampTranslations = [];
+    const lampContext = new Proxy({
+      translate: (...args) => lampTranslations.push(args),
+      createLinearGradient: () => ({ addColorStop: () => {} }),
+      createRadialGradient: () => ({ addColorStop: () => {} })
+    }, { get: (target, key) => target[key] || (() => {}) });
+    const escape = QUEST_LOCATIONS[0];
+    labels.length = 0;
+    art.draw(townContext, cameraFor(escape.entrance, 800, 600, 1), 1, 800, 600, []);
+    assert.ok(labels.some(([text]) => text === 'ESCAPE ROOM'), 'escape building has a framed venue sign');
+    art.draw(lampContext, cameraFor(escape.entrance, 800, 600, 1), 1, 800, 600, []);
+    const lamp = WORLD_LAMPS.find((item) => item.x === escape.x - 180 && item.y === escape.y - 50);
+    assert.ok(lampTranslations.some(([x, y]) => x === lamp.x && y === lamp.y * 0.68), 'the relocated lamp is drawn');
+    assert.ok(!lampTranslations.some(([x, y]) => x === escape.x - 75 && y === (escape.y - 50) * 0.68),
+      'the lamp is no longer drawn in front of the entrance');
     const supplyEvents = [];
     const supplyContext = new Proxy({
       translate: (...args) => supplyEvents.push({ type: 'translate', args }),

@@ -4,18 +4,19 @@ import { drawParkRide, PARK_RIDES } from './park-scenery.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { worldCornWalls, worldTrees } from './world-collision.js';
 import { CANOPY_OFFSET, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
-import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_PLAZA, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
+import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_PLAZA, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { createSurroundingTerrain, SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
 import { ESCAPE_DECORATIVE_TREE } from './tree-spacing.js';
 import { rockVariant } from './rock-style.js';
 import { COBBLESTONE_SPACING, drawCobblestone } from './cobblestones.js';
 import { drawGamesSign } from './games-sign.js';
-import { drawVenueSign } from './venue-sign.js';
+import { drawVenueSign, ESCAPE_SIGN } from './venue-sign.js';
 import { drawCastle, drawCastleSupply } from './castle-scenery.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
 import { drawRoofTiles } from './town-textures.js';
 import { drawFrightMarqueeSign, FRIGHT_MARQUEE } from './fright-marquee.js';
 import { drawGravestoneFace, gravestoneLean, gravestoneStyle, GRAVESTONE_HEIGHT, GRAVESTONE_WIDTH } from './gravestones.js';
+import { WORLD_LAMPS } from './world-lamps.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -182,7 +183,6 @@ function addProps() {
   }
   for (const item of WORLD_SUPPLIES) add(item.kind, item.x, item.y, item.size, item.variant);
   add('house', WORLD_SPAWN.x - 205, WORLD_SPAWN.y - 95, 0.85);
-  add('lamp', WORLD_SPAWN.x - 70, WORLD_SPAWN.y - 80);
   add('sign', WORLD_SPAWN.x - 120, WORLD_SPAWN.y + 20);
 
   add('haunted', escape.x - 70, escape.y - 185, 1.25);
@@ -196,7 +196,7 @@ function addProps() {
   add('church', TOWN_CHURCH.x, TOWN_CHURCH.y, 1.3);
   TOWN_TABLES.forEach((table) => add('cafeTable', table.x, table.y));
   TOWN_BENCHES.forEach(({ x, y }) => add('bench', x, y));
-  TOWN_LAMPS.forEach(({ x, y }) => add('lamp', x, y));
+  WORLD_LAMPS.forEach(({ x, y }) => add('lamp', x, y));
 
   add('coaster', park.x + 40, park.y - 185, 1.2);
   add('parkGate', park.x - 180, park.y - 60, 1);
@@ -224,10 +224,6 @@ function addProps() {
   add('mazeGate', harvest.entrance.x, harvest.entrance.y, 1);
   worldCornWalls().forEach((wall) => add('cornWall', wall.x, wall.y, 1, Number(wall.vertical)));
   harvestPumpkins().forEach(({ x, y, scale, variant }) => add('pumpkin', x, y, scale, variant));
-  [WORLD_SPAWN, escape, park, harvest].forEach((quest) => {
-    add('lamp', quest.x - 75, quest.y - 50);
-    add('lamp', quest.x + 95, quest.y + 75);
-  });
   for (let i = 0; i < 950; i += 1) {
     const x = 70 + random(i, 20) * (WORLD_SIZE.width - 140);
     const y = 70 + random(i, 21) * (WORLD_SIZE.height - 140);
@@ -557,7 +553,9 @@ function drawProp(ctx, prop) {
     ctx.fillStyle = '#a9b07c'; ctx.fillRect(-39, -57, 14, 18); ctx.fillRect(30, -57, 14, 18);
     ctx.strokeStyle = '#313638'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(-41, -54); ctx.lineTo(-23, -42); ctx.moveTo(28, -42); ctx.lineTo(46, -54); ctx.stroke();
-    drawSignText(ctx, 'ESCAPE ROOM', -89, 92, '#c2caa7');
+    ctx.save(); ctx.translate(-54, -99); ctx.scale(108 / 512, 17 / 80);
+    drawVenueSign(ctx, ESCAPE_SIGN.name, ESCAPE_SIGN.motif);
+    ctx.restore();
   } else if (prop.type === 'deadTree') {
     ellipse(ctx, 5, 2, 34, 9, 'rgba(13, 19, 19, .3)');
     ctx.scale(prop.variant === 1 ? -1 : 1, 1);

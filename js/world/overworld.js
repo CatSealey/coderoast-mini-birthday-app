@@ -10,6 +10,7 @@ import { createCollision, findCharacterApproach, findWorldPath, worldObstacles }
 import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, drawCharacterMarker } from '../character-appearance.js';
 import { TATTOO_ACCENT, TATTOO_INK } from '../character-body.js';
 import { sideQuestPosition } from '../side-quests.js';
+import { ENTRANCE_MARKER_RADIUS, entranceMarkerHit } from './entrance-marker.js';
 
 const WALK_SPEED = 220;
 const PLAYER_RADIUS = 12;
@@ -19,10 +20,6 @@ const DIRECTIONS = {
   ArrowLeft: { x: -1, y: 0 }, a: { x: -1, y: 0 },
   ArrowRight: { x: 1, y: 0 }, d: { x: 1, y: 0 }
 };
-
-function entranceLabelOffset(index) {
-  return index === 3 ? { x: -90, y: -50 } : { x: 0, y: index === 1 ? 20 : -35 };
-}
 
 function drawPerson(ctx, color, moving, time, longHair = false, hair = CHARACTER_HAIR, belt = '#dbbd79') {
   const stride = moving ? Math.sin(time / 120) * 5 : 0;
@@ -292,15 +289,11 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
         if (selected) label(ctx, quest.guide, -101);
       }
     }));
-    QUEST_LOCATIONS.forEach((quest, index) => actors.push({
+    QUEST_LOCATIONS.forEach((quest) => actors.push({
       ...quest.entrance,
       draw(ctx) {
         ctx.strokeStyle = '#e6bf63'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.ellipse(0, 0, 21, 9, 0, 0, Math.PI * 2); ctx.stroke();
-        const offset = entranceLabelOffset(index);
-        ctx.save(); ctx.translate(offset.x, 0);
-        label(ctx, `ENTER · ${quest.entrance.name}`, offset.y);
-        ctx.restore();
+        ctx.beginPath(); ctx.ellipse(0, 0, ENTRANCE_MARKER_RADIUS, 9, 0, 0, Math.PI * 2); ctx.stroke();
       }
     }));
     npcPositions().forEach((npc, index) => actors.push({
@@ -479,11 +472,9 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     if (state.paused) return;
     worldCanvas.focus();
     const screen = { x: event.clientX - worldCanvas.getBoundingClientRect().left, y: event.clientY - worldCanvas.getBoundingClientRect().top };
-    const entranceIndex = world3d ? world3d.entranceAt(screen) : QUEST_LOCATIONS.findIndex((quest, index) => {
+    const entranceIndex = world3d ? world3d.entranceAt(screen) : QUEST_LOCATIONS.findIndex((quest) => {
       const position = projectWorld(quest.entrance, camera, zoom);
-      const offset = entranceLabelOffset(index);
-      return Math.abs(screen.x - (position.x + offset.x * zoom)) <= 80 * zoom
-        && Math.abs(screen.y - (position.y + offset.y * zoom)) <= 16 * zoom;
+      return entranceMarkerHit(screen, position, zoom);
     });
     if (entranceIndex !== -1) {
       const quest = QUEST_LOCATIONS[entranceIndex];

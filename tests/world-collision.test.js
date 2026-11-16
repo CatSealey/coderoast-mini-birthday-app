@@ -10,6 +10,7 @@ import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_V
 import { WORLD_SUPPLIES } from '../js/world/world-supplies.js';
 import { castleSupplyStyle } from '../js/world/castle-scenery.js';
 import { FRIGHT_MARQUEE } from '../js/world/fright-marquee.js';
+import { WORLD_LAMPS } from '../js/world/world-lamps.js';
 
 test('castle, buildings and tree trunks are solid without blocking nearby entrances', () => {
   const trees = worldTrees(), collision = createCollision(worldObstacles(trees));
@@ -30,6 +31,37 @@ test('castle, buildings and tree trunks are solid without blocking nearby entran
       position = waypoint;
     }
   }
+});
+
+test('lamps stay clear of quest entrances, building doors and their approaches', () => {
+  const park = QUEST_LOCATIONS[2];
+  const doors = [
+    { ...CASTLE_ENTRANCE, name: 'castle', direction: 1 },
+    ...QUEST_LOCATIONS.map(({ entrance }) => ({ ...entrance, direction: 1 })),
+    ...TOWN_VENUES.map((venue) => ({ x: venue.x, y: venue.y + venue.depth / 2, name: venue.name, direction: 1 })),
+    { x: TOWN_CHURCH.x, y: TOWN_CHURCH.y - TOWN_CHURCH.depth / 2, name: 'church', direction: -1 },
+    { x: WORLD_SPAWN.x - 205, y: WORLD_SPAWN.y - 95 + 42, name: 'home', direction: 1 },
+    { x: park.x - 475, y: park.y + 350, name: 'park gate', direction: 1 }
+  ];
+  const lampCollision = createCollision(WORLD_LAMPS);
+  for (const door of doors) {
+    for (const lamp of WORLD_LAMPS) {
+      assert.ok(Math.hypot(lamp.x - door.x, lamp.y - door.y) >= 90, `${door.name} has space around its entrance`);
+    }
+    assert.ok(lampCollision.clearSegment(door, { x: door.x, y: door.y + door.direction * 100 }),
+      `${door.name} has an approach clear of lamps`);
+  }
+  const obstacles = worldObstacles();
+  for (const lamp of WORLD_LAMPS) {
+    assert.ok(obstacles.some((item) => item.x === lamp.x && item.y === lamp.y && item.radius === lamp.radius));
+  }
+  const escape = QUEST_LOCATIONS[0];
+  const moved = WORLD_LAMPS.find((lamp) => lamp.x === escape.x - 180 && lamp.y === escape.y - 50);
+  assert.ok(moved);
+  assert.ok(!createCollision(obstacles.filter((item) => item.x !== moved.x || item.y !== moved.y), 20).blocked(moved),
+    'the relocated lamp does not overlap other scenery');
+  assert.ok(!obstacles.some((item) => item.x === escape.x - 75 && item.y === escape.y - 50 && item.radius === 7),
+    'the old lamp has no invisible collision');
 });
 
 test('the enlarged castle covers every corner tower and keeps trees and rocks clear', () => {

@@ -6,8 +6,11 @@ const PANELS = Object.freeze({
   kettle: '#573a30',
   leaf: '#304b39',
   lantern: '#443b4a',
-  cutlery: '#58452e'
+  cutlery: '#58452e',
+  key: '#39423a'
 });
+
+export const ESCAPE_SIGN = Object.freeze({ name: 'ESCAPE ROOM', motif: 'key' });
 
 export function drawVenueSign(ctx, name, motif) {
   if (!Object.hasOwn(PANELS, motif)) throw new RangeError('Unknown venue sign motif.');
@@ -39,6 +42,10 @@ export function drawVenueSign(ctx, name, motif) {
       ctx.moveTo(-10, -9); ctx.lineTo(10, -9); ctx.lineTo(8, 12); ctx.lineTo(-8, 12); ctx.closePath(); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(-12, -10); ctx.lineTo(0, -17); ctx.lineTo(12, -10);
       ctx.moveTo(0, -8); ctx.lineTo(0, 11); ctx.moveTo(-9, 1); ctx.lineTo(9, 1); ctx.stroke();
+    } else if (motif === 'key') {
+      ctx.arc(-9, -6, 8, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-3, 0); ctx.lineTo(12, 15);
+      ctx.moveTo(6, 9); ctx.lineTo(11, 4); ctx.moveTo(10, 13); ctx.lineTo(15, 8); ctx.stroke();
     } else {
       ctx.moveTo(-8, -15); ctx.lineTo(-8, 15); ctx.moveTo(-14, -15); ctx.lineTo(-14, -5);
       ctx.lineTo(-2, -5); ctx.lineTo(-2, -15); ctx.moveTo(8, -15); ctx.lineTo(8, 15);
