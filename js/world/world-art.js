@@ -15,6 +15,7 @@ import { drawCastle, drawCastleSupply } from './castle-scenery.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
 import { drawRoofTiles } from './town-textures.js';
 import { drawFrightMarqueeSign, FRIGHT_MARQUEE } from './fright-marquee.js';
+import { drawGravestoneFace, gravestoneLean, gravestoneStyle, GRAVESTONE_HEIGHT, GRAVESTONE_WIDTH } from './gravestones.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -186,7 +187,8 @@ function addProps() {
 
   add('haunted', escape.x - 70, escape.y - 185, 1.25);
   add('deadTree', ESCAPE_DECORATIVE_TREE.x, ESCAPE_DECORATIVE_TREE.z, ESCAPE_DECORATIVE_TREE.size);
-  placeQuestDecorations(escape, 'escape', 22, 560, 12).forEach(({ x, y, scale, variant }) => add('grave', x, y, scale, variant));
+  placeQuestDecorations(escape, 'escape', 22, 560, 12).forEach(({ x, y, scale, variant, rotation }) =>
+    props.push({ type: 'grave', x, y, size: scale, variant, rotation }));
 
   TOWN_VENUES.forEach((venue) => props.push({
     ...venue, type: venue.kind === 'games' ? 'tavern' : 'townVenue'
@@ -583,13 +585,13 @@ function drawProp(ctx, prop) {
     ctx.beginPath(); ctx.moveTo(-2, -5); ctx.bezierCurveTo(-5, -27, 4, -41, 0, -61);
     ctx.moveTo(6, -64); ctx.bezierCurveTo(3, -81, 5, -96, 3, -104); ctx.stroke();
   } else if (prop.type === 'grave') {
-    const stone = paletteColor(['#6e746c', '#85877b', '#928f80', '#72796f', '#9c9885'], prop.x, prop.y, 43);
-    const engraving = paletteColor(['#414a46', '#555a51', '#625d50', '#48534e', '#696454'], prop.x, prop.y, 44);
     ellipse(ctx, 0, 2, 22, 7, 'rgba(15, 20, 19, .35)');
-    ctx.fillStyle = stone; ctx.beginPath(); ctx.arc(0, -25, 14, Math.PI, 0);
-    ctx.lineTo(14, 0); ctx.lineTo(-14, 0); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = engraving; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(0, -12); ctx.moveTo(-6, -24); ctx.lineTo(6, -24); ctx.stroke();
+    ctx.rotate(-gravestoneLean(prop.rotation));
+    ctx.fillStyle = gravestoneStyle(prop.x, prop.y).base; ctx.fillRect(-13, -5, 26, 5);
+    ctx.save(); ctx.translate(-GRAVESTONE_WIDTH / 2, -5 - GRAVESTONE_HEIGHT);
+    ctx.scale(GRAVESTONE_WIDTH / 100, GRAVESTONE_HEIGHT / 160);
+    drawGravestoneFace(ctx, prop.variant, prop.x, prop.y);
+    ctx.restore();
   } else if (prop.type === 'cafeTable') {
     ellipse(ctx, 0, 3, 32, 10, 'rgba(15, 22, 18, .25)');
     ctx.fillStyle = '#59483b'; ctx.fillRect(-3, -18, 6, 18);

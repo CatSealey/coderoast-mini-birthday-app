@@ -71,6 +71,7 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
     const drawnImages = [];
     const context = new Proxy({
       drawImage: (...args) => drawnImages.push(args),
+      createLinearGradient: () => ({ addColorStop: () => {} }),
       createRadialGradient: () => ({ addColorStop: () => {} })
     }, { get: (target, key) => target[key] || (() => {}) });
     const position = { x: WORLD_SIZE.width, y: 0 };
@@ -87,6 +88,7 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
       },
       fill: () => filledColors.push(townContext.fillStyle),
       fillText: (...args) => labels.push(args),
+      createLinearGradient: () => ({ addColorStop: () => {} }),
       createRadialGradient: () => ({ addColorStop: () => {} })
     }, { get: (target, key) => target[key] || (() => {}) });
     const bench = TOWN_BENCHES[0];
@@ -119,6 +121,7 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
     const supplyContext = new Proxy({
       translate: (...args) => supplyEvents.push({ type: 'translate', args }),
       fillRect: (...args) => supplyEvents.push({ type: 'rect', args, color: supplyContext.fillStyle }),
+      createLinearGradient: () => ({ addColorStop: () => {} }),
       createRadialGradient: () => ({ addColorStop: () => {} })
     }, { get: (target, key) => target[key] || (() => {}) });
     for (const item of WORLD_SUPPLIES) {

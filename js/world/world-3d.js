@@ -25,6 +25,7 @@ import { createVenueSignTexture } from './venue-sign.js';
 import { CASTLE_GATE_PLANKS, CASTLE_PALETTE, CASTLE_TOWER_WINDOWS, castleFlagPosition, castleSupplyStyle, createCastleArchGeometry, createCastleBannerGeometry, createCastleFlagGeometry } from './castle-scenery.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
 import { createFrightMarqueeTexture, FRIGHT_MARQUEE } from './fright-marquee.js';
+import { createGravestoneGeometry, createGravestoneTexture, gravestoneLean, gravestoneStyle, GRAVESTONE_DEPTH, GRAVESTONE_HEIGHT, GRAVESTONE_WIDTH } from './gravestones.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -700,27 +701,20 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   frightMarquee(harvest.entrance.x, harvest.entrance.y);
   gate(forest.entrance.x, forest.entrance.y, 'GOAPE', '#4b6348');
 
+  const graveGeometries = [0, 1, 2].map(createGravestoneGeometry);
+  const graveFaceGeometry = new THREE.PlaneGeometry(GRAVESTONE_WIDTH, GRAVESTONE_HEIGHT);
   placeQuestDecorations(escape, 'escape', 22, 560, 12).forEach(({ x, y, variant, scale, rotation }) => {
     const grave = groupAt(x, y);
     grave.rotation.y = rotation;
-    grave.rotation.z = rotation * 0.18;
+    grave.rotation.z = gravestoneLean(rotation);
     grave.scale.setScalar(scale);
-    const stone = paletteColor(['#6e746c', '#85877b', '#928f80', '#72796f', '#9c9885'], x, y, 43);
-    const engraving = paletteColor(['#a4a79a', '#b5b4a1', '#c2bda5', '#a8b0a2', '#c4bea8'], x, y, 44);
-    box(grave, 26, 5, 18, paletteColor(['#555d56', '#66685e', '#706c60', '#596158'], x, y, 45), 0, 3, 0);
-    if (variant === 0) {
-      box(grave, 22, 38, 10, stone, 0, 22, 0);
-      box(grave, 4, 22, 2, engraving, 0, 25, 6);
-      box(grave, 14, 4, 2, engraving, 0, 29, 6);
-    } else if (variant === 1) {
-      box(grave, 24, 25, 10, stone, 0, 17, 0);
-      const top = mesh(new THREE.CylinderGeometry(12, 12, 10, 12, 1, false, 0, Math.PI), stone, grave, 0, 29, 0);
-      top.rotation.x = Math.PI / 2;
-      box(grave, 14, 2, 2, engraving, 0, 20, 6);
-    } else {
-      box(grave, 7, 42, 8, stone, 0, 24, 0);
-      box(grave, 25, 7, 8, stone, 0, 34, 0);
-    }
+    const { stone, base } = gravestoneStyle(x, y);
+    box(grave, 26, 5, 18, base, 0, 3, 0);
+    mesh(graveGeometries[variant], stone, grave, 0, 5, -GRAVESTONE_DEPTH / 2);
+    const texture = createGravestoneTexture(variant, x, y);
+    textures.add(texture);
+    const face = mesh(graveFaceGeometry, stone, grave, 0, 5 + GRAVESTONE_HEIGHT / 2, GRAVESTONE_DEPTH / 2 + 0.05);
+    face.material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
   });
   const coasterTrains = [];
   function coaster(x, z, type, color, size = 1, rotation = 0) {
