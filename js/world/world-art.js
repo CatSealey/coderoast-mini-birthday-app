@@ -18,6 +18,7 @@ import { drawFrightMarqueeSign, FRIGHT_MARQUEE } from './fright-marquee.js';
 import { drawGravestoneFace, gravestoneLean, gravestoneStyle, GRAVESTONE_HEIGHT, GRAVESTONE_WIDTH } from './gravestones.js';
 import { WORLD_LAMPS } from './world-lamps.js';
 import { drawCanopyPlatformFace } from './canopy-platform.js';
+import { PARK_PALETTE } from './park-style.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -352,24 +353,16 @@ function building(ctx, variant, stone = null) {
   }
 }
 
-function drawSignText(ctx, text, y, width, color = '#ead6a1') {
-  ctx.fillStyle = '#342c27';
-  ctx.fillRect(-width / 2, y - 15, width, 20);
-  ctx.strokeStyle = '#c6a978';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(-width / 2, y - 15, width, 20);
-  ctx.fillStyle = color;
-  ctx.font = 'bold 10px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(text, 0, y);
-}
-
 function drawCoaster(ctx) {
   ellipse(ctx, 0, 3, 170, 24, 'rgba(25, 30, 22, .3)');
   ctx.strokeStyle = '#615646';
   ctx.lineWidth = 7;
   for (const [x, top] of [[-145, -45], [-95, -78], [-45, -111], [5, -147], [55, -165], [105, -75], [150, -40]]) {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, top); ctx.stroke();
+    ctx.fillStyle = '#8b7b68'; ctx.fillRect(x - 6, -4, 12, 4);
+    ctx.strokeStyle = '#ae9a7f'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x + 2, -3); ctx.lineTo(x + 2, top + 3); ctx.stroke();
+    ctx.strokeStyle = '#615646'; ctx.lineWidth = 7;
   }
   ctx.strokeStyle = '#43342f'; ctx.lineWidth = 11;
   ctx.beginPath(); ctx.moveTo(-165, -35); ctx.lineTo(45, -175);
@@ -379,8 +372,15 @@ function drawCoaster(ctx) {
   ctx.beginPath(); ctx.moveTo(-165, -35); ctx.lineTo(45, -175);
   ctx.quadraticCurveTo(65, -183, 76, -155); ctx.lineTo(112, -61);
   ctx.quadraticCurveTo(130, -26, 169, -44); ctx.stroke();
-  ctx.fillStyle = '#5a2930'; ctx.fillRect(25, -188, 36, 13);
-  ctx.fillStyle = '#d4ba87'; ctx.fillRect(29, -184, 8, 5); ctx.fillRect(47, -184, 8, 5);
+  ctx.strokeStyle = 'rgba(255, 224, 177, .55)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(-165, -35); ctx.lineTo(45, -175);
+  ctx.quadraticCurveTo(65, -183, 76, -155); ctx.lineTo(112, -61); ctx.quadraticCurveTo(130, -26, 169, -44); ctx.stroke();
+  for (const x of [25, 43]) {
+    ctx.fillStyle = '#40302b'; ctx.fillRect(x - 1, -190, 18, 15);
+    ctx.fillStyle = '#834a3e'; ctx.fillRect(x, -188, 16, 11);
+    ctx.fillStyle = '#d4ba87'; ctx.fillRect(x + 3, -185, 10, 4);
+    ctx.fillStyle = '#2c2d2b'; ctx.fillRect(x + 2, -176, 4, 4); ctx.fillRect(x + 11, -176, 4, 4);
+  }
 }
 
 function drawCanopy(ctx) {
@@ -424,14 +424,19 @@ function drawWheel(ctx) {
   ctx.beginPath(); ctx.moveTo(-60, 0); ctx.lineTo(0, -104); ctx.lineTo(60, 0); ctx.stroke();
   ctx.strokeStyle = '#e0b574'; ctx.lineWidth = 5;
   ctx.beginPath(); ctx.arc(0, -115, 86, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = '#9b7856'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(0, -115, 78, 0, Math.PI * 2); ctx.stroke();
   for (let i = 0; i < 8; i += 1) {
     const angle = i * Math.PI / 4;
     const x = Math.cos(angle) * 86;
     const y = -115 + Math.sin(angle) * 86;
     ctx.strokeStyle = '#ba9370'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, -115); ctx.lineTo(x, y); ctx.stroke();
-    ctx.fillStyle = i % 2 ? '#ad6250' : '#6a8191';
-    ctx.fillRect(x - 10, y, 20, 12);
+    ctx.strokeStyle = '#a99572'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 6); ctx.stroke();
+    ctx.fillStyle = '#4a4038'; ctx.fillRect(x - 11, y + 5, 22, 14);
+    ctx.fillStyle = i % 2 ? '#ad6250' : '#6a8191'; ctx.fillRect(x - 9, y + 6, 18, 10);
+    ctx.fillStyle = '#dfc99e'; ctx.fillRect(x - 7, y + 8, 14, 2); ctx.fillRect(x - 10, y + 17, 20, 2);
     drawLight(ctx, x, y, '#f2d694');
   }
   ellipse(ctx, 0, -115, 7, 7, '#c9895e');
@@ -440,12 +445,20 @@ function drawWheel(ctx) {
 function drawCarousel(ctx) {
   ellipse(ctx, 0, 1, 84, 19, 'rgba(25, 25, 23, .3)');
   ctx.fillStyle = '#8f6048'; ctx.fillRect(-68, -14, 136, 14);
+  ctx.fillStyle = '#d0ae7d'; ctx.fillRect(-68, -15, 136, 3); ctx.fillRect(-65, -3, 130, 3);
   [-52, -18, 18, 52].forEach((x) => {
     ctx.fillStyle = '#e4c990'; ctx.fillRect(x, -78, 4, 66);
-    ctx.fillStyle = '#b7c4a9'; ctx.fillRect(x - 8, -39, 20, 12);
+    ctx.fillStyle = '#b7c4a9'; ctx.fillRect(x - 10, -40, 20, 11); ctx.fillRect(x + 6, -49, 7, 13);
+    ctx.fillStyle = '#e1d3b1'; ctx.fillRect(x - 8, -39, 15, 2);
+    ctx.fillStyle = '#806a53'; ctx.fillRect(x - 7, -29, 3, 9); ctx.fillRect(x + 5, -29, 3, 9);
+    ctx.fillStyle = x < 0 ? PARK_PALETTE.red : PARK_PALETTE.teal; ctx.fillRect(x - 4, -42, 8, 4);
   });
   ctx.fillStyle = '#a35549'; ctx.beginPath(); ctx.moveTo(-78, -74); ctx.lineTo(0, -128);
   ctx.lineTo(78, -74); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#d8c29a';
+  for (const [left, right] of [[-52, -26], [0, 26], [52, 78]]) {
+    ctx.beginPath(); ctx.moveTo(0, -128); ctx.lineTo(left, -74); ctx.lineTo(right, -74); ctx.closePath(); ctx.fill();
+  }
   ctx.strokeStyle = '#e9c388'; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(-78, -74); ctx.lineTo(78, -74); ctx.stroke();
   for (let x = -65; x <= 65; x += 26) drawLight(ctx, x, -72, '#ffe1a0');
@@ -614,6 +627,8 @@ function drawProp(ctx, prop) {
     }
     ctx.strokeStyle = '#ba8b5c'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(-65, -22); ctx.lineTo(65, -22); ctx.stroke();
+    ctx.strokeStyle = '#e1c995'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(-65, -24); ctx.lineTo(65, -24); ctx.stroke();
   }
   else if (prop.type === 'canopy') drawCanopy(ctx);
   else if (prop.type === 'wheel') drawWheel(ctx);
@@ -659,12 +674,19 @@ function drawProp(ctx, prop) {
   } else if (prop.type === 'barrel' || prop.type === 'crate') drawCastleSupply(ctx, prop.type, prop.variant);
   else if (prop.type === 'parkGate') {
     ctx.fillStyle = '#59504a'; ctx.fillRect(-52, -90, 12, 90); ctx.fillRect(40, -90, 12, 90);
+    ctx.fillStyle = '#a78a63'; ctx.fillRect(-55, -5, 18, 5); ctx.fillRect(37, -5, 18, 5);
+    ctx.fillRect(-55, -93, 18, 5); ctx.fillRect(37, -93, 18, 5);
     ctx.strokeStyle = paletteColor(['#784a43', '#855340', '#765346', '#925947'], prop.x, prop.y, 61);
     ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(0, -78, 46, Math.PI, 0); ctx.stroke();
-    drawSignText(ctx, 'THIRTEEN', -79, 84);
+    ctx.save(); ctx.translate(-49, -93); ctx.scale(98 / 512, 18 / 80);
+    drawVenueSign(ctx, 'THIRTEEN', 'ride'); ctx.restore();
   } else if (prop.type === 'banner') {
+    ctx.fillStyle = '#4b4035'; ctx.fillRect(-5, -5, 10, 5);
     ctx.fillStyle = '#6f5842'; ctx.fillRect(-3, -82, 6, 82);
     ctx.fillStyle = prop.variant ? '#ccad6c' : '#b5614c'; ctx.beginPath(); ctx.moveTo(3, -80); ctx.lineTo(35, -72); ctx.lineTo(3, -58); ctx.fill();
+    ctx.strokeStyle = 'rgba(247, 221, 175, .65)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(5, -77); ctx.lineTo(29, -72); ctx.lineTo(5, -62); ctx.stroke();
+    ellipse(ctx, 0, -83, 3, 3, '#d7bc82');
   } else if (prop.type === 'pumpkin') {
     const pumpkinColors = ['#b65c2d', '#c8732e', '#d58a32', '#b88739', '#955c35'];
     const pumpkinHighlights = ['#d57c3b', '#df913c', '#e7aa4b', '#d4a84e', '#bd7942'];
@@ -747,6 +769,9 @@ function drawProp(ctx, prop) {
     ctx.fillRect(-24, -31, 4, 31); ctx.fillRect(20, -31, 4, 31);
     ctx.fillStyle = paletteColor(['#8b634b', '#986b4e', '#80634b', '#a17855'], prop.x, prop.y, 82);
     ctx.fillRect(-27, -20, 54, 14);
+    ctx.fillStyle = '#b9976b'; ctx.fillRect(-27, -20, 54, 2); ctx.fillRect(-27, -7, 54, 2);
+    ctx.strokeStyle = 'rgba(63, 43, 30, .5)'; ctx.lineWidth = 1;
+    for (const x of [-18, 0, 18]) { ctx.beginPath(); ctx.moveTo(x, -18); ctx.lineTo(x, -7); ctx.stroke(); }
     ctx.fillStyle = paletteColor(
       prop.variant ? ['#a77151', '#ae7651', '#98674e', '#b78356', '#a36e48'] : ['#c1a477', '#b69a69', '#c9ae7b', '#b99b6d', '#c2a06b'],
       prop.x, prop.y, 83
@@ -754,6 +779,13 @@ function drawProp(ctx, prop) {
     ctx.beginPath(); ctx.moveTo(-31, -30); ctx.lineTo(-23, -45); ctx.lineTo(25, -45); ctx.lineTo(31, -30); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = paletteColor(['#e2c99a', '#e8d2a6', '#d9c198', '#cdbb92'], prop.x, prop.y, 84);
     ctx.lineWidth = 3; ctx.stroke();
+    ctx.strokeStyle = 'rgba(238, 219, 180, .6)'; ctx.lineWidth = 3;
+    for (const x of [-15, 0, 15]) { ctx.beginPath(); ctx.moveTo(x * 0.75, -44); ctx.lineTo(x, -31); ctx.stroke(); }
+    for (const [i, x] of [-14, 0, 14].entries()) {
+      ctx.fillStyle = [PARK_PALETTE.cream, PARK_PALETTE.red, PARK_PALETTE.teal][i];
+      ctx.fillRect(x - 3, -28, 6, 7);
+      ctx.fillStyle = '#d7bc82'; ctx.fillRect(x - 4, -29, 8, 2);
+    }
   } else if (prop.type === 'field') {
     ctx.fillStyle = '#6f6b3f'; ctx.fillRect(-90, -35, 180, 35);
     ctx.strokeStyle = '#c8b56b'; ctx.lineWidth = 2;

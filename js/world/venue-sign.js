@@ -7,7 +7,8 @@ const PANELS = Object.freeze({
   leaf: '#304b39',
   lantern: '#443b4a',
   cutlery: '#58452e',
-  key: '#39423a'
+  key: '#39423a',
+  ride: '#403a38'
 });
 
 export const ESCAPE_SIGN = Object.freeze({ name: 'ESCAPE ROOM', motif: 'key' });
@@ -42,6 +43,10 @@ export function drawVenueSign(ctx, name, motif) {
       ctx.moveTo(-10, -9); ctx.lineTo(10, -9); ctx.lineTo(8, 12); ctx.lineTo(-8, 12); ctx.closePath(); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(-12, -10); ctx.lineTo(0, -17); ctx.lineTo(12, -10);
       ctx.moveTo(0, -8); ctx.lineTo(0, 11); ctx.moveTo(-9, 1); ctx.lineTo(9, 1); ctx.stroke();
+    } else if (motif === 'ride') {
+      ctx.moveTo(-17, 10); ctx.lineTo(-8, -8); ctx.lineTo(1, 4); ctx.lineTo(10, -12); ctx.lineTo(17, 3); ctx.stroke();
+      ctx.beginPath(); ctx.arc(-8, -9, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(10, -12, 3, 0, Math.PI * 2); ctx.fill();
     } else if (motif === 'key') {
       ctx.arc(-9, -6, 8, 0, Math.PI * 2); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(-3, 0); ctx.lineTo(12, 15);

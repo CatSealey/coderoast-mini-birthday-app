@@ -280,10 +280,12 @@ test('Thirteen fallback keeps missed items visible through each ride phase', () 
     scene.resize(1000, 700);
     const state = newAdventureState(2);
     scene.draw(state);
+    const ground = drawn.shift();
     const icons = drawn.splice(0);
     assert.equal(icons.length, COASTER_TREATS.length);
     for (const phase of ['riding', 'dropping', 'returning', 'platform']) {
       scene.draw({ ...state, phase, progress: 0.9, treats: [COASTER_TREATS[1].id] });
+      assert.equal(drawn.shift(), ground, `${phase}: ground image is reused`);
       assert.deepEqual(drawn.splice(0), icons.filter((_, i) => i !== 1), `${phase}: missed items stay visible`);
     }
     scene.dispose();

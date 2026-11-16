@@ -34,6 +34,10 @@ test('every venue has a framed name sign with its own motif', () => {
     assert.ok(fills.length >= 3, 'escape sign has the same framed construction');
     assert.ok(labels.some(([text]) => text === 'ESCAPE ROOM'));
     escape.dispose();
+    labels.length = 0;
+    const ride = createVenueSignTexture('THIRTEEN', 'ride');
+    assert.ok(labels.some(([text]) => text === 'THIRTEEN'));
+    ride.dispose();
     assert.throws(() => drawVenueSign(ctx, 'Unknown', 'unknown'), RangeError);
     globalThis.document = { createElement: () => ({ getContext: () => null }) };
     assert.throws(() => createVenueSignTexture('Example', 'leaf'), /Could not create the venue sign/);

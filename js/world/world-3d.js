@@ -29,6 +29,7 @@ import { createGravestoneGeometry, createGravestoneTexture, gravestoneLean, grav
 import { WORLD_LAMPS } from './world-lamps.js';
 import { ENTRANCE_MARKER_RADIUS, entranceMarkerHit } from './entrance-marker.js';
 import { createCanopyDeckTexture } from './canopy-platform.js';
+import { PARK_PALETTE } from './park-style.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -633,14 +634,23 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     const wood = paletteColor(['#7b6047', '#866749', '#745b43', '#8a6a4b'], x, z, 111);
     const trim = paletteColor(['#a78c64', '#b1966d', '#9e8764', '#b49a72'], x, z, 112);
     const stripe = paletteColor(['#dfcba0', '#e8d8ba', '#d7c6a0', '#ead9b5'], x, z, 113);
-    box(g, 75, 38, 40, wood, 0, 19, 0);
+    texturedBox(g, 75, 38, 40, wood, 0, 19, 0);
+    for (const px of [-25, 0, 25]) {
+      box(g, 22, 27, 1, trim, px, 19, 20.5);
+      box(g, 19, 24, 1, wood, px, 19, 21.1);
+      for (const py of [10, 28]) box(g, 2, 2, 1, '#c9ae79', px - 8, py, 22);
+    }
     box(g, 82, 5, 45, trim, 0, 40, 0);
     for (const side of [-34, 34]) box(g, 5, 60, 5, wood, side, 67, -16);
     box(g, 84, 6, 55, color, 0, 99, 0);
     for (let stripeIndex = 0, stripePosition = -3; stripePosition <= 3; stripePosition += 2, stripeIndex += 1) {
       box(g, 10, 7, 55, stripeIndex % 2 ? trim : stripe, stripePosition * 10, 100, 0);
     }
-    for (const side of [-20, 0, 20]) box(g, 9, 12, 9, trim, side, 48, 0);
+    for (const [i, side] of [-20, 0, 20].entries()) {
+      box(g, 12, 3, 12, '#5d4a36', side, 44, 0);
+      mesh(new THREE.CylinderGeometry(4, 3.5, 12, 8), [PARK_PALETTE.cream, PARK_PALETTE.red, PARK_PALETTE.teal][i], g, side, 51, 0);
+      mesh(new THREE.CylinderGeometry(4.5, 4.5, 2, 8), trim, g, side, 58, 0);
+    }
   }
   function cafeTable(x, z) {
     const g = groupAt(x, z);
@@ -666,7 +676,12 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       box(g, 18, 8, 20, '#a78a63', side, 108, 0);
     }
     box(g, 145, 22, 12, color, 0, 87, 0);
-    const sign = textSprite(label, 'rgba(63, 48, 35, .92)', 320);
+    let sign;
+    if (label === 'THIRTEEN') {
+      const texture = createVenueSignTexture(label, 'ride'); textures.add(texture);
+      sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
+      sign.scale.set(130, 20.3, 1);
+    } else sign = textSprite(label, 'rgba(63, 48, 35, .92)', 320);
     sign.position.set(0, 88, 8); g.add(sign);
   }
   function frightMarquee(x, z) {
@@ -715,6 +730,13 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     face.material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
   });
   const coasterTrains = [];
+  function parkBeam(parent, from, to, width, color) {
+    const direction = to.clone().sub(from);
+    const center = from.clone().add(to).multiplyScalar(0.5);
+    const beam = box(parent, width, direction.length(), width, color, center.x, center.y, center.z);
+    beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+    return beam;
+  }
   function coaster(x, z, type, color, size = 1, rotation = 0) {
     const group = groupAt(x, z);
     group.rotation.y = rotation;
@@ -745,10 +767,22 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       const tie = box(group, 4, 4, 22, '#b9a184', point.x, point.y, point.z);
       tie.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), across);
       if (i % (type === 'woodCoaster' ? 3 : 6) === 0) {
+        const supports = [];
         for (const side of [-13, 13]) {
           const support = point.clone().addScaledVector(across, side);
+          supports.push(support);
           box(group, 5, support.y, 5, type === 'woodCoaster' ? '#735039' : '#756657',
             support.x, support.y / 2, support.z);
+          box(group, 10, 4, 10, '#5a5046', support.x, 2, support.z);
+        }
+        if (supports.every((support) => support.y > 30)) {
+          const lower = supports[0].clone().setY(supports[0].y * 0.18);
+          const upper = supports[1].clone().setY(supports[1].y * 0.8);
+          parkBeam(group, lower, upper, 2.5, type === 'woodCoaster' ? '#997555' : '#918274');
+          if (type === 'woodCoaster') {
+            parkBeam(group, supports[1].clone().setY(supports[1].y * 0.18),
+              supports[0].clone().setY(supports[0].y * 0.8), 2.5, '#684a37');
+          }
         }
       }
     }
@@ -758,7 +792,12 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       const car = new THREE.Group();
       train.add(car);
       box(car, 20, 12, 18, '#73423a', 0, 10, 0);
-      box(car, 10, 6, 12, '#d0aa72', 0, 19, 0);
+      box(car, 18, 3, 19, PARK_PALETTE.brass, 0, 14, 0);
+      box(car, 14, 8, 12, '#52382e', 0, 19, -2);
+      box(car, 10, 5, 10, '#d0aa72', 0, 21, 1);
+      for (const cx of [-8, 8]) for (const cz of [-9, 9]) {
+        mesh(new THREE.SphereGeometry(3, 6, 4), '#2f302e', car, cx, 5, cz);
+      }
     }
     coasterTrains.push({ curve, cars: train.children, offset: random(x, z) });
   }
@@ -772,28 +811,76 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   if (!towerRide) throw new Error('The theme park is missing its drop tower.');
   const tower = groupAt(towerRide.x, towerRide.y);
   box(tower, 34, 215, 34, '#77736b', 0, 108, 0);
-  const towerSeats = box(tower, 95, 16, 40, '#aa6650', 0, 115, 0);
+  for (const side of [-1, 1]) {
+    box(tower, 5, 215, 5, '#aaa18f', side * 16, 108, 19);
+    for (let y = 16; y < 190; y += 34) {
+      parkBeam(tower, new THREE.Vector3(side * 14, y, 18), new THREE.Vector3(-side * 14, y + 34, 18), 2.5, '#c4b598');
+    }
+  }
+  box(tower, 46, 10, 46, '#514f49', 0, 5, 0);
+  box(tower, 48, 8, 48, PARK_PALETTE.brass, 0, 216, 0);
+  const towerSeats = new THREE.Group(); towerSeats.position.y = 115; tower.add(towerSeats);
+  box(towerSeats, 95, 16, 40, '#aa6650', 0, 0, 0);
+  for (const x of [-36, -18, 0, 18, 36]) {
+    box(towerSeats, 14, 23, 8, '#5e4540', x, 12, 12);
+    box(towerSeats, 11, 4, 12, '#d1b88a', x, 5, 18);
+    box(towerSeats, 12, 3, 3, '#d7c79e', x, 13, 23);
+  }
   const wheel = groupAt(park.x + 320, park.y - 260);
-  box(wheel, 10, 160, 12, '#856f5b', 0, 80, 0);
+  for (const side of [-1, 1]) {
+    parkBeam(wheel, new THREE.Vector3(side * 58, 2, 0), new THREE.Vector3(0, 125, 0), 7, '#856f5b');
+    box(wheel, 16, 6, 20, '#635748', side * 58, 3, 0);
+  }
   const wheelRotor = new THREE.Group();
   wheelRotor.position.y = 125;
   wheel.add(wheelRotor);
   mesh(new THREE.TorusGeometry(82, 4, 6, 32), '#e0b574', wheelRotor);
+  mesh(new THREE.TorusGeometry(74, 1.5, 5, 32), '#9f7959', wheelRotor, 0, 0, -5);
+  mesh(new THREE.SphereGeometry(9, 10, 8), '#b17d59', wheelRotor);
   const gondolas = [];
   for (let i = 0; i < 8; i += 1) {
     const angle = i * Math.PI / 4;
     const spoke = box(wheelRotor, 82, 3, 3, '#d0b38b', Math.cos(angle) * 41, Math.sin(angle) * 41, 0);
     spoke.rotation.z = angle;
-    gondolas.push(box(wheelRotor, 16, 13, 14, i % 2 ? '#b96753' : '#6a8191',
-      Math.cos(angle) * 82, Math.sin(angle) * 82, 0));
+    const gondola = new THREE.Group();
+    gondola.position.set(Math.cos(angle) * 82, Math.sin(angle) * 82, 0); wheelRotor.add(gondola);
+    box(gondola, 2, 11, 2, PARK_PALETTE.ironLight, 0, -4, 0);
+    box(gondola, 18, 13, 15, i % 2 ? '#b96753' : '#6a8191', 0, -13, 0);
+    box(gondola, 16, 3, 16, PARK_PALETTE.brass, 0, -19, 0);
+    box(gondola, 12, 5, 1, '#e1cba1', 0, -11, 8);
+    gondolas.push(gondola);
   }
   const carousel = groupAt(park.x - 310, park.y - 210);
   mesh(new THREE.CylinderGeometry(68, 68, 14, 12), '#997151', carousel, 0, 7, 0);
+  mesh(new THREE.CylinderGeometry(68, 68, 3, 12), PARK_PALETTE.brass, carousel, 0, 15, 0);
+  mesh(new THREE.CylinderGeometry(9, 9, 68, 12), '#8b6550', carousel, 0, 47, 0);
   for (let i = 0; i < 6; i += 1) {
     const angle = i * Math.PI / 3;
-    box(carousel, 5, 65, 5, '#d7bc82', Math.cos(angle) * 52, 45, Math.sin(angle) * 52);
+    const x = Math.cos(angle) * 48, z = Math.sin(angle) * 48;
+    box(carousel, 4, 65, 4, '#d7bc82', x, 45, z);
+    const horse = new THREE.Group(); horse.position.set(x, 32 + (i % 2) * 5, z);
+    horse.rotation.y = -angle; carousel.add(horse);
+    box(horse, 23, 10, 9, i % 2 ? '#d4c3a0' : '#b6c1af', 0, 0, 0);
+    box(horse, 7, 14, 8, i % 2 ? '#d4c3a0' : '#b6c1af', 9, 8, 0);
+    for (const hx of [-8, 8]) box(horse, 3, 13, 3, '#b49b7c', hx, -9, 0);
+    box(horse, 10, 4, 10, i % 2 ? PARK_PALETTE.red : PARK_PALETTE.teal, 0, 6, 0);
   }
-  mesh(new THREE.ConeGeometry(76, 48, 12), '#a45b4b', carousel, 0, 100, 0);
+  const roofPositions = [], roofColors = [];
+  for (let i = 0; i < 12; i += 1) {
+    const a = i * Math.PI / 6, b = (i + 1) * Math.PI / 6;
+    roofPositions.push(0, 124, 0, 76 * Math.cos(a), 76, 76 * Math.sin(a), 76 * Math.cos(b), 76, 76 * Math.sin(b));
+    const shade = new THREE.Color(i % 2 ? '#ddc69b' : '#a45b4b');
+    for (let vertex = 0; vertex < 3; vertex += 1) roofColors.push(shade.r, shade.g, shade.b);
+    mesh(new THREE.SphereGeometry(2.5, 6, 4), '#f2d89b', carousel, 72 * Math.cos(a), 77, 72 * Math.sin(a));
+  }
+  const carouselRoof = new THREE.BufferGeometry();
+  carouselRoof.setAttribute('position', new THREE.Float32BufferAttribute(roofPositions, 3));
+  carouselRoof.setAttribute('color', new THREE.Float32BufferAttribute(roofColors, 3));
+  carouselRoof.computeVertexNormals(); geometries.add(carouselRoof);
+  const roofMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.9 });
+  materials.set('park-carousel-roof', roofMaterial);
+  carousel.add(new THREE.Mesh(carouselRoof, roofMaterial));
+  mesh(new THREE.SphereGeometry(5, 8, 6), PARK_PALETTE.brass, carousel, 0, 127, 0);
   const glowImage = document.createElement('canvas');
   glowImage.width = 64; glowImage.height = 64;
   const glowContext = glowImage.getContext('2d');

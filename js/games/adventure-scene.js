@@ -5,10 +5,11 @@ import { drawCoasterItem } from './coaster-art.js';
 import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
 import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
 import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
-import { createFirCanopy, createNeedleTexture, createPlatformFirTrunk } from '../world/fir-tree.js';
+import { createFirCanopy, createFirTrunk, createNeedleTexture, createPlatformFirTrunk } from '../world/fir-tree.js';
 import { createTreeBarkTexture } from '../world/tree-geometry.js';
 import { CANOPY_EDGE_TREES, CANOPY_FOREST_TREES } from './canopy-scenery.js';
 import { createCanopyDeckTexture, drawCanopyDeck } from '../world/canopy-platform.js';
+import { createParkGroundCanvas, createParkGroundTexture, drawParkCar, PARK_PALETTE } from '../world/park-style.js';
 
 const BARTENDER_OUTFIT = '#536c67';
 const BARTENDER_STYLE = Object.freeze({ trousers: '#332f2b', belt: '#1e201e', hairLength: 'short' });
@@ -20,6 +21,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   const renderer = available ? new THREE.WebGLRenderer({ canvas, antialias: true }) : null;
   const ctx = renderer ? null : canvas.getContext('2d');
   if (!renderer && !ctx) throw new Error('Could not initialize the quest scene.');
+  const parkGround = !renderer && index === 2 ? createParkGroundCanvas() : null;
   const scene = new THREE.Scene(), camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 4000);
   const raycaster = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -114,8 +116,18 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     box(0, 18, 0, 70, 35, 42, '#675143', group);
     box(0, 38, -17, 72, 25, 8, '#493d34', group);
     box(0, 34, 20, 74, 10, 6, '#9e896b', group);
+    for (const z of [-21, 21]) {
+      box(0, 12, z, 68, 4, 2, PARK_PALETTE.iron, group);
+      box(0, 24, z, 64, 3, 2, PARK_PALETTE.brass, group);
+      for (const x of [-26, 26]) box(x, 21, z * 1.05, 3, 3, 2, PARK_PALETTE.cream, group);
+    }
+    for (const x of [-17, 17]) {
+      box(x, 32, -12, 24, 21, 3, '#805e49', group);
+      box(x, 29, 2, 20, 3, 23, '#977557', group);
+    }
     for (const x of [-25, 25]) for (const z of [-24, 24]) {
       round(cylinderGeometry, x, 9, z, 15, 7, 15, '#252f2c', group).rotation.z = Math.PI / 2;
+      round(cylinderGeometry, x, 9, z * 1.06, 6, 8, 6, PARK_PALETTE.brass, group).rotation.z = Math.PI / 2;
     }
     if (withRiders) for (const [x, color, style] of [[-17, PLAYER_OUTFIT, PLAYER_STYLE], [17, CAT_OUTFIT, CAT_STYLE]]) {
       const rider = person(color, null, x, 0, group, style); rider.position.y = 18; rider.scale.set(0.7, 0.7, 0.7);
@@ -338,21 +350,37 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       box(PUB_EXIT.x, 7, PUB_EXIT.y, 65, 3, 5, '#d7c58c', pubExitMarker);
       joinedHands = box(0, 27, 0, 10, 7, 8, '#dfb38c');
     } else if (index === 2) {
-      box(500, -8.1, 350, 1000, 16, 700, '#384736');
+      const groundTexture = createParkGroundTexture(); textures.push(groundTexture);
+      groundTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+      const groundMaterial = new THREE.MeshStandardMaterial({ map: groundTexture, roughness: 1 });
+      materials.set('park-ground', groundMaterial);
+      box(500, -8.1, 350, 1000, 16, 700, '#ffffff').material = groundMaterial;
       const { left, right, top: platformTop, bottom: platformBottom } = COASTER_PLATFORM;
-      for (let x = 30; x < 1000; x += 65) for (let z = 25; z < 700; z += 65) {
-        const grassWidth = 38 + (x * z % 23);
-        if (x + grassWidth / 2 > left && x - grassWidth / 2 < right
-          && z + 14 > platformTop && z - 14 < platformBottom) continue;
-        box(x, 1, z, grassWidth, 2, 28, (x + z) % 3 ? '#40533b' : '#4b5c40');
-      }
       box((left + right) / 2, -3, (platformTop + platformBottom) / 2, right - left, 6, platformBottom - platformTop, '#807768');
       for (let x = left + 15; x < right; x += 42) box(x, 0, (platformTop + platformBottom) / 2, 2, 0.2, platformBottom - platformTop - 5, '#5e584d');
+      box((left + right) / 2, 0.4, platformTop + 3, right - left - 4, 0.4, 3, PARK_PALETTE.brass);
+      for (let x = left + 18; x < right; x += 42) for (const z of [platformTop + 12, platformBottom - 12]) {
+        box(x, 0.5, z, 2, 0.5, 2, '#c2b49a');
+      }
       joinedHands = box(0, 27, 0, 10, 7, 8, '#dfb38c');
-      for (const x of [65, 245, 410, 590, 760, 935]) {
-        const z = 40;
-        round(cylinderGeometry, x, 45, z, 20, 90, 20, '#514433');
-        for (let i = 0; i < 3; i += 1) round(coneGeometry, x, 100 + i * 27, z, 100 - i * 18, 75, 100 - i * 18, '#314c38');
+      const barkTexture = createTreeBarkTexture(), needleTexture = createNeedleTexture();
+      for (const texture of [barkTexture, needleTexture]) {
+        texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy()); textures.push(texture);
+      }
+      const bark = new THREE.MeshStandardMaterial({ map: barkTexture, vertexColors: true, roughness: 1 });
+      const needles = new THREE.MeshStandardMaterial({ map: needleTexture, vertexColors: true, roughness: 1 });
+      materials.set('park-tree-bark', bark); materials.set('park-tree-needles', needles);
+      for (let variant = 0; variant < 3; variant += 1) {
+        const trunkGeometry = createFirTrunk(variant), canopyGeometry = createFirCanopy(variant);
+        sceneryGeometries.push(trunkGeometry, canopyGeometry);
+        for (const [i, x] of [65, 245, 410, 590, 760, 935].entries()) {
+          if (i % 3 !== variant) continue;
+          for (const [geometry, treeMaterial] of [[trunkGeometry, bark], [canopyGeometry, needles]]) {
+            const tree = new THREE.Mesh(geometry, treeMaterial);
+            tree.position.set(x, 0, 40); tree.rotation.y = i * 0.73;
+            tree.scale.set(0.9, 1 + (variant - 1) * 0.08, 0.9); scene.add(tree);
+          }
+        }
       }
       for (const phase of ['riding', 'returning']) {
         for (let i = 0; i < 120; i += 1) {
@@ -370,7 +398,10 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
               [a.x + direction.y * 32, a.height - 4, a.y - direction.x * 32], 6, '#645446');
             const clearLowerTrack = phase !== 'riding' || !Array.from({ length: 61 }, (_, j) => coasterPosition('returning', j / 60))
               .some((point) => Math.hypot(point.x - a.x, point.y - a.y) < 30);
-            if (clearLowerTrack) box(a.x, a.height / 2, a.y, 6, a.height, 6, '#5c5145');
+            if (clearLowerTrack) {
+              box(a.x, a.height / 2, a.y, 6, a.height, 6, '#5c5145');
+              box(a.x, 2, a.y, 16, 4, 16, '#6d6657');
+            }
           }
         }
       }
@@ -388,9 +419,17 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       for (const side of [-1, 1]) {
         box(top.x + towerSide.x * side, towerHeight / 2, top.y + towerSide.y * side,
           10, towerHeight, 10, '#6d6654');
+        box(top.x + towerSide.x * side, 5, top.y + towerSide.y * side, 22, 10, 22, '#575247');
       }
       beam([top.x - towerSide.x, towerHeight, top.y - towerSide.y],
         [top.x + towerSide.x, towerHeight, top.y + towerSide.y], 10, '#817867');
+      for (const y of [65, 140, 215]) {
+        if (y + 60 >= towerHeight) continue;
+        beam([top.x - towerSide.x, y, top.y - towerSide.y],
+          [top.x + towerSide.x, y + 60, top.y + towerSide.y], 4, '#95866b');
+        beam([top.x + towerSide.x, y, top.y + towerSide.y],
+          [top.x - towerSide.x, y + 60, top.y - towerSide.y], 4, '#706858');
+      }
       for (const treat of COASTER_TREATS) {
         const point = coasterLanePosition(treat.progress, treat.lane);
         const item = itemModel(treat.kind);
@@ -649,19 +688,46 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       ctx.stroke();
     }
     if (index === 2) {
+      ctx.drawImage(parkGround, sx(0), sy(0), 1000 * scale, 700 * scale);
       ctx.fillStyle = '#807768';
       ctx.fillRect(sx(COASTER_PLATFORM.left), sy(COASTER_PLATFORM.top),
         (COASTER_PLATFORM.right - COASTER_PLATFORM.left) * scale, (COASTER_PLATFORM.bottom - COASTER_PLATFORM.top) * scale);
+      ctx.fillStyle = '#5e584d';
+      for (let x = COASTER_PLATFORM.left + 15; x < COASTER_PLATFORM.right; x += 42) {
+        ctx.fillRect(sx(x), sy(COASTER_PLATFORM.top + 2), 2 * scale,
+          (COASTER_PLATFORM.bottom - COASTER_PLATFORM.top - 4) * scale);
+      }
+      ctx.fillStyle = PARK_PALETTE.brass;
+      ctx.fillRect(sx(COASTER_PLATFORM.left + 2), sy(COASTER_PLATFORM.top + 3),
+        (COASTER_PLATFORM.right - COASTER_PLATFORM.left - 4) * scale, 3 * scale);
+      for (const [i, x] of [65, 245, 410, 590, 760, 935].entries()) {
+        for (const [radius, color] of [[22, '#243c2d'], [17, i % 2 ? '#365a3e' : '#406447'], [9, '#557653']]) {
+          ctx.fillStyle = color; ctx.beginPath(); ctx.arc(sx(x), sy(40), radius * scale, 0, Math.PI * 2); ctx.fill();
+        }
+      }
       for (const phase of ['returning', 'riding']) {
-        ctx.strokeStyle = phase === 'riding' ? '#d1b995' : '#8b94a0';
-        ctx.lineWidth = phase === 'riding' ? 5 : 3; ctx.beginPath();
         const segments = phase === 'returning' ? Math.round(120 * COASTER_REJOIN_PROGRESS) : 120;
+        ctx.strokeStyle = '#645446'; ctx.lineWidth = 3 * scale; ctx.beginPath();
+        for (let i = 0; i <= segments; i += 5) {
+          const point = coasterPosition(phase, i / 120), direction = coasterDirection(phase, i / 120);
+          ctx.moveTo(sx(point.x - direction.y * 10), sy(point.y + direction.x * 10));
+          ctx.lineTo(sx(point.x + direction.y * 10), sy(point.y - direction.x * 10));
+        }
+        ctx.stroke();
+        ctx.strokeStyle = phase === 'riding' ? '#604c3e' : '#515a5d';
+        ctx.lineWidth = phase === 'riding' ? 8 : 6; ctx.beginPath();
         for (let i = 0; i <= segments; i += 1) {
           const point = coasterPosition(phase, i / 120);
           if (i === 0) ctx.moveTo(sx(point.x), sy(point.y));
           else ctx.lineTo(sx(point.x), sy(point.y));
         }
         ctx.stroke();
+        ctx.strokeStyle = phase === 'riding' ? '#d1b995' : '#a9b0a9';
+        ctx.lineWidth = phase === 'riding' ? 4 : 3; ctx.stroke();
+      }
+      for (const x of [325, 925]) {
+        ctx.fillStyle = '#594a39'; ctx.beginPath(); ctx.arc(sx(x), sy(610), 7 * scale, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e1c47b'; ctx.beginPath(); ctx.arc(sx(x), sy(610), 4 * scale, 0, Math.PI * 2); ctx.fill();
       }
       for (const treat of COASTER_TREATS) {
         if (state.treats.includes(treat.id)) continue;
@@ -685,7 +751,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         || ['leaf', 'feather', 'acorn', 'star'].indexOf(object.id) > state.checkpoint + 1)) return;
       if (object.kind === 'carriage') {
         ctx.save(); ctx.translate(sx(object.x), sy(object.y)); ctx.rotate(-coasterHeading('riding', 0));
-        ctx.fillStyle = '#675143'; ctx.fillRect(-35 * scale, -21 * scale, 70 * scale, 42 * scale); ctx.restore();
+        drawParkCar(ctx, 70 * scale, 42 * scale); ctx.restore();
         ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
         ctx.fillText(object.name, sx(object.x), sy(object.y) - 25 * scale);
         return;
@@ -779,7 +845,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     if (index === 2 && ['riding', 'dropping', 'returning'].includes(state.phase)) {
       ctx.save(); ctx.translate(sx(ridePoint.x), sy(ridePoint.y));
       ctx.rotate(-coasterHeading(state.phase, state.progress));
-      ctx.fillStyle = '#675143'; ctx.fillRect(-22, -13, 44, 26);
+      drawParkCar(ctx, 44, 26);
       drawCharacterMarker(ctx, -10, -5, PLAYER_OUTFIT, { ...PLAYER_STYLE, scale: 0.55 });
       drawCharacterMarker(ctx, 10, -5, CAT_OUTFIT, { ...CAT_STYLE, scale: 0.55 });
       ctx.restore();
