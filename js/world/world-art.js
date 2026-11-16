@@ -327,11 +327,25 @@ function building(ctx, variant, castle = false) {
     for (let i = 0; i < 4; i += 1) {
       ctx.beginPath(); ctx.moveTo(-w / 2 + i * 18, -h - 2); ctx.lineTo(i * 5, -h - 40); ctx.stroke();
     }
+    ctx.strokeStyle = 'rgba(58, 42, 34, .3)'; ctx.lineWidth = 0.8;
+    for (let row = 1; row < 4; row += 1) {
+      const y = -h - row * 9;
+      ctx.beginPath(); ctx.moveTo(-w / 2 + row * 11, y); ctx.lineTo(w / 2 - row * 11, y); ctx.stroke();
+    }
     ctx.fillStyle = '#4c3629'; ctx.fillRect(-9, -38, 21, 38);
+    ctx.fillStyle = '#79593e'; ctx.fillRect(-6, -35, 15, 35);
+    ctx.strokeStyle = 'rgba(49, 35, 28, .5)'; ctx.lineWidth = 0.8;
+    for (const x of [-2, 3]) {
+      ctx.beginPath(); ctx.moveTo(x, -34); ctx.lineTo(x, -1); ctx.stroke();
+    }
+    ellipse(ctx, 6, -17, 1.5, 1.5, '#d6b779');
     [-39, 30].forEach((x) => {
       ctx.fillStyle = '#354e4b'; ctx.fillRect(x, -57, 15, 19);
       ctx.strokeStyle = '#c9b993'; ctx.strokeRect(x, -57, 15, 19);
       ctx.beginPath(); ctx.moveTo(x + 7, -57); ctx.lineTo(x + 7, -38); ctx.moveTo(x, -48); ctx.lineTo(x + 15, -48); ctx.stroke();
+      ctx.strokeStyle = 'rgba(210, 231, 211, .65)';
+      ctx.beginPath(); ctx.moveTo(x + 3, -54); ctx.lineTo(x + 3, -50); ctx.stroke();
+      ctx.fillStyle = '#95876f'; ctx.fillRect(x - 2, -38, 19, 3);
     });
   }
 }
@@ -552,7 +566,12 @@ function drawProp(ctx, prop) {
   } else if (prop.type === 'cafeTable') {
     ellipse(ctx, 0, 3, 32, 10, 'rgba(15, 22, 18, .25)');
     ctx.fillStyle = '#59483b'; ctx.fillRect(-3, -18, 6, 18);
-    ellipse(ctx, 0, -20, 20, 8, '#b19269');
+    ellipse(ctx, 0, -18, 20, 8, '#70563f');
+    ellipse(ctx, 0, -20, 20, 8, paletteColor(['#b19269', '#a8855e', '#ba9870', '#9d805e'], prop.x, prop.y, 121));
+    ctx.strokeStyle = 'rgba(85, 59, 39, .5)'; ctx.lineWidth = 0.7;
+    for (const y of [-23, -18]) {
+      ctx.beginPath(); ctx.moveTo(-17, y); ctx.lineTo(17, y); ctx.stroke();
+    }
     for (const x of [-27, 27]) {
       ctx.fillStyle = '#6f5845'; ctx.fillRect(x - 3, -10, 6, 10);
       ellipse(ctx, x, -11, 7, 4, '#987a59');
@@ -591,8 +610,15 @@ function drawProp(ctx, prop) {
     ctx.fillStyle = '#49382c'; ctx.fillRect(-17, -80, 34, 5); ctx.fillRect(-9, -91, 18, 12);
   } else if (prop.type === 'bench') {
     ctx.fillStyle = paletteColor(['#72543c', '#806044', '#8a6848', '#70513a', '#94704c'], prop.x, prop.y, 52);
-    ctx.fillRect(-30, -25, 60, 9); ctx.fillRect(-27, -13, 54, 7);
+    for (const y of [-30, -24, -18]) ctx.fillRect(-30, y, 60, 4);
+    ctx.fillRect(-27, -12, 54, 5);
     ctx.fillRect(-23, -8, 5, 8); ctx.fillRect(18, -8, 5, 8);
+    ctx.strokeStyle = 'rgba(216, 179, 126, .4)'; ctx.lineWidth = 0.8;
+    for (const y of [-29, -23, -17, -11]) {
+      ctx.beginPath(); ctx.moveTo(-26, y); ctx.lineTo(26, y); ctx.stroke();
+    }
+    ctx.fillStyle = '#d1b582';
+    for (const x of [-23, 21]) for (const y of [-28, -22, -16]) ctx.fillRect(x, y, 1.5, 1.5);
   } else if (prop.type === 'barrel') {
     ctx.fillStyle = '#876040'; ctx.fillRect(-12, -30, 24, 30);
     ellipse(ctx, 0, -30, 12, 4, '#a67e52');
@@ -672,6 +698,17 @@ function drawProp(ctx, prop) {
     ctx.fillRect(-9, -53, 18, 13);
     ctx.strokeStyle = paletteColor(['#463e2b', '#554633', '#61503a'], prop.x, prop.y, 74);
     ctx.strokeRect(-9, -53, 18, 13);
+    if (prop.type === 'lamp') {
+      ctx.fillStyle = '#554b3b';
+      ctx.fillRect(-7, -3, 14, 3);
+      ctx.fillRect(-6, -5, 12, 2);
+      ctx.beginPath(); ctx.moveTo(-11, -53); ctx.lineTo(0, -61); ctx.lineTo(11, -53); ctx.closePath(); ctx.fill();
+      ellipse(ctx, 0, -61, 2, 2, '#c2a678');
+      ctx.strokeStyle = '#62513c'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, -52); ctx.lineTo(0, -41); ctx.moveTo(-8, -46); ctx.lineTo(8, -46); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255, 246, 202, .75)';
+      ctx.beginPath(); ctx.moveTo(-6, -51); ctx.lineTo(-6, -48); ctx.stroke();
+    }
   } else if (prop.type === 'stall') {
     ctx.fillStyle = paletteColor(['#59452f', '#66503a', '#72553b', '#56463a'], prop.x, prop.y, 81);
     ctx.fillRect(-24, -31, 4, 31); ctx.fillRect(20, -31, 4, 31);

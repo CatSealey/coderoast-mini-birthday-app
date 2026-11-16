@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cameraFor, createWorldArt } from '../js/world/world-art.js';
 import { QUEST_LOCATIONS, WORLD_SIZE } from '../js/world/world-data.js';
-import { TOWN_PLAZA } from '../js/world/town-scenery.js';
+import { TOWN_BENCHES, TOWN_PLAZA } from '../js/world/town-scenery.js';
 import { SURROUNDINGS_BOUNDS } from '../js/world/world-surroundings.js';
 
 test('minimap preserves unpaved town terrain while retaining the rest of the world ground', () => {
@@ -75,6 +75,17 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
     assert.deepEqual(drawnImages[0], [art.surroundings, SURROUNDINGS_BOUNDS.left, SURROUNDINGS_BOUNDS.top,
       SURROUNDINGS_BOUNDS.right - SURROUNDINGS_BOUNDS.left, SURROUNDINGS_BOUNDS.bottom - SURROUNDINGS_BOUNDS.top]);
     assert.deepEqual(drawnImages[1], [art.ground, 0, 0, WORLD_SIZE.width, WORLD_SIZE.height]);
+
+    const rectangles = [];
+    const townContext = new Proxy({
+      fillRect: (...args) => rectangles.push(args),
+      createRadialGradient: () => ({ addColorStop: () => {} })
+    }, { get: (target, key) => target[key] || (() => {}) });
+    const bench = TOWN_BENCHES[0];
+    art.draw(townContext, cameraFor(bench, 800, 600, 1), 1, 800, 600, []);
+    for (const y of [-30, -24, -18]) {
+      assert.ok(rectangles.some((rect) => rect[0] === -30 && rect[1] === y && rect[2] === 60 && rect[3] === 4));
+    }
   } finally {
     if (previousDocument === undefined) delete globalThis.document;
     else globalThis.document = previousDocument;

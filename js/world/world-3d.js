@@ -19,6 +19,7 @@ import { createRockGeometry, createRockTexture } from './rock-geometry.js';
 import { rockVariant } from './rock-style.js';
 import { cornStalks, createCornGeometry, createCornTexture } from './corn-scenery.js';
 import { createPumpkinGeometry, pumpkinHasFace } from './pumpkin-scenery.js';
+import { createTownTexture } from './town-textures.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -113,6 +114,21 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     return texture;
   }
   const stoneTexture = masonryTexture();
+  const townTextures = Object.fromEntries(['wood', 'plaster', 'roof'].map((kind) => {
+    const texture = createTownTexture(kind);
+    texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+    textures.add(texture);
+    return [kind, texture];
+  }));
+  function textured(item, kind, color) {
+    const key = `${kind}:${color}`;
+    if (!materials.has(key)) materials.set(key, new THREE.MeshStandardMaterial({ color, map: townTextures[kind], roughness: 1 }));
+    item.material = materials.get(key);
+    return item;
+  }
+  function texturedBox(parent, width, height, depth, color, x, y, z, kind = 'wood') {
+    return textured(box(parent, width, height, depth, color, x, y, z), kind, color);
+  }
   function stoneBox(parent, width, height, depth, color, x, y, z) {
     const item = box(parent, width, height, depth, color, x, y, z);
     const key = `stone:${color}`;
@@ -179,7 +195,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   scene.add(floor);
 
   function timber(parent, x, y, z, width, height) {
-    box(parent, width, height, 5, '#5d4939', x, y, z);
+    texturedBox(parent, width, height, 5, '#5d4939', x, y, z);
   }
   function windowFrame(parent, x, y, z, dark = false) {
     box(parent, 25, 30, 4, '#58493a', x, y, z);
@@ -187,6 +203,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     box(parent, 3, 25, 6, '#514438', x, y, z + 2);
     box(parent, 20, 3, 6, '#514438', x, y, z + 2);
     box(parent, 29, 4, 8, '#b2a488', x, y - 16, z + 1);
+    box(parent, 2, 8, 1, dark ? '#e5d7a2' : '#acc7bf', x - 5, y + 5, z + 3);
   }
   function roof(parent, width, depth, height, color, y) {
     const shape = new THREE.Shape();
@@ -198,6 +215,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     for (const side of [-1, 1]) {
       const eave = box(parent, Math.hypot(width / 2, height) + 4, 4, depth + 6, color,
         side * width / 4, y + height / 2, 0);
+      textured(eave, 'roof', color);
       eave.rotation.z = -side * slope;
       for (let row = 1; row <= 4; row += 1) {
         const fraction = row / 5;
@@ -211,7 +229,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   function house(x, z, dark = false, size = 1) {
     const g = groupAt(x, z); g.scale.setScalar(size);
     stoneBox(g, 128, 12, 105, dark ? '#727a70' : '#9a998b', 0, 6, 0);
-    box(g, 118, 80, 95, dark ? '#66695b' : '#c1b498', 0, 52, 0);
+    texturedBox(g, 118, 80, 95, dark ? '#66695b' : '#c1b498', 0, 52, 0, 'plaster');
     roof(g, 132, 108, 48, dark ? '#514744' : '#805c4b', 92);
     box(g, 16, 45, 18, '#817668', 36, 124, -22);
     box(g, 22, 6, 24, '#615b51', 36, 147, -22);
@@ -219,7 +237,9 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     timber(g, 0, 86, 49, 118, 6);
     timber(g, 0, 22, 49, 118, 6);
     box(g, 30, 53, 5, '#504236', 0, 39, 49);
-    box(g, 21, 45, 6, dark ? '#3d3932' : '#74543c', 0, 37, 51);
+    texturedBox(g, 21, 45, 6, dark ? '#3d3932' : '#74543c', 0, 37, 51);
+    for (const x of [-5, 0, 5]) box(g, 0.8, 40, 1, dark ? '#302e29' : '#5a4131', x, 37, 54.5);
+    box(g, 17, 2, 1, dark ? '#676053' : '#a07a53', 0, 48, 54.5);
     box(g, 3, 4, 3, '#d7b574', 7, 36, 55);
     box(g, 35, 5, 16, '#9d9583', 0, 4, 56);
     for (const side of [-37, 37]) {
@@ -390,6 +410,8 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       for (const x of [-43, 43]) {
         box(g, 20, 32, 5, '#d7cba8', x, 63, side * 77);
         box(g, 14, 26, 6, '#6c9094', x, 63, side * 80);
+        box(g, 2, 26, 7, '#c2b99f', x, 63, side * 80);
+        box(g, 14, 2, 7, '#c2b99f', x, 63, side * 80);
       }
       box(g, 5, 37, 22, '#d7cba8', side * 77, 65, 0);
       box(g, 6, 30, 16, '#6c9094', side * 80, 65, 0);
@@ -406,18 +428,33 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     const frame = paletteColor(['#5e594c', '#615848', '#685846', '#575548'], x, z, 91);
     const post = paletteColor(['#504b3e', '#5a4f3e', '#554c41', '#665340'], x, z, 92);
     box(g, 14, 7, 14, frame, 0, 4, 0);
-    box(g, 5, 65, 5, post, 0, 37, 0);
+    mesh(new THREE.CylinderGeometry(2.4, 3.2, 65, 8), post, g, 0, 37, 0);
+    mesh(new THREE.CylinderGeometry(5, 6, 4, 8), frame, g, 0, 10, 0);
+    mesh(new THREE.CylinderGeometry(4, 4, 3, 8), frame, g, 0, 66, 0);
     box(g, 17, 22, 17, frame, 0, 77, 0);
     box(g, 12, 16, 18, color ?? paletteColor(['#f8cc77', '#f2d89b', '#ead08a', '#e3b976', '#d8d0a0'], x, z, 93), 0, 77, 0);
+    for (const side of [-1, 1]) {
+      box(g, 2, 18, 19, frame, side * 7, 77, 0);
+    }
+    box(g, 17, 2, 19, frame, 0, 77, 0);
+    box(g, 2, 18, 1, frame, 0, 77, 9.5);
     mesh(new THREE.ConeGeometry(14, 12, 4), post, g, 0, 93, 0).rotation.y = Math.PI / 4;
+    mesh(new THREE.SphereGeometry(2.5, 8, 6), frame, g, 0, 100, 0);
   }
   function bench(x, z) {
     const g = groupAt(x, z);
     const wood = paletteColor(['#876646', '#936e4b', '#806043', '#9a744e', '#765a40'], x, z, 101);
     const frame = paletteColor(['#5c4c3b', '#65503c', '#55483b', '#70553d'], x, z, 102);
-    box(g, 58, 5, 20, wood, 0, 19, 0);
-    for (const side of [-22, 22]) box(g, 5, 19, 14, frame, side, 10, 0);
-    box(g, 58, 20, 4, wood, 0, 32, -9);
+    for (const zOffset of [-7, 0, 7]) texturedBox(g, 58, 4, 6, wood, 0, 19, zOffset);
+    for (const side of [-22, 22]) {
+      for (const zOffset of [-7, 7]) box(g, 4, 18, 4, frame, side, 9, zOffset);
+      box(g, 4, 30, 4, frame, side, 25, -8);
+    }
+    for (const height of [27, 34, 41]) texturedBox(g, 58, 5, 3, wood, 0, height, -8);
+    for (const side of [-22, 22]) {
+      box(g, 2, 2, 1, '#c8af7d', side, 34, -6);
+      box(g, 2, 2, 1, '#c8af7d', side, 41, -6);
+    }
   }
   function stall(x, z, color) {
     const g = groupAt(x, z);
@@ -435,13 +472,20 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   }
   function cafeTable(x, z) {
     const g = groupAt(x, z);
-    mesh(new THREE.CylinderGeometry(3, 5, 22, 8), '#5f4b39', g, 0, 11, 0);
-    mesh(new THREE.CylinderGeometry(20, 20, 4, 16), '#ae8f68', g, 0, 23, 0);
-    for (const side of [-27, 27]) {
-      mesh(new THREE.CylinderGeometry(3, 4, 12, 8), '#5f4b39', g, side, 6, 0);
-      mesh(new THREE.CylinderGeometry(7, 7, 3, 12), '#997957', g, side, 13, 0);
+    const wood = paletteColor(['#ae8f68', '#a8855e', '#ba9870', '#9d805e'], x, z, 121);
+    const frame = paletteColor(['#5f4b39', '#69523d', '#55483b', '#715640'], x, z, 122);
+    mesh(new THREE.CylinderGeometry(3, 5, 22, 8), frame, g, 0, 11, 0);
+    mesh(new THREE.CylinderGeometry(11, 11, 2, 16), frame, g, 0, 1, 0);
+    textured(mesh(new THREE.CylinderGeometry(20, 20, 4, 24), wood, g, 0, 23, 0), 'wood', wood);
+    for (const offset of [-9, 0, 9]) {
+      box(g, Math.sqrt(400 - offset * offset) * 2 - 1, 0.3, 0.6, '#806344', 0, 25.1, offset);
     }
-    mesh(new THREE.CylinderGeometry(4, 3, 7, 10), '#d6c6a5', g, 0, 28, 0);
+    for (const side of [-27, 27]) {
+      mesh(new THREE.CylinderGeometry(3, 4, 12, 8), frame, g, side, 6, 0);
+      textured(mesh(new THREE.CylinderGeometry(7, 7, 3, 12), wood, g, side, 13, 0), 'wood', wood);
+    }
+    mesh(new THREE.CylinderGeometry(4, 3, 7, 12), '#d6c6a5', g, 0, 28.5, 0);
+    mesh(new THREE.CylinderGeometry(2.8, 2.8, 0.4, 12), '#7a553a', g, 0, 32.1, 0);
   }
   function gate(x, z, label, color) {
     const g = groupAt(x, z);
