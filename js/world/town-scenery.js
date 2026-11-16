@@ -1,22 +1,36 @@
 import { QUEST_LOCATIONS } from './world-data.js';
 
 const town = QUEST_LOCATIONS[1];
-const venue = (name, kind, dx, dy, size, awning) => Object.freeze({
-  name, kind, x: town.x + dx, y: town.y + dy, size, awning,
+const venue = (name, kind, dx, dy, size, awning, motif) => Object.freeze({
+  name, kind, x: town.x + dx, y: town.y + dy, size, awning, motif,
   width: 128 * size, depth: 105 * size
 });
 
 export const TOWN_VENUES = Object.freeze([
-  venue('LUCKY CHUCKS', 'games', -85, -165, 1.2, '#4d7565'),
-  venue('THE COPPER KETTLE', 'restaurant', 335, -165, 1, '#a35f48'),
-  venue('THE IVY BAR', 'bar', -300, -165, 1, '#55715d'),
-  venue('THE LANTERN', 'bar', -505, -165, 1, '#6d617b'),
-  venue('CORNER KITCHEN', 'restaurant', 130, -165, 1, '#a37c48')
+  venue('LUCKY CHUCKS', 'games', -85, -165, 1.2, '#4d7565', 'billiards'),
+  venue('THE COPPER KETTLE', 'restaurant', 335, -165, 1, '#a35f48', 'kettle'),
+  venue('THE IVY BAR', 'bar', -300, -165, 1, '#55715d', 'leaf'),
+  venue('THE LANTERN', 'bar', -505, -165, 1, '#6d617b', 'lantern'),
+  venue('CORNER KITCHEN', 'restaurant', 130, -165, 1, '#a37c48', 'cutlery')
 ]);
+
+export const STOREFRONT_AWNINGS = Object.freeze([-37, 37].map((x) => Object.freeze({
+  x, width: 30, stripeOffsets: Object.freeze([-10, 0, 10]), stripeWidth: 5
+})));
 
 export const TOWN_CHURCH = Object.freeze({
   x: town.x + 150, y: town.y + 315, width: 170, depth: 170
 });
+
+export const CHURCH_STONE = Object.freeze({
+  base: '#aa906b',
+  wall: '#d8bc8e',
+  tower: '#cfb183',
+  trim: '#e5cda2',
+  shade: '#9e805d'
+});
+
+export const CHURCH_WOOD = '#705746';
 
 export const TOWN_TABLES = Object.freeze([
   Object.freeze({ x: town.x - 320, y: town.y + 165, radius: 32 }),

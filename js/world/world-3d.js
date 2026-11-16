@@ -9,7 +9,7 @@ import { worldCornWalls, worldTrees } from './world-collision.js';
 import { CAT_OUTFIT, CAT_STYLE, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, addCharacterHeadDetails } from '../character-appearance.js';
 import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 import { createCharacterLegs, createPlayerLegs } from '../games/character-legs.js';
-import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
+import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { sideQuestPosition } from '../side-quests.js';
 import { SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
 import { createDeadTreeGeometry, createTreeBarkTexture } from './tree-geometry.js';
@@ -20,6 +20,8 @@ import { rockVariant } from './rock-style.js';
 import { cornStalks, createCornGeometry, createCornTexture } from './corn-scenery.js';
 import { createPumpkinGeometry, pumpkinHasFace } from './pumpkin-scenery.js';
 import { createTownTexture } from './town-textures.js';
+import { createGamesSignTexture } from './games-sign.js';
+import { createVenueSignTexture } from './venue-sign.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -228,14 +230,23 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   }
   function house(x, z, dark = false, size = 1) {
     const g = groupAt(x, z); g.scale.setScalar(size);
+    const plaster = dark ? '#66695b' : paletteColor(['#c1b498', '#c8b9a1', '#b9b29d', '#c5b198', '#b9b6a4'], x, z, 132);
+    const roofColor = dark ? '#514744' : paletteColor(['#805c4b', '#896450', '#79594b', '#886856', '#755b50'], x, z, 133);
     stoneBox(g, 128, 12, 105, dark ? '#727a70' : '#9a998b', 0, 6, 0);
-    texturedBox(g, 118, 80, 95, dark ? '#66695b' : '#c1b498', 0, 52, 0, 'plaster');
-    roof(g, 132, 108, 48, dark ? '#514744' : '#805c4b', 92);
-    box(g, 16, 45, 18, '#817668', 36, 124, -22);
+    texturedBox(g, 118, 80, 95, plaster, 0, 52, 0, 'plaster');
+    roof(g, 132, 108, 48, roofColor, 92);
+    stoneBox(g, 16, 45, 18, '#817668', 36, 124, -22);
     box(g, 22, 6, 24, '#615b51', 36, 147, -22);
     for (const xPos of [-57, 57]) timber(g, xPos, 52, 49, 7, 80);
     timber(g, 0, 86, 49, 118, 6);
     timber(g, 0, 22, 49, 118, 6);
+    const gableSlope = Math.atan2(41, 54);
+    for (const side of [-1, 1]) {
+      const beam = texturedBox(g, 68, 4, 4, '#71533f', side * 27, 113, 55);
+      beam.rotation.z = -side * gableSlope;
+    }
+    texturedBox(g, 4, 34, 4, '#71533f', 0, 111, 55);
+    texturedBox(g, 98, 4, 4, '#71533f', 0, 96, 55);
     box(g, 30, 53, 5, '#504236', 0, 39, 49);
     texturedBox(g, 21, 45, 6, dark ? '#3d3932' : '#74543c', 0, 37, 51);
     for (const x of [-5, 0, 5]) box(g, 0.8, 40, 1, dark ? '#302e29' : '#5a4131', x, 37, 54.5);
@@ -244,6 +255,8 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     box(g, 35, 5, 16, '#9d9583', 0, 4, 56);
     for (const side of [-37, 37]) {
       windowFrame(g, side, 57, 49, dark);
+      texturedBox(g, 5, 28, 4, dark ? '#48473b' : '#76644d', side + Math.sign(side) * 15, 57, 50);
+      box(g, 7, 2, 5, '#a99572', side + Math.sign(side) * 15, 49, 51);
     }
     if (dark) {
       const board = box(g, 34, 4, 5, '#584c40', -37, 56, 55);
@@ -385,39 +398,62 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   TOWN_VENUES.forEach((venue) => {
     const building = house(venue.x, venue.y, false, venue.size);
     if (venue.kind !== 'games') {
-      box(building, 105, 5, 23, venue.awning, 0, 49, 59);
-      for (let x = -44; x <= 44; x += 22) box(building, 9, 6, 23, '#e8d8ba', x, 50, 59);
+      for (const awning of STOREFRONT_AWNINGS) {
+        const canopy = box(building, awning.width, 3, 21, venue.awning, awning.x, 75, 58);
+        canopy.rotation.x = 0.18;
+        for (const offset of awning.stripeOffsets) {
+          const stripe = box(building, awning.stripeWidth, 3.2, 21, '#e8d8ba', awning.x + offset, 75.15, 58);
+          stripe.rotation.x = canopy.rotation.x;
+        }
+        box(building, awning.width, 3, 2, venue.awning, awning.x, 71.5, 68);
+      }
     }
-    const sign = textSprite(venue.name, 'rgba(60, 42, 30, .95)', 320);
+    const signTexture = createVenueSignTexture(venue.name, venue.motif);
+    textures.add(signTexture);
+    const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: signTexture, transparent: true, depthTest: false }));
+    sign.scale.set(106.67, 16.67, 1);
     sign.position.set(0, 110, 56); building.add(sign);
     if (venue.kind === 'games') {
-      const activities = textSprite('POOL · DARTS · GAMES', 'rgba(43, 69, 56, .96)', 320);
-      activities.position.set(0, 72, 58); building.add(activities);
+      const texture = createGamesSignTexture();
+      textures.add(texture);
+      const activities = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
+      activities.scale.set(100, 15.625, 1);
+      activities.position.set(0, 85, 58); building.add(activities);
     }
   });
   function church() {
     const g = groupAt(TOWN_CHURCH.x, TOWN_CHURCH.y);
-    stoneBox(g, 170, 12, 170, '#96988d', 0, 6, 0);
-    stoneBox(g, 150, 88, 150, '#c2c0ad', 0, 56, 0);
-    roof(g, 162, 162, 55, '#666d68', 100);
-    stoneBox(g, 54, 150, 54, '#b4b4a4', 0, 75, 55);
-    mesh(new THREE.ConeGeometry(42, 52, 4), '#626b67', g, 0, 176, 55).rotation.y = Math.PI / 4;
+    stoneBox(g, 170, 12, 170, CHURCH_STONE.base, 0, 6, 0);
+    stoneBox(g, 150, 88, 150, CHURCH_STONE.wall, 0, 56, 0);
+    roof(g, 162, 162, 55, CHURCH_WOOD, 100);
+    stoneBox(g, 54, 150, 54, CHURCH_STONE.tower, 0, 75, 55);
+    stoneBox(g, 58, 5, 58, CHURCH_STONE.base, 0, 148, 55);
+    const steeple = mesh(new THREE.ConeGeometry(42, 52, 4), CHURCH_WOOD, g, 0, 176, 55);
+    textured(steeple, 'roof', CHURCH_WOOD);
+    steeple.rotation.y = Math.PI / 4;
     box(g, 4, 25, 4, '#dfcf9c', 0, 213, 55);
     box(g, 16, 4, 4, '#dfcf9c', 0, 217, 55);
     for (const side of [-1, 1]) {
       box(g, 32, 54, 5, '#54493e', 0, 39, side < 0 ? -77 : 84);
-      box(g, 24, 46, 6, '#705746', 0, 36, side < 0 ? -80 : 87);
+      const doorZ = side < 0 ? -80 : 87;
+      texturedBox(g, 24, 46, 6, CHURCH_WOOD, 0, 36, doorZ);
+      const doorFace = doorZ + side * 3.5;
+      for (const x of [-7, -2, 3, 8]) box(g, 0.8, 41, 1, '#4e3b2e', x, 36, doorFace);
+      for (const y of [23, 49]) box(g, 20, 2, 1, '#4e3b2e', 0, y, doorFace);
+      box(g, 2, 3, 2, '#d7b574', 7, 36, doorFace + side);
       for (const x of [-43, 43]) {
-        box(g, 20, 32, 5, '#d7cba8', x, 63, side * 77);
+        box(g, 20, 32, 5, CHURCH_STONE.trim, x, 63, side * 77);
         box(g, 14, 26, 6, '#6c9094', x, 63, side * 80);
         box(g, 2, 26, 7, '#c2b99f', x, 63, side * 80);
         box(g, 14, 2, 7, '#c2b99f', x, 63, side * 80);
       }
-      box(g, 5, 37, 22, '#d7cba8', side * 77, 65, 0);
+      box(g, 5, 37, 22, CHURCH_STONE.trim, side * 77, 65, 0);
       box(g, 6, 30, 16, '#6c9094', side * 80, 65, 0);
     }
-    box(g, 26, 38, 5, '#dacfae', 0, 108, 83);
+    box(g, 26, 38, 5, CHURCH_STONE.trim, 0, 108, 83);
     box(g, 18, 30, 6, '#6b8990', 0, 108, 86);
+    box(g, 2, 30, 7, CHURCH_STONE.trim, 0, 108, 86);
+    box(g, 18, 2, 7, CHURCH_STONE.trim, 0, 108, 86);
   }
   church();
   const escapeSign = textSprite('ESCAPE ROOM', 'rgba(36, 41, 38, .95)');

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cameraFor, createWorldArt } from '../js/world/world-art.js';
 import { QUEST_LOCATIONS, WORLD_SIZE } from '../js/world/world-data.js';
-import { TOWN_BENCHES, TOWN_PLAZA } from '../js/world/town-scenery.js';
+import { CHURCH_STONE, CHURCH_WOOD, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_PLAZA, TOWN_VENUES } from '../js/world/town-scenery.js';
 import { SURROUNDINGS_BOUNDS } from '../js/world/world-surroundings.js';
 
 test('minimap preserves unpaved town terrain while retaining the rest of the world ground', () => {
@@ -76,9 +76,14 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
       SURROUNDINGS_BOUNDS.right - SURROUNDINGS_BOUNDS.left, SURROUNDINGS_BOUNDS.bottom - SURROUNDINGS_BOUNDS.top]);
     assert.deepEqual(drawnImages[1], [art.ground, 0, 0, WORLD_SIZE.width, WORLD_SIZE.height]);
 
-    const rectangles = [];
+    const rectangles = [], paintedRectangles = [], filledColors = [], labels = [];
     const townContext = new Proxy({
-      fillRect: (...args) => rectangles.push(args),
+      fillRect: (...args) => {
+        rectangles.push(args);
+        paintedRectangles.push({ color: townContext.fillStyle, args });
+      },
+      fill: () => filledColors.push(townContext.fillStyle),
+      fillText: (...args) => labels.push(args),
       createRadialGradient: () => ({ addColorStop: () => {} })
     }, { get: (target, key) => target[key] || (() => {}) });
     const bench = TOWN_BENCHES[0];
@@ -86,6 +91,33 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
     for (const y of [-30, -24, -18]) {
       assert.ok(rectangles.some((rect) => rect[0] === -30 && rect[1] === y && rect[2] === 60 && rect[3] === 4));
     }
+    rectangles.length = 0;
+    const storefront = TOWN_VENUES.find((venue) => venue.kind !== 'games');
+    art.draw(townContext, cameraFor(storefront, 800, 600, 1), 1, 800, 600, []);
+    for (const awning of STOREFRONT_AWNINGS) {
+      assert.ok(rectangles.some((rect) => rect[0] === awning.x - awning.width / 2
+        && rect[1] === -64 && rect[2] === awning.width && rect[3] === 6));
+    }
+    assert.ok(!rectangles.some((rect) => rect[0] === -52 && rect[1] === -44 && rect[2] === 104 && rect[3] === 10));
+    labels.length = 0;
+    const tavern = TOWN_VENUES.find((venue) => venue.kind === 'games');
+    art.draw(townContext, cameraFor(tavern, 800, 600, 1), 1, 800, 600, []);
+    assert.ok(labels.some(([text]) => text === 'POOL · DARTS · GAMES'));
+    for (const venue of TOWN_VENUES) {
+      labels.length = 0;
+      art.draw(townContext, cameraFor(venue, 800, 600, 1), 1, 800, 600, []);
+      assert.ok(labels.some(([text]) => text === venue.name));
+    }
+    paintedRectangles.length = 0;
+    filledColors.length = 0;
+    art.draw(townContext, cameraFor(TOWN_CHURCH, 800, 600, 1), 1, 800, 600, []);
+    assert.ok(paintedRectangles.some(({ color, args }) => color === CHURCH_STONE.wall
+      && args[0] === -58 && args[1] === -83 && args[2] === 116 && args[3] === 83));
+    assert.ok(paintedRectangles.some(({ color, args }) => color === CHURCH_STONE.tower
+      && args[0] === -53 && args[1] === -146 && args[2] === 45 && args[3] === 93));
+    assert.ok(paintedRectangles.some(({ color, args }) => color === CHURCH_WOOD
+      && args[0] === -6 && args[1] === -35 && args[2] === 15 && args[3] === 35));
+    assert.ok(filledColors.filter((color) => color === CHURCH_WOOD).length >= 3);
   } finally {
     if (previousDocument === undefined) delete globalThis.document;
     else globalThis.document = previousDocument;

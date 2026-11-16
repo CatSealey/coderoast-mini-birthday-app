@@ -4,11 +4,13 @@ import { drawParkRide, PARK_RIDES } from './park-scenery.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { worldCornWalls, worldTrees } from './world-collision.js';
 import { CANOPY_OFFSET, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
-import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_PLAZA, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
+import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_PLAZA, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { createSurroundingTerrain, SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
 import { ESCAPE_DECORATIVE_TREE } from './tree-spacing.js';
 import { rockVariant } from './rock-style.js';
 import { drawCobblestone } from './cobblestones.js';
+import { drawGamesSign } from './games-sign.js';
+import { drawVenueSign } from './venue-sign.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -294,14 +296,14 @@ function tree(ctx, pine, variant) {
   }
 }
 
-function building(ctx, variant, castle = false) {
+function building(ctx, variant, castle = false, stone = null) {
   const w = castle ? 150 : 116;
   const h = castle ? 120 : 83;
   ellipse(ctx, 25, 4, w * 0.7, 22, 'rgba(15, 22, 18, .35)');
-  ctx.fillStyle = '#5c5a50';
+  ctx.fillStyle = stone ? stone.shade : '#5c5a50';
   ctx.beginPath(); ctx.moveTo(w / 2, -h); ctx.lineTo(w / 2 + 34, -h - 17);
   ctx.lineTo(w / 2 + 34, -18); ctx.lineTo(w / 2, 0); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = castle ? '#858579' : '#b0a58a';
+  ctx.fillStyle = stone ? stone.wall : castle ? '#858579' : '#b0a58a';
   ctx.fillRect(-w / 2, -h, w, h);
   ctx.strokeStyle = 'rgba(59, 61, 52, .33)'; ctx.lineWidth = 1;
   for (let y = -h + 8; y < -4; y += 14) {
@@ -317,10 +319,10 @@ function building(ctx, variant, castle = false) {
     ctx.fillStyle = '#395c75'; ctx.fillRect(-48, -h + 19, 16, 29);
     ctx.fillStyle = '#d7d4be'; ctx.beginPath(); ctx.moveTo(-48, -h + 19); ctx.lineTo(-32, -h + 19); ctx.lineTo(-40, -h + 32); ctx.fill();
   } else {
-    ctx.fillStyle = variant === 1 ? '#60463c' : '#56473e';
+    ctx.fillStyle = stone ? CHURCH_WOOD : variant === 1 ? '#60463c' : '#56473e';
     ctx.beginPath(); ctx.moveTo(-w / 2 - 9, -h); ctx.lineTo(0, -h - 45);
     ctx.lineTo(w / 2 + 9, -h); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#896a50';
+    ctx.fillStyle = stone ? CHURCH_WOOD : '#896a50';
     ctx.beginPath(); ctx.moveTo(0, -h - 45); ctx.lineTo(30, -h - 60);
     ctx.lineTo(w / 2 + 42, -h - 16); ctx.lineTo(w / 2 + 9, -h); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = 'rgba(225, 194, 143, .25)'; ctx.lineWidth = 2;
@@ -332,8 +334,12 @@ function building(ctx, variant, castle = false) {
       const y = -h - row * 9;
       ctx.beginPath(); ctx.moveTo(-w / 2 + row * 11, y); ctx.lineTo(w / 2 - row * 11, y); ctx.stroke();
     }
+    ctx.strokeStyle = '#795a43'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-49, -h); ctx.lineTo(0, -h - 38); ctx.lineTo(49, -h);
+    ctx.moveTo(0, -h - 38); ctx.lineTo(0, -h - 4); ctx.moveTo(-40, -h - 5); ctx.lineTo(40, -h - 5); ctx.stroke();
+    ctx.fillStyle = stone ? stone.base : '#958872'; ctx.fillRect(-57, -6, 114, 6);
     ctx.fillStyle = '#4c3629'; ctx.fillRect(-9, -38, 21, 38);
-    ctx.fillStyle = '#79593e'; ctx.fillRect(-6, -35, 15, 35);
+    ctx.fillStyle = stone ? CHURCH_WOOD : '#79593e'; ctx.fillRect(-6, -35, 15, 35);
     ctx.strokeStyle = 'rgba(49, 35, 28, .5)'; ctx.lineWidth = 0.8;
     for (const x of [-2, 3]) {
       ctx.beginPath(); ctx.moveTo(x, -34); ctx.lineTo(x, -1); ctx.stroke();
@@ -490,28 +496,52 @@ function drawProp(ctx, prop) {
   if (prop.type === 'tree' || prop.type === 'pine') tree(ctx, prop.type === 'pine', prop.variant);
   else if (prop.type === 'house' || prop.type === 'castle') building(ctx, prop.variant, prop.type === 'castle');
   else if (prop.type === 'church') {
-    building(ctx, 0);
-    ctx.fillStyle = '#aaa99a'; ctx.fillRect(-53, -146, 45, 93);
-    ctx.fillStyle = '#777e77'; ctx.fillRect(-56, -151, 51, 8);
-    ctx.fillStyle = '#5c6060';
+    building(ctx, 0, false, CHURCH_STONE);
+    ctx.fillStyle = CHURCH_STONE.tower; ctx.fillRect(-53, -146, 45, 93);
+    ctx.strokeStyle = 'rgba(107, 81, 57, .3)'; ctx.lineWidth = 1;
+    for (let y = -135; y < -55; y += 14) {
+      ctx.beginPath(); ctx.moveTo(-53, y); ctx.lineTo(-8, y); ctx.stroke();
+    }
+    ctx.fillStyle = CHURCH_STONE.base; ctx.fillRect(-56, -151, 51, 8);
+    ctx.fillStyle = CHURCH_WOOD;
     ctx.beginPath(); ctx.moveTo(-60, -151); ctx.lineTo(-30, -192); ctx.lineTo(0, -151); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(230, 197, 161, .35)'; ctx.lineWidth = 1;
+    for (let row = 1; row <= 3; row += 1) {
+      ctx.beginPath(); ctx.moveTo(-60 + row * 7, -151 - row * 9);
+      ctx.lineTo(-row * 7, -151 - row * 9); ctx.stroke();
+    }
     ctx.fillStyle = '#e5d7b4'; ctx.fillRect(-32, -207, 4, 17); ctx.fillRect(-37, -202, 14, 4);
     ctx.fillStyle = '#506c78'; ctx.fillRect(-41, -129, 20, 33);
-    ctx.fillStyle = '#d7cba8'; ctx.fillRect(-32, -129, 2, 33); ctx.fillRect(-41, -114, 20, 2);
-    ctx.fillStyle = '#d7cba8'; ctx.fillRect(31, -57, 2, 19);
+    ctx.fillStyle = CHURCH_STONE.trim; ctx.fillRect(-32, -129, 2, 33); ctx.fillRect(-41, -114, 20, 2);
+    ctx.fillStyle = CHURCH_STONE.trim; ctx.fillRect(31, -57, 2, 19);
     ellipse(ctx, 32, -63, 8, 8, '#b8c5b6');
   }
   else if (prop.type === 'townVenue') {
     building(ctx, prop.kind === 'bar' ? 1 : 0);
-    ctx.fillStyle = prop.awning;
-    ctx.fillRect(-52, -44, 104, 10);
-    ctx.fillStyle = '#e9d8b8';
-    for (let x = -48; x < 50; x += 24) ctx.fillRect(x, -44, 10, 10);
-    drawSignText(ctx, prop.name, -68, 108);
+    for (const awning of STOREFRONT_AWNINGS) {
+      ctx.fillStyle = prop.awning;
+      ctx.fillRect(awning.x - awning.width / 2, -64, awning.width, 6);
+      ctx.fillStyle = '#e9d8b8';
+      for (const offset of awning.stripeOffsets) {
+        ctx.fillRect(awning.x + offset - awning.stripeWidth / 2, -64, awning.stripeWidth, 6);
+      }
+      ctx.strokeStyle = '#675642'; ctx.lineWidth = 0.8;
+      ctx.strokeRect(awning.x - awning.width / 2, -64, awning.width, 6);
+    }
+    ctx.save(); ctx.translate(-54, -82); ctx.scale(108 / 512, 17 / 80);
+    drawVenueSign(ctx, prop.name, prop.motif);
+    ctx.restore();
   }
   else if (prop.type === 'tavern') {
     building(ctx, 1);
-    drawSignText(ctx, 'LUCKY CHUCKS', -67, 94);
+    ctx.save();
+    ctx.translate(-48, -99);
+    ctx.scale(96 / 512, 15 / 80);
+    drawGamesSign(ctx);
+    ctx.restore();
+    ctx.save(); ctx.translate(-47, -82); ctx.scale(94 / 512, 17 / 80);
+    drawVenueSign(ctx, prop.name, prop.motif);
+    ctx.restore();
     ellipse(ctx, -29, -23, 8, 8, '#244c43');
     ctx.fillStyle = '#f1e2bb'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('8', -29, -19);
     ellipse(ctx, 32, -24, 9, 9, '#ded3b6');
