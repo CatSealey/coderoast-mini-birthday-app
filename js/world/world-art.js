@@ -8,7 +8,7 @@ import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHE
 import { createSurroundingTerrain, SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
 import { ESCAPE_DECORATIVE_TREE } from './tree-spacing.js';
 import { rockVariant } from './rock-style.js';
-import { drawCobblestone } from './cobblestones.js';
+import { COBBLESTONE_SPACING, drawCobblestone } from './cobblestones.js';
 import { drawGamesSign } from './games-sign.js';
 import { drawVenueSign } from './venue-sign.js';
 import { drawCastle, drawCastleSupply } from './castle-scenery.js';
@@ -125,10 +125,10 @@ function makeGround() {
   const bottom = Math.min(minimap.height, Math.ceil((TOWN_PLAZA.bottom + padding) / WORLD_SIZE.height * minimap.height));
   const townTerrain = mapContext.getImageData(left, top, right - left, bottom - top);
 
-  for (let row = 0; row * 20 < WORLD_SIZE.height; row += 1) {
-    for (let col = 0; col * 25 < WORLD_SIZE.width; col += 1) {
-      const x = col * 25 + (row % 2) * 12;
-      const y = row * 20;
+  for (let row = 0; row * COBBLESTONE_SPACING.y < WORLD_SIZE.height; row += 1) {
+    for (let col = 0; col * COBBLESTONE_SPACING.x < WORLD_SIZE.width; col += 1) {
+      const x = col * COBBLESTONE_SPACING.x + (row % 2) * COBBLESTONE_SPACING.x / 2;
+      const y = row * COBBLESTONE_SPACING.y;
       if (roadDistance({ x, y }) > 40 && !isTownPlaza({ x, y })) continue;
       drawCobblestone(ctx, row, col);
     }

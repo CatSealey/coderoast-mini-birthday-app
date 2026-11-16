@@ -19,6 +19,7 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
       let firstStone = false;
       const methods = {
         createImageData: (width, height) => ({ data: new Uint8ClampedArray(width * height * 4) }),
+        createLinearGradient: () => ({ addColorStop: () => {} }),
         getImageData: (...args) => {
           const image = { townTerrain: true };
           events.push({ index, method: 'getImageData', args, image });
