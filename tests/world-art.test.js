@@ -29,8 +29,8 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
         stroke: () => { if (index === 2) events.push({ index, method: 'stroke' }); },
         rect: (...args) => { if (index === 2) events.push({ index, method: 'rect', args }); },
         clip: () => { if (index === 2) events.push({ index, method: 'clip' }); },
-        roundRect: () => {
-          if (!firstStone) events.push({ index, method: 'roundRect' });
+        quadraticCurveTo: () => {
+          if (!firstStone) events.push({ index, method: 'cobblestone' });
           firstStone = true;
         }
       };
@@ -49,7 +49,7 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
     const right = Math.min(art.minimap.width, Math.ceil((TOWN_PLAZA.right + 30) / WORLD_SIZE.width * art.minimap.width));
     const bottom = Math.min(art.minimap.height, Math.ceil((TOWN_PLAZA.bottom + 30) / WORLD_SIZE.height * art.minimap.height));
     const capture = events.findIndex((event) => event.index === 2 && event.method === 'getImageData');
-    const firstStone = events.findIndex((event) => event.index === 0 && event.method === 'roundRect');
+    const firstStone = events.findIndex((event) => event.index === 0 && event.method === 'cobblestone');
     const mapDraws = events.filter((event) => event.index === 2 && event.method === 'drawImage');
     const restore = events.findIndex((event) => event.index === 2 && event.method === 'putImageData');
     assert.deepEqual(events[capture].args, [left, top, right - left, bottom - top]);

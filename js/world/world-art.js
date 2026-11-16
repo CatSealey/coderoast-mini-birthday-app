@@ -8,6 +8,7 @@ import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_PLAZA, TOWN_TA
 import { createSurroundingTerrain, SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
 import { ESCAPE_DECORATIVE_TREE } from './tree-spacing.js';
 import { rockVariant } from './rock-style.js';
+import { drawCobblestone } from './cobblestones.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -119,14 +120,7 @@ function makeGround() {
       const x = col * 25 + (row % 2) * 12;
       const y = row * 20;
       if (roadDistance({ x, y }) > 40 && !isTownPlaza({ x, y })) continue;
-      const index = row * 300 + col;
-      ctx.fillStyle = ['#9b9983', '#aaa68f', '#8e8d7b', '#b3ad94'][Math.floor(random(index, 23) * 4)];
-      ctx.beginPath();
-      ctx.roundRect(x - 10, y - 7, 20 + random(index, 24) * 3, 14 + random(index, 25) * 2, 4);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(235, 224, 192, .18)';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x - 7, y - 5); ctx.lineTo(x + 7, y - 5); ctx.stroke();
+      drawCobblestone(ctx, row, col);
     }
   }
 
