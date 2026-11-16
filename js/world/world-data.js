@@ -6,6 +6,48 @@ export const WORLD_SIZE = Object.freeze({
 });
 export const WORLD_SPAWN = Object.freeze({ x: 2500, y: 2000 });
 export const CASTLE_ENTRANCE = Object.freeze({ x: WORLD_SPAWN.x + 50, y: WORLD_SPAWN.y - 165 });
+export const CASTLE_LAYOUT = Object.freeze({
+  x: WORLD_SPAWN.x + 50,
+  y: WORLD_SPAWN.y - 250,
+  width: 312,
+  depth: 250,
+  centerOffset: -47.5,
+  towerSize: 68,
+  towerHeight: 205
+});
+export const CASTLE_TOWERS = Object.freeze([-1, 1].flatMap((side) =>
+  [-1, 1].map((depthSide) => Object.freeze({
+    x: side * (CASTLE_LAYOUT.width - CASTLE_LAYOUT.towerSize) / 2,
+    z: CASTLE_LAYOUT.centerOffset + depthSide * (CASTLE_LAYOUT.depth - CASTLE_LAYOUT.towerSize) / 2,
+    height: CASTLE_LAYOUT.towerHeight,
+    hasBanner: depthSide > 0
+  }))));
+export const CASTLE_SIDE_BATTLEMENT_Z = Object.freeze(
+  Array.from({ length: 9 }, (_, i) => -126 + i * 20).filter((z) =>
+    z - 6 >= CASTLE_LAYOUT.centerOffset - CASTLE_LAYOUT.depth / 2 + CASTLE_LAYOUT.towerSize
+    && z + 6 <= CASTLE_LAYOUT.centerOffset + CASTLE_LAYOUT.depth / 2 - CASTLE_LAYOUT.towerSize)
+);
+export const CASTLE_FRONT_WINDOWS = Object.freeze([-75, -48, 48, 75]);
+export const CASTLE_WINDOW_LEVELS = Object.freeze([55, 112]);
+export const CASTLE_WINDOW_WIDTH_SCALE = 0.8;
+export const CASTLE_BARREL_COLLISION_RADIUS = 9.9;
+export const CASTLE_CRATE_COLLISION_SIZE = 24.2;
+export const CASTLE_ROOF_SUPPLIES = Object.freeze([
+  Object.freeze({ kind: 'barrel', x: -72, z: -105, size: 1.05, variant: 0, rotation: 0.15 }),
+  Object.freeze({ kind: 'crate', x: -47, z: -95, size: 1, variant: 0, rotation: -0.12 }),
+  Object.freeze({ kind: 'crate', x: -70, z: -66, size: 0.7, variant: 1, rotation: 0.22 }),
+  Object.freeze({ kind: 'crate', x: 68, z: -82, size: 1.1, variant: 2, rotation: -0.2 }),
+  Object.freeze({ kind: 'barrel', x: 65, z: -45, size: 0.9, variant: 1, rotation: 0 }),
+  Object.freeze({ kind: 'barrel', x: 42, z: -44, size: 0.65, variant: 2, rotation: 0.3 })
+]);
+export const CASTLE_EXTERIOR_SUPPLIES = Object.freeze([
+  Object.freeze({ kind: 'barrel', x: -171, z: -46, size: 1, variant: 1, rotation: 0.2 }),
+  Object.freeze({ kind: 'crate', x: -174, z: -75, size: 0.85, variant: 2, rotation: -0.25 }),
+  Object.freeze({ kind: 'barrel', x: -125, z: 89, size: 0.9, variant: 0, rotation: 0 }),
+  Object.freeze({ kind: 'crate', x: 171, z: -43, size: 1.05, variant: 0, rotation: 0.18 }),
+  Object.freeze({ kind: 'barrel', x: 170, z: -74, size: 1.15, variant: 2, rotation: -0.1 }),
+  Object.freeze({ kind: 'crate', x: 194, z: -83, size: 0.65, variant: 1, rotation: 0.3 })
+]);
 export const INTERACTION_RANGE = 74;
 const TOWN_X = 1120, TOWN_Y = 985;
 export const WORLD_ROUTES = Object.freeze([

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
+import { CASTLE_EXTERIOR_SUPPLIES, CASTLE_FRONT_WINDOWS, CASTLE_LAYOUT, CASTLE_ROOF_SUPPLIES, CASTLE_SIDE_BATTLEMENT_Z, CASTLE_TOWERS, CASTLE_WINDOW_LEVELS, CASTLE_WINDOW_WIDTH_SCALE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
 import { regionBlendAt } from './world-regions.js';
 import { PARK_RIDES } from './park-scenery.js';
 import { roadDistance } from './world-art.js';
@@ -22,6 +22,7 @@ import { createPumpkinGeometry, pumpkinHasFace } from './pumpkin-scenery.js';
 import { createTownTexture } from './town-textures.js';
 import { createGamesSignTexture } from './games-sign.js';
 import { createVenueSignTexture } from './venue-sign.js';
+import { CASTLE_GATE_PLANKS, CASTLE_PALETTE, CASTLE_TOWER_WINDOWS, castleSupplyStyle, createCastleArchGeometry, createCastleBannerGeometry, createCastleFlagGeometry } from './castle-scenery.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -267,33 +268,172 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   }
   function castle(x, z) {
     const g = groupAt(x, z);
-    stoneBox(g, 215, 15, 155, '#93968c', 0, 8, 0);
-    stoneBox(g, 170, 135, 125, '#c6c3b4', 0, 75, 0);
-    box(g, 174, 9, 130, '#777b72', 0, 137, 0);
-    for (const side of [-88, 88]) {
-      stoneBox(g, 55, 175, 150, '#b8bcad', side, 88, 0);
-      box(g, 62, 10, 158, '#777d72', side, 172, 0);
-      for (let dx = -24; dx <= 24; dx += 16) {
-        box(g, 10, 20, 14, '#b8b8a7', side + dx, 187, 73);
-        box(g, 10, 20, 14, '#b8b8a7', side + dx, 187, -73);
-      }
-      box(g, 13, 35, 4, '#45565b', side, 117, 77);
-      box(g, 20, 4, 7, '#c2bcaa', side, 98, 78);
-      box(g, 5, 45, 5, '#695a43', side, 215, 0);
-      box(g, 30, 20, 3, side < 0 ? '#94644c' : '#53786a', side + 15, 225, 0);
+    const { wall, tower, trim, shadow, gate, gateIron, windowGlass, metal, roof: roofColor, roofTrim, royalBlue, heraldryGold } = CASTLE_PALETTE;
+    stoneBox(g, CASTLE_LAYOUT.width, 15, CASTLE_LAYOUT.depth, '#93968c', 0, 8, CASTLE_LAYOUT.centerOffset);
+    stoneBox(g, 244, 160, 220, wall, 0, 88, CASTLE_LAYOUT.centerOffset);
+    stoneBox(g, 248, 9, 224, shadow, 0, 168, CASTLE_LAYOUT.centerOffset);
+    for (let dx = -110; dx <= 110; dx += 20) {
+      stoneBox(g, 12, 17, 12, trim, dx, 180, 59);
+      stoneBox(g, 12, 17, 12, trim, dx, 180, -154);
     }
-    box(g, 55, 78, 6, '#54554d', 0, 43, 65);
-    box(g, 43, 70, 7, '#493d32', 0, 39, 69);
-    for (const dx of [-16, -8, 0, 8, 16]) box(g, 2, 66, 2, '#766549', dx, 39, 73);
-    for (const dy of [20, 53]) box(g, 42, 3, 3, '#746249', 0, dy, 74);
-    for (const side of [-55, 55]) windowFrame(g, side, 96, 65);
-    box(g, 70, 5, 35, '#a6a18f', 0, 3, 82);
-    for (let row = 0; row < 5; row += 1) {
+    stoneBox(g, 216, 2, 188, roofColor, 0, 173, CASTLE_LAYOUT.centerOffset);
+    for (let row = 0; row <= 6; row += 1) {
+      const zPos = CASTLE_LAYOUT.centerOffset - 84 + row * 28;
+      box(g, 208, 0.6, 1, roofTrim, 0, 174.2, zPos);
+      if (row === 6) continue;
       for (let col = -2; col <= 2; col += 1) {
-        if (row < 3 && col === 0) continue;
-        box(g, 25, 2, 2, '#b9b5a4', col * 30 + (row % 2) * 7, 18 + row * 22, 64);
+        box(g, 1, 0.6, 28, roofTrim, col * 40 + (row % 2) * 20, 174.2, zPos + 14);
       }
     }
+    const barrelBody = new THREE.CylinderGeometry(8, 9, 24, 12);
+    const barrelHoop = new THREE.CylinderGeometry(9.2, 9.2, 2, 12);
+    const barrelLid = new THREE.CylinderGeometry(8, 8, 1, 12);
+    function supply(item, baseY) {
+      const { wood, light, edge, metal: band } = castleSupplyStyle(item.kind, item.variant);
+      const group = new THREE.Group();
+      group.position.set(item.x, baseY, item.z);
+      group.rotation.y = item.rotation;
+      group.scale.setScalar(item.size);
+      g.add(group);
+      if (item.kind === 'barrel') {
+        textured(mesh(barrelBody, wood, group, 0, 12, 0), 'wood', wood);
+        for (const y of [6, 18]) mesh(barrelHoop, band, group, 0, y, 0);
+        textured(mesh(barrelLid, light, group, 0, 24, 0), 'wood', light);
+        for (let i = 0; i < 12; i += 1) {
+          const angle = i * Math.PI / 6;
+          const stave = box(group, 0.6, 23, 0.7, edge, Math.sin(angle) * 8.5, 12, Math.cos(angle) * 8.5);
+          stave.rotation.y = angle;
+        }
+        for (const zPos of [-3, 3]) box(group, 13, 0.5, 0.5, edge, 0, 24.7, zPos);
+        for (const y of [6, 18]) box(group, 1.5, 1.5, 1, light, 0, y, 9.3);
+      } else {
+        texturedBox(group, 20, 20, 20, wood, 0, 10, 0);
+        for (const dx of [-8, 8]) box(group, 2, 20, 1, edge, dx, 10, 10.5);
+        for (const y of [2, 18]) box(group, 20, 2, 1, edge, 0, y, 10.5);
+        for (const y of [7, 13]) box(group, 16, 0.6, 1, edge, 0, y, 10.6);
+        for (const side of [-1, 1]) {
+          for (const zPos of [-8, 8]) box(group, 1, 20, 2, edge, side * 10.5, 10, zPos);
+          for (const y of [2, 18]) box(group, 1, 2, 20, edge, side * 10.5, y, 0);
+          const sideBrace = box(group, 1, 2, 23, light, side * 11, 10, 0);
+          sideBrace.rotation.x = Math.PI / 4;
+        }
+        for (const zPos of [-4, 4]) box(group, 18, 0.5, 0.6, edge, 0, 20.3, zPos);
+        const brace = box(group, 23, 2, 1, light, 0, 10, 11);
+        brace.rotation.z = Math.PI / 4;
+        if (item.variant === 2) {
+          const crossBrace = box(group, 23, 2, 1, light, 0, 10, 11.6);
+          crossBrace.rotation.z = -Math.PI / 4;
+        }
+        for (const dx of [-7, 7]) for (const y of [3, 17]) box(group, 1.4, 1.4, 1, band, dx, y, 11.5);
+      }
+    }
+    CASTLE_ROOF_SUPPLIES.forEach((item) => supply(item, 174));
+    CASTLE_EXTERIOR_SUPPLIES.forEach((item) => supply(item, 0));
+    for (const side of [-1, 1]) {
+      for (const zPos of CASTLE_SIDE_BATTLEMENT_Z) {
+        stoneBox(g, 12, 17, 12, trim, side * 117, 180, zPos);
+      }
+    }
+    const bannerGeometry = createCastleBannerGeometry();
+    const flagGeometry = createCastleFlagGeometry();
+    const flagMaterial = new THREE.MeshStandardMaterial({ color: royalBlue, roughness: 0.9, side: THREE.DoubleSide });
+    materials.set('castle:flag', flagMaterial);
+    const towerWindows = Object.fromEntries(Object.entries(CASTLE_TOWER_WINDOWS).map(([key, spec]) => [key, {
+      ...spec,
+      surround: createCastleArchGeometry(spec.width, spec.spring, spec.height),
+      pane: createCastleArchGeometry(spec.innerWidth, spec.innerSpring, spec.innerHeight)
+    }]));
+    function towerWindow(spec, towerX, face, height) {
+      const bottom = height + spec.bottomOffset;
+      const windowX = towerX + Math.sign(towerX) * (spec.outwardOffset ?? 0);
+      mesh(spec.surround, trim, g, windowX, bottom, face + 2.5);
+      mesh(spec.pane, windowGlass, g, windowX, bottom + 2, face + 3);
+      box(g, spec.width + 4, 3, 6, trim, windowX, bottom - 1, face + 3);
+      box(g, 1.4, spec.innerHeight - 4, 1, '#b7c1ad',
+        windowX, bottom + 2 + spec.innerHeight / 2, face + 3.8);
+      box(g, spec.innerWidth - 2, 1.3, 1, '#b7c1ad',
+        windowX, bottom + 2 + spec.innerHeight * 0.48, face + 3.8);
+      box(g, 1, 4, 1, '#d1dfd2', windowX - spec.innerWidth / 4,
+        bottom + 5 + spec.innerHeight * 0.5, face + 4.2);
+    }
+    for (const turret of CASTLE_TOWERS) {
+      const { x: towerX, z: towerZ, height, hasBanner } = turret;
+      const half = CASTLE_LAYOUT.towerSize / 2;
+      const face = towerZ + half;
+      stoneBox(g, CASTLE_LAYOUT.towerSize, height, CASTLE_LAYOUT.towerSize, tower, towerX, height / 2, towerZ);
+      box(g, 74, 10, 74, shadow, towerX, height - 3, towerZ);
+      box(g, 70, 4, 70, trim, towerX, height - 10, towerZ);
+      for (let dx = -27; dx <= 27; dx += 18) {
+        stoneBox(g, 11, 20, 12, trim, towerX + dx, height + 12, towerZ + 31);
+        stoneBox(g, 11, 20, 12, trim, towerX + dx, height + 12, towerZ - 31);
+      }
+      for (let dz = -18; dz <= 18; dz += 18) {
+        stoneBox(g, 12, 20, 11, trim, towerX - 31, height + 12, towerZ + dz);
+        stoneBox(g, 12, 20, 11, trim, towerX + 31, height + 12, towerZ + dz);
+      }
+      for (const edge of [-26, 26]) {
+        for (let y = 20, row = 0; y < height - 35; y += 20, row += 1) {
+          const width = row % 2 ? 10 : 14;
+          const rear = CASTLE_TOWER_WINDOWS.rear;
+          const rearBottom = height + rear.bottomOffset;
+          if (!hasBanner && Math.abs(edge - Math.sign(towerX) * rear.outwardOffset) < (width + rear.width) / 2
+            && y + 4 > rearBottom && y - 4 < rearBottom + rear.height) continue;
+          box(g, width, 8, 3, trim, towerX + edge, y, face + 1);
+        }
+      }
+      if (hasBanner) {
+        towerWindow(towerWindows.upper, towerX, face, height);
+        towerWindow(towerWindows.lower, towerX, face, height);
+        box(g, 24, 3, 4, metal, towerX, height - 13, face + 3);
+        const border = mesh(bannerGeometry, heraldryGold, g, towerX, height - 48, face + 3);
+        border.scale.set(1.14, 1.05, 1);
+        mesh(bannerGeometry, royalBlue, g, towerX, height - 48, face + 4);
+        box(g, 2, 18, 1, heraldryGold, towerX, height - 30, face + 5);
+        box(g, 10, 2, 1, heraldryGold, towerX, height - 29, face + 5);
+      } else {
+        towerWindow(towerWindows.rear, towerX, face, height);
+      }
+      box(g, 5, 45, 5, '#695a43', towerX, height + 40, towerZ);
+      const direction = towerX < 0 ? 1 : -1;
+      const flag = mesh(flagGeometry, royalBlue, g, towerX + direction * 2.5, height + 40, towerZ + 2);
+      flag.scale.x = direction;
+      flag.material = flagMaterial;
+      box(g, 2, 16, 1, heraldryGold, towerX + direction * 5, height + 49, towerZ + 3);
+      box(g, 2, 11, 1, heraldryGold, towerX + direction * 15, height + 49, towerZ + 3);
+      box(g, 9, 2, 1, heraldryGold, towerX + direction * 15, height + 49, towerZ + 3);
+    }
+    mesh(createCastleArchGeometry(70, 52, 83), trim, g, 0, 8, 65.5);
+    mesh(createCastleArchGeometry(52, 49, 73), gate, g, 0, 8, 66);
+    for (const plank of CASTLE_GATE_PLANKS) {
+      box(g, 9.2, plank.top - 9, 1, plank.color, plank.x, (plank.top + 9) / 2, 66.8);
+      box(g, 0.8, plank.top - 13, 1, '#947354', plank.x - 2.5, (plank.top + 11) / 2, 67.5);
+      box(g, 1.8, plank.top - 10, 2, gateIron, plank.x, (plank.top + 10) / 2, 68.5);
+    }
+    for (const dy of [23, 43, 59]) {
+      box(g, 50, 3, 2, gateIron, 0, dy, 69);
+      for (const dx of [-20, -10, 0, 10, 20]) box(g, 2.5, 2.5, 1.5, metal, dx, dy, 70.5);
+    }
+    for (const side of [-1, 1]) for (const y of [20, 32, 44, 56]) {
+      box(g, 8, 9, 2, '#b4aa95', side * 30.5, y, 67);
+    }
+    for (let i = 0; i <= 8; i += 1) {
+      const angle = i * Math.PI / 8;
+      const block = box(g, 8, 10, 2, i % 2 ? '#c1b6a0' : '#b4aa95',
+        31 * Math.cos(angle), 60 + 25 * Math.sin(angle), 67);
+      block.rotation.z = angle - Math.PI / 2;
+    }
+    box(g, 28, 4, 4, trim, 0, 109, 65);
+    box(g, 19, 23, 3, royalBlue, 0, 121, 65);
+    box(g, 3, 15, 2, heraldryGold, 0, 121, 67);
+    box(g, 11, 3, 2, heraldryGold, 0, 122, 67);
+    for (const windowY of CASTLE_WINDOW_LEVELS) for (const windowX of CASTLE_FRONT_WINDOWS) {
+      const windowGroup = new THREE.Group();
+      windowGroup.position.set(windowX, windowY, 65);
+      windowGroup.scale.x = CASTLE_WINDOW_WIDTH_SCALE;
+      g.add(windowGroup);
+      windowFrame(windowGroup, 0, 0, 0);
+    }
+    box(g, 70, 5, 35, '#a6a18f', 0, 3, 82);
   }
   function character(color, longHair = false, hair, belt = '#aa9160', style = null) {
     const g = new THREE.Group();
@@ -391,7 +531,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     return label;
   });
 
-  castle(WORLD_SPAWN.x + 50, WORLD_SPAWN.y - 250);
+  castle(CASTLE_LAYOUT.x, CASTLE_LAYOUT.y);
   house(WORLD_SPAWN.x - 205, WORLD_SPAWN.y - 95, false, 0.8);
   const [escape, , park, forest, harvest] = QUEST_LOCATIONS;
   house(escape.x - 70, escape.y - 185, true, 1.15);
@@ -882,7 +1022,8 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   geometries.add(shadowGeometry);
   const shadowEntries = [
     ...treeData.map((t) => ({ x: t.x + 12, z: t.z + 16, width: 110 * t.size, depth: 75 * t.size })),
-    { x: WORLD_SPAWN.x + 70, z: WORLD_SPAWN.y - 225, width: 340, depth: 240 },
+    { x: CASTLE_LAYOUT.x + 20, z: CASTLE_LAYOUT.y + CASTLE_LAYOUT.centerOffset + 25,
+      width: CASTLE_LAYOUT.width + 110, depth: CASTLE_LAYOUT.depth + 85 },
     { x: escape.x - 65, z: escape.y - 160, width: 230, depth: 170 },
     ...TOWN_VENUES.map((venue) => ({ x: venue.x + 20, z: venue.y + 15, width: 190 * venue.size, depth: 140 * venue.size })),
     { x: TOWN_CHURCH.x + 20, z: TOWN_CHURCH.y + 20, width: 230, depth: 205 }

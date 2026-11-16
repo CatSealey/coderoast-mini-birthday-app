@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cameraFor, createWorldArt } from '../js/world/world-art.js';
-import { QUEST_LOCATIONS, WORLD_SIZE } from '../js/world/world-data.js';
+import { QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from '../js/world/world-data.js';
+import { CASTLE_PALETTE } from '../js/world/castle-scenery.js';
 import { CHURCH_STONE, CHURCH_WOOD, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_PLAZA, TOWN_VENUES } from '../js/world/town-scenery.js';
 import { SURROUNDINGS_BOUNDS } from '../js/world/world-surroundings.js';
 
@@ -118,6 +119,19 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
     assert.ok(paintedRectangles.some(({ color, args }) => color === CHURCH_WOOD
       && args[0] === -6 && args[1] === -35 && args[2] === 15 && args[3] === 35));
     assert.ok(filledColors.filter((color) => color === CHURCH_WOOD).length >= 3);
+    paintedRectangles.length = 0;
+    filledColors.length = 0;
+    const castle = { x: WORLD_SPAWN.x + 50, y: WORLD_SPAWN.y - 250 };
+    art.draw(townContext, cameraFor(castle, 800, 600, 1), 1, 800, 600, []);
+    for (const [x, y] of [[-125, -247], [81, -247], [-107, -175], [63, -175]]) {
+      assert.ok(paintedRectangles.some(({ color, args }) => color === CASTLE_PALETTE.tower
+        && args[0] === x && args[1] === y));
+    }
+    assert.ok(filledColors.includes(CASTLE_PALETTE.gate));
+    paintedRectangles.length = 0;
+    art.draw(townContext, { x: castle.x - 400, y: castle.y - 490 / 0.68 }, 1, 800, 100, []);
+    assert.ok(paintedRectangles.some(({ color, args }) => color === CASTLE_PALETTE.tower
+      && args[0] === -125 && args[1] === -247), 'rear towers remain visible when the castle base is below the viewport');
   } finally {
     if (previousDocument === undefined) delete globalThis.document;
     else globalThis.document = previousDocument;

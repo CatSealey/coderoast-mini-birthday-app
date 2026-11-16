@@ -1,4 +1,4 @@
-import { CASTLE_ENTRANCE, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
+import { CASTLE_BARREL_COLLISION_RADIUS, CASTLE_CRATE_COLLISION_SIZE, CASTLE_ENTRANCE, CASTLE_EXTERIOR_SUPPLIES, CASTLE_LAYOUT, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
 import { regionBlendAt } from './world-regions.js';
 import { roadDistance } from './world-art.js';
 import { WORLD_NPCS } from './world-npcs.js';
@@ -48,6 +48,8 @@ export function worldTrees() {
         && z > npc.y - 80 && z < npc.y + 240)
       || CANOPY_PLATFORMS.some((platform) => Math.hypot(x - forest.x - CANOPY_OFFSET.x - platform.x,
         z - forest.y - CANOPY_OFFSET.z - platform.z) < 75)
+      || (Math.abs(x - CASTLE_LAYOUT.x) < CASTLE_LAYOUT.width / 2 + 70
+        && Math.abs(z - CASTLE_LAYOUT.y - CASTLE_LAYOUT.centerOffset) < CASTLE_LAYOUT.depth / 2 + 70)
       || Math.hypot(x - WORLD_SPAWN.x, z - WORLD_SPAWN.y) < 300) continue;
     const region = regionBlendAt({ x, y: z }).region.id;
     if (region === 'park' || region === 'harvest') continue;
@@ -81,7 +83,14 @@ export function worldObstacles(trees = worldTrees()) {
     ...[...QUEST_LOCATIONS, ...WORLD_NPCS].map((npc) => npc.prop === 'pace'
       ? rect(npc.x, npc.y, (WORLD_CHARACTER_RADIUS + PACE_DISTANCE) * 2, WORLD_CHARACTER_RADIUS * 2)
       : circle(npc.x, npc.y, WORLD_CHARACTER_RADIUS)),
-    rect(WORLD_SPAWN.x + 50, WORLD_SPAWN.y - 250, 231, 155),
+    rect(CASTLE_LAYOUT.x, CASTLE_LAYOUT.y + CASTLE_LAYOUT.centerOffset, CASTLE_LAYOUT.width, CASTLE_LAYOUT.depth),
+    ...CASTLE_EXTERIOR_SUPPLIES.map((item) => {
+      const x = CASTLE_LAYOUT.x + item.x, y = CASTLE_LAYOUT.y + item.z;
+      if (item.kind === 'barrel') return circle(x, y, CASTLE_BARREL_COLLISION_RADIUS * item.size);
+      const extent = CASTLE_CRATE_COLLISION_SIZE * item.size
+        * (Math.abs(Math.cos(item.rotation)) + Math.abs(Math.sin(item.rotation)));
+      return rect(x, y, extent, extent);
+    }),
     rect(WORLD_SPAWN.x - 205, WORLD_SPAWN.y - 95, 102, 84),
     rect(escape.x - 70, escape.y - 185, 147, 121),
     ...TOWN_VENUES.map(({ x, y, width, depth }) => rect(x, y, width, depth)),

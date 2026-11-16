@@ -1,4 +1,4 @@
-import { QUEST_LOCATIONS, WORLD_ROUTES, WORLD_SCALE, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
+import { CASTLE_EXTERIOR_SUPPLIES, CASTLE_LAYOUT, QUEST_LOCATIONS, WORLD_ROUTES, WORLD_SCALE, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
 import { regionBlendAt } from './world-regions.js';
 import { drawParkRide, PARK_RIDES } from './park-scenery.js';
 import { WORLD_NPCS } from './world-npcs.js';
@@ -11,6 +11,7 @@ import { rockVariant } from './rock-style.js';
 import { drawCobblestone } from './cobblestones.js';
 import { drawGamesSign } from './games-sign.js';
 import { drawVenueSign } from './venue-sign.js';
+import { drawCastle, drawCastleSupply } from './castle-scenery.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -171,7 +172,10 @@ function addProps() {
     props.push({ type, x, y, size, variant });
   }
   const [escape, , park, forest, harvest] = QUEST_LOCATIONS;
-  add('castle', WORLD_SPAWN.x + 50, WORLD_SPAWN.y - 250, 1.45);
+  add('castle', CASTLE_LAYOUT.x, CASTLE_LAYOUT.y, 1.45);
+  for (const item of CASTLE_EXTERIOR_SUPPLIES) {
+    add(item.kind, CASTLE_LAYOUT.x + item.x, CASTLE_LAYOUT.y + item.z, item.size, item.variant);
+  }
   add('house', WORLD_SPAWN.x - 205, WORLD_SPAWN.y - 95, 0.85);
   add('lamp', WORLD_SPAWN.x - 70, WORLD_SPAWN.y - 80);
   add('sign', WORLD_SPAWN.x - 120, WORLD_SPAWN.y + 20);
@@ -296,14 +300,14 @@ function tree(ctx, pine, variant) {
   }
 }
 
-function building(ctx, variant, castle = false, stone = null) {
-  const w = castle ? 150 : 116;
-  const h = castle ? 120 : 83;
+function building(ctx, variant, stone = null) {
+  const w = 116;
+  const h = 83;
   ellipse(ctx, 25, 4, w * 0.7, 22, 'rgba(15, 22, 18, .35)');
   ctx.fillStyle = stone ? stone.shade : '#5c5a50';
   ctx.beginPath(); ctx.moveTo(w / 2, -h); ctx.lineTo(w / 2 + 34, -h - 17);
   ctx.lineTo(w / 2 + 34, -18); ctx.lineTo(w / 2, 0); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = stone ? stone.wall : castle ? '#858579' : '#b0a58a';
+  ctx.fillStyle = stone ? stone.wall : '#b0a58a';
   ctx.fillRect(-w / 2, -h, w, h);
   ctx.strokeStyle = 'rgba(59, 61, 52, .33)'; ctx.lineWidth = 1;
   for (let y = -h + 8; y < -4; y += 14) {
@@ -312,13 +316,7 @@ function building(ctx, variant, castle = false, stone = null) {
       ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 13); ctx.stroke();
     }
   }
-  if (castle) {
-    ctx.fillStyle = '#a4a498';
-    for (let x = -w / 2; x < w / 2; x += 22) ctx.fillRect(x, -h - 12, 14, 14);
-    ctx.fillStyle = '#273940'; ctx.beginPath(); ctx.arc(0, -35, 18, Math.PI, 0); ctx.lineTo(18, 0); ctx.lineTo(-18, 0); ctx.fill();
-    ctx.fillStyle = '#395c75'; ctx.fillRect(-48, -h + 19, 16, 29);
-    ctx.fillStyle = '#d7d4be'; ctx.beginPath(); ctx.moveTo(-48, -h + 19); ctx.lineTo(-32, -h + 19); ctx.lineTo(-40, -h + 32); ctx.fill();
-  } else {
+  {
     ctx.fillStyle = stone ? CHURCH_WOOD : variant === 1 ? '#60463c' : '#56473e';
     ctx.beginPath(); ctx.moveTo(-w / 2 - 9, -h); ctx.lineTo(0, -h - 45);
     ctx.lineTo(w / 2 + 9, -h); ctx.closePath(); ctx.fill();
@@ -494,9 +492,10 @@ function drawProp(ctx, prop) {
   ctx.save();
   ctx.scale(prop.size, prop.size);
   if (prop.type === 'tree' || prop.type === 'pine') tree(ctx, prop.type === 'pine', prop.variant);
-  else if (prop.type === 'house' || prop.type === 'castle') building(ctx, prop.variant, prop.type === 'castle');
+  else if (prop.type === 'house') building(ctx, prop.variant);
+  else if (prop.type === 'castle') drawCastle(ctx);
   else if (prop.type === 'church') {
-    building(ctx, 0, false, CHURCH_STONE);
+    building(ctx, 0, CHURCH_STONE);
     ctx.fillStyle = CHURCH_STONE.tower; ctx.fillRect(-53, -146, 45, 93);
     ctx.strokeStyle = 'rgba(107, 81, 57, .3)'; ctx.lineWidth = 1;
     for (let y = -135; y < -55; y += 14) {
@@ -649,11 +648,7 @@ function drawProp(ctx, prop) {
     }
     ctx.fillStyle = '#d1b582';
     for (const x of [-23, 21]) for (const y of [-28, -22, -16]) ctx.fillRect(x, y, 1.5, 1.5);
-  } else if (prop.type === 'barrel') {
-    ctx.fillStyle = '#876040'; ctx.fillRect(-12, -30, 24, 30);
-    ellipse(ctx, 0, -30, 12, 4, '#a67e52');
-    ctx.strokeStyle = '#4d4034'; ctx.lineWidth = 2; ctx.strokeRect(-12, -24, 24, 16);
-  }
+  } else if (prop.type === 'barrel' || prop.type === 'crate') drawCastleSupply(ctx, prop.type, prop.variant);
   else if (prop.type === 'parkGate') {
     ctx.fillStyle = '#59504a'; ctx.fillRect(-52, -90, 12, 90); ctx.fillRect(40, -90, 12, 90);
     ctx.strokeStyle = paletteColor(['#784a43', '#855340', '#765346', '#925947'], prop.x, prop.y, 61);
@@ -778,7 +773,10 @@ export function createWorldArt() {
       ctx.drawImage(ground, 0, 0, WORLD_SIZE.width, WORLD_SIZE.height);
       const visible = props.filter((prop) => {
         const point = projectWorld(prop, camera, zoom);
-        return point.x > -300 && point.x < width + 300 && point.y > -120 && point.y < height + 350;
+        const horizontalMargin = prop.type === 'castle' ? Math.max(300, 184 * zoom) : 300;
+        const lowerMargin = prop.type === 'castle' ? Math.max(350, 435 * zoom) : 350;
+        return point.x > -horizontalMargin && point.x < width + horizontalMargin
+          && point.y > -120 && point.y < height + lowerMargin;
       }).map((prop) => ({ ...prop, draw: () => drawProp(ctx, prop) }));
       const items = [...visible, ...actors].sort((a, b) => a.y - b.y);
       ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, -camera.x * dpr * zoom, -camera.y * dpr * zoom * TILT);

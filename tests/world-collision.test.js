@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCollision, findCharacterApproach, findWorldPath, MAZE_REGION_CLEARANCE, worldCornWalls, worldObstacles, worldTrees } from '../js/world/world-collision.js';
-import { CASTLE_ENTRANCE, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from '../js/world/world-data.js';
+import { CASTLE_BARREL_COLLISION_RADIUS, CASTLE_CRATE_COLLISION_SIZE, CASTLE_ENTRANCE, CASTLE_EXTERIOR_SUPPLIES, CASTLE_LAYOUT, CASTLE_TOWERS, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from '../js/world/world-data.js';
 import { WORLD_NPCS } from '../js/world/world-npcs.js';
 import { CANOPY_OFFSET, CANOPY_PLATFORMS, harvestPumpkins, placeQuestDecorations } from '../js/world/world-scenery-data.js';
 import { regionBlendAt } from '../js/world/world-regions.js';
@@ -27,6 +27,37 @@ test('castle, buildings and tree trunks are solid without blocking nearby entran
       position = waypoint;
     }
   }
+});
+
+test('the enlarged castle covers every corner tower and keeps trees and rocks clear', () => {
+  const trees = worldTrees();
+  const obstacles = worldObstacles(trees);
+  const collision = createCollision(obstacles);
+  for (const tower of CASTLE_TOWERS) {
+    assert.ok(collision.blocked({ x: CASTLE_LAYOUT.x + tower.x, y: CASTLE_LAYOUT.y + tower.z }));
+  }
+  for (const item of CASTLE_EXTERIOR_SUPPLIES) {
+    assert.ok(collision.blocked({ x: CASTLE_LAYOUT.x + item.x, y: CASTLE_LAYOUT.y + item.z }),
+      `exterior ${item.kind} is solid`);
+    const obstacle = obstacles.find((entry) => entry.x === CASTLE_LAYOUT.x + item.x && entry.y === CASTLE_LAYOUT.y + item.z);
+    assert.ok(obstacle);
+    if (item.kind === 'barrel') assert.equal(obstacle.radius, CASTLE_BARREL_COLLISION_RADIUS * item.size);
+    else {
+      const extent = CASTLE_CRATE_COLLISION_SIZE * item.size * (Math.abs(Math.cos(item.rotation)) + Math.abs(Math.sin(item.rotation)));
+      assert.equal(obstacle.width, extent);
+      assert.equal(obstacle.depth, extent);
+    }
+  }
+  for (const tree of trees) {
+    for (const [x, y] of [[tree.x, tree.z], ...(tree.variant === 0 ? [[tree.x + 48, tree.z + 18]] : [])]) {
+      assert.ok(Math.abs(x - CASTLE_LAYOUT.x) >= CASTLE_LAYOUT.width / 2
+        || Math.abs(y - CASTLE_LAYOUT.y - CASTLE_LAYOUT.centerOffset) >= CASTLE_LAYOUT.depth / 2);
+    }
+  }
+  const path = findWorldPath(WORLD_SPAWN, CASTLE_ENTRANCE, collision);
+  assert.ok(path);
+  const endpoint = path.at(-1) || WORLD_SPAWN;
+  assert.ok(Math.hypot(endpoint.x - CASTLE_ENTRANCE.x, endpoint.y - CASTLE_ENTRANCE.y) < INTERACTION_RANGE);
 });
 
 test('every guide and town character is solid and can still be approached', () => {
