@@ -1,7 +1,10 @@
 import { WORLD_SIZE } from './world-data.js';
 import { regionBlendAt } from './world-regions.js';
+import { spaceDeadTrees } from './tree-spacing.js';
 
 export const SURROUNDINGS_MARGIN = 3000;
+// Playable trees start 70 units inside the edge; leave room for their largest crowns.
+const DEAD_TREE_EDGE_CLEARANCE = 140;
 export const SURROUNDINGS_BOUNDS = Object.freeze({
   left: -SURROUNDINGS_MARGIN,
   top: -SURROUNDINGS_MARGIN,
@@ -22,15 +25,18 @@ export function surroundingTrees() {
     const x = SURROUNDINGS_BOUNDS.left + random(i, 101) * width;
     const z = SURROUNDINGS_BOUNDS.top + random(i, 102) * height;
     if (x >= -100 && x <= WORLD_SIZE.width + 100 && z >= -100 && z <= WORLD_SIZE.height + 100) continue;
+    const region = regionBlendAt({ x, y: z }).region.id;
+    if (region === 'escape' && x >= -DEAD_TREE_EDGE_CLEARANCE && x <= WORLD_SIZE.width + DEAD_TREE_EDGE_CLEARANCE
+      && z >= -DEAD_TREE_EDGE_CLEARANCE && z <= WORLD_SIZE.height + DEAD_TREE_EDGE_CLEARANCE) continue;
     trees.push({
       x, z,
-      region: regionBlendAt({ x, y: z }).region.id,
+      region,
       size: 0.65 + random(i, 103) * 0.9,
       variant: i % 3,
       angle: random(i, 104) * Math.PI * 2
     });
   }
-  return trees;
+  return spaceDeadTrees(trees);
 }
 
 export function createSurroundingTerrain() {

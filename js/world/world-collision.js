@@ -7,6 +7,7 @@ import { PARK_RIDES } from './park-scenery.js';
 import { createMazeWalls } from './maze-scenery.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { PACE_DISTANCE, SIDE_QUESTS } from '../side-quests.js';
+import { ESCAPE_DECORATIVE_TREE, spaceDeadTrees } from './tree-spacing.js';
 
 const random = (index, salt) => {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -52,7 +53,7 @@ export function worldTrees() {
     if (region === 'park' || region === 'harvest') continue;
     trees.push({ x, z, region, size: 0.65 + random(i, 22) * 0.9, variant: i % 3, angle: random(i, 33) * Math.PI * 2 });
   }
-  return trees;
+  return spaceDeadTrees(trees, [ESCAPE_DECORATIVE_TREE]);
 }
 
 export function worldCornWalls() {
@@ -92,7 +93,7 @@ export function worldObstacles(trees = worldTrees()) {
       .map(([x, y]) => rect(x, y, 82, 45)),
     ...[park.entrance, forest.entrance, harvest.entrance].flatMap(({ x, y }) =>
       [-65, 65].map((offset) => rect(x + offset, y, 18, 20))),
-    ...trees.flatMap((tree) => [circle(tree.x, tree.z, 10 * tree.size),
+    ...trees.flatMap((tree) => [circle(tree.x, tree.z, (tree.region === 'escape' ? 20 : 10) * tree.size),
       ...(tree.variant === 0 ? [circle(tree.x + 48, tree.z + 18, 13)] : [])])
   ];
   WORLD_NPCS.filter((npc) => npc.prop === 'grave').forEach((npc) => {

@@ -6,6 +6,7 @@ import { worldCornWalls, worldTrees } from './world-collision.js';
 import { CANOPY_OFFSET, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_PLAZA, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { createSurroundingTerrain, SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
+import { ESCAPE_DECORATIVE_TREE } from './tree-spacing.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -169,7 +170,7 @@ function addProps() {
   add('sign', WORLD_SPAWN.x - 120, WORLD_SPAWN.y + 20);
 
   add('haunted', escape.x - 70, escape.y - 185, 1.25);
-  add('deadTree', escape.x + 185, escape.y - 140, 1.25);
+  add('deadTree', ESCAPE_DECORATIVE_TREE.x, ESCAPE_DECORATIVE_TREE.z, ESCAPE_DECORATIVE_TREE.size);
   placeQuestDecorations(escape, 'escape', 22, 560, 12).forEach(({ x, y, scale, variant }) => add('grave', x, y, scale, variant));
 
   TOWN_VENUES.forEach((venue) => props.push({
@@ -459,12 +460,30 @@ function drawProp(ctx, prop) {
     drawSignText(ctx, 'ESCAPE ROOM', -89, 92, '#c2caa7');
   } else if (prop.type === 'deadTree') {
     ellipse(ctx, 5, 2, 34, 9, 'rgba(13, 19, 19, .3)');
-    ctx.strokeStyle = '#45433c'; ctx.lineWidth = 9; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-3, -95); ctx.lineTo(-24, -127);
-    ctx.moveTo(-3, -68); ctx.lineTo(32, -105); ctx.lineTo(40, -127);
-    ctx.moveTo(-2, -48); ctx.lineTo(-35, -75); ctx.lineTo(-43, -100); ctx.stroke();
-    ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(25, -97); ctx.lineTo(42, -97);
-    ctx.moveTo(-25, -80); ctx.lineTo(-40, -80); ctx.stroke();
+    ctx.scale(prop.variant === 1 ? -1 : 1, 1);
+    ctx.fillStyle = '#57483a';
+    ctx.strokeStyle = '#392f29'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-20, 1); ctx.lineTo(-12, -9); ctx.bezierCurveTo(-7, -25, -11, -37, -13, -47);
+    ctx.bezierCurveTo(-25, -53, -33, -68, -37, -82); ctx.lineTo(-41, -105);
+    ctx.lineTo(-32, -85); ctx.lineTo(-22, -72); ctx.bezierCurveTo(-27, -91, -24, -104, -32, -119);
+    ctx.lineTo(-42, -139); ctx.lineTo(-27, -125); ctx.lineTo(-21, -137); ctx.lineTo(-22, -117);
+    ctx.bezierCurveTo(-15, -100, -16, -80, -8, -69); ctx.bezierCurveTo(-5, -81, -7, -96, -5, -110);
+    ctx.lineTo(-15, -139); ctx.lineTo(-2, -119); ctx.lineTo(5, -144); ctx.lineTo(5, -113);
+    ctx.bezierCurveTo(13, -103, 13, -89, 11, -77); ctx.bezierCurveTo(22, -86, 27, -101, 31, -116);
+    ctx.lineTo(33, -137); ctx.lineTo(39, -116); ctx.lineTo(48, -129); ctx.lineTo(42, -106);
+    ctx.lineTo(54, -116); ctx.lineTo(43, -97); ctx.bezierCurveTo(33, -83, 22, -75, 15, -61);
+    ctx.bezierCurveTo(8, -42, 8, -24, 13, -11); ctx.lineTo(22, 1); ctx.lineTo(9, -2);
+    ctx.lineTo(4, 3); ctx.lineTo(-2, -2); ctx.lineTo(-10, 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#8a6c50'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-10, -3); ctx.bezierCurveTo(1, -24, -7, -40, -5, -58);
+    ctx.bezierCurveTo(-4, -78, 4, -93, 0, -112);
+    ctx.moveTo(5, -4); ctx.bezierCurveTo(0, -26, 6, -45, 10, -59);
+    ctx.bezierCurveTo(17, -77, 29, -85, 34, -104);
+    ctx.moveTo(-9, -47); ctx.bezierCurveTo(-24, -58, -28, -72, -31, -89); ctx.stroke();
+    ctx.strokeStyle = '#382e29'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-2, -5); ctx.bezierCurveTo(-5, -27, 4, -41, 0, -61);
+    ctx.moveTo(6, -64); ctx.bezierCurveTo(3, -81, 5, -96, 3, -104); ctx.stroke();
   } else if (prop.type === 'grave') {
     ellipse(ctx, 0, 2, 22, 7, 'rgba(15, 20, 19, .35)');
     ctx.fillStyle = '#777c72'; ctx.beginPath(); ctx.arc(0, -25, 14, Math.PI, 0);
