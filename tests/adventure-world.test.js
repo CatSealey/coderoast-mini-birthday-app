@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CANOPY_PLATFORMS, CANOPY_ZIPLINE, COASTER_EXIT, COASTER_GOODBYE, COASTER_JOIN_POINT, COUPLE_GOODBYE_SECONDS, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_GOODBYE, PUB_JOIN_POINT, PUB_OBSTACLES, PUB_PARTNER_OFFSET, advanceCanopy, adventureObjectInRange, canopyMeter, canopyTarget, canopyZipPosition, coasterCouplePath, coasterPath, coasterWalkable, controlCoaster, couplePartnerPosition, createCanopyTarget, finishCoasterExit, finishCoasterGoodbye, finishPubExit, finishPubGoodbye, interactAdventure, jumpCanopy, newAdventureState, pubCouplePath, pubPath, pubWalkable, restoreAdventureState, takePoolShot, tickCanopy, tickCoaster, unlockBallCase, walkAdventure, walkCoasterCouple, walkPubCouple } from '../js/games/adventure-logic.js';
+import { CANOPY_CROSSINGS, CANOPY_OBSTACLES, CANOPY_PLATFORMS, CANOPY_ZIPLINE, COASTER_EXIT, COASTER_GOODBYE, COASTER_JOIN_POINT, COUPLE_GOODBYE_SECONDS, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_GOODBYE, PUB_JOIN_POINT, PUB_OBSTACLES, PUB_PARTNER_OFFSET, advanceCanopy, adventureObjectInRange, canopyMeter, canopyTarget, canopyZipPosition, coasterCouplePath, coasterPath, coasterWalkable, controlCoaster, couplePartnerPosition, createCanopyTarget, finishCoasterExit, finishCoasterGoodbye, finishPubExit, finishPubGoodbye, interactAdventure, jumpCanopy, newAdventureState, pubCouplePath, pubPath, pubWalkable, restoreAdventureState, takePoolShot, tickCanopy, tickCoaster, unlockBallCase, walkAdventure, walkCoasterCouple, walkPubCouple } from '../js/games/adventure-logic.js';
 import { COASTER_DROP_SECONDS, COASTER_GOAL, COASTER_PLATFORM, COASTER_REJOIN_PROGRESS, COASTER_RETURN_SECONDS, COASTER_RIDE_SECONDS, COASTER_TREATS, coasterDirection, coasterHeading, coasterLanePosition, coasterPosition, coasterRailPosition } from '../js/games/coaster-course.js';
 import { createCollision } from '../js/world/world-collision.js';
 import { createAdventureScene } from '../js/games/adventure-scene.js';
@@ -1010,6 +1010,32 @@ test('GoApe zip-wire stops the walking animation and walking resumes afterwards'
   }
 });
 
+test('GoApe fallback has no highlighted target square and keeps collectible markers', () => {
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const outlines = [], fills = [];
+  const ctx = {
+    setTransform() {}, fillRect() { fills.push(this.fillStyle); }, strokeRect() { outlines.push(this.strokeStyle); },
+    beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, arc() {}, ellipse() {}, fill() {}, fillText() {}
+  };
+  const canvas = { getContext: () => ctx, addEventListener() {}, removeEventListener() {} };
+  globalThis.document = { createElement: () => ({ getContext: () => null }) };
+  globalThis.window = { devicePixelRatio: 1 };
+  try {
+    const scene = createAdventureScene(canvas, 3, () => {}, '');
+    scene.resize(1000, 700);
+    scene.draw(newAdventureState(3));
+    assert.equal(outlines.length, CANOPY_PLATFORMS.length);
+    assert.ok(outlines.every((color) => color === '#594c36'));
+    assert.ok(fills.includes('#f4d686'));
+    scene.dispose();
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
 test('GoApe zip-wire and rider clear the course and continue after a mid-ride save', () => {
   for (let i = 0; i <= 1000; i += 1) {
     const player = canopyZipPosition(i / 1000);
@@ -1030,6 +1056,142 @@ test('GoApe zip-wire and rider clear the course and continue after a mid-ride sa
   assert.equal(state.zipline, true);
   assert.ok(state.player.x > 1850);
   assert.equal(runCanopy(state, 1.3).complete, true);
+});
+
+test('GoApe lengthens only crossing gaps beyond jumping range', () => {
+  const gaps = CANOPY_PLATFORMS.slice(1).map((platform, index) => platform.left - CANOPY_PLATFORMS[index].right);
+  assert.deepEqual(gaps, [230, 275, 65, 280, 65, 270, 275]);
+  for (const crossing of Object.values(CANOPY_CROSSINGS)) {
+    assert.ok(gaps[crossing.from] > 220);
+    assert.equal(crossing.to, crossing.from + 1);
+    assert.ok(crossing.start[0] <= CANOPY_PLATFORMS[crossing.from].right);
+    assert.ok(crossing.end[0] >= CANOPY_PLATFORMS[crossing.to].left);
+  }
+});
+
+test('long GoApe crossing gaps cannot be bypassed by jumping in either direction', () => {
+  for (const crossing of Object.values(CANOPY_CROSSINGS)) {
+    for (const reverse of [false, true]) {
+      const start = reverse ? crossing.to : crossing.from;
+      const platform = CANOPY_PLATFORMS[start];
+      let state = jumpCanopy({ ...newAdventureState(3), checkpoint: 7,
+        player: { x: reverse ? platform.left + 1 : platform.right - 1, y: 350, height: platform.height } });
+      for (let i = 0; i < 200 && state.flight; i += 1) {
+        state = walkAdventure(3, state, reverse ? -175 : 175, 0, 0.025);
+        state = tickCanopy(state, 0.025);
+      }
+      assert.equal(state.flight, null);
+      assert.ok(state.player.x >= platform.left && state.player.x <= platform.right,
+        `${crossing.kind} ${crossing.from} cannot be jumped ${reverse ? 'backwards' : 'forwards'}`);
+    }
+  }
+});
+
+test('GoApe objects and railings block swept walking without preventing interaction', () => {
+  for (const object of OBJECTS[3].filter((item) => ['collectible', 'beacon', 'zipline'].includes(item.kind))) {
+    const state = {
+      ...newAdventureState(3), collected: ['leaf', 'feather', 'acorn', 'star'],
+      player: { x: object.x - 45, y: object.y, height: object.height }
+    };
+    const next = walkAdventure(3, state, 90, 0, 1);
+    assert.ok(next.player.x < object.x, `${object.id} must block a long movement`);
+    assert.ok(adventureObjectInRange(3, state.player, object), `${object.id} remains reachable`);
+  }
+  for (const platform of CANOPY_PLATFORMS) {
+    const state = { ...newAdventureState(3), player: { x: platform.left + 30, y: 350, height: platform.height } };
+    assert.strictEqual(walkAdventure(3, state, 0, -100, 1), state);
+    assert.strictEqual(walkAdventure(3, state, 0, 100, 1), state);
+  }
+  const pedestal = OBJECTS[3].find((item) => item.id === 'leaf');
+  const flying = { ...newAdventureState(3), flight: { velocity: 0 },
+    player: { x: pedestal.x - 45, y: pedestal.y, height: pedestal.height + 110 } };
+  assert.equal(walkAdventure(3, flying, 90, 0, 1).player.x, pedestal.x + 45);
+});
+
+test('GoApe migrates old platform, crossing and zip-wire saves without losing progress', () => {
+  const oldPlatforms = [40, 380, 600, 795, 1040, 1245, 1450, 1660];
+  for (const [index, platform] of CANOPY_PLATFORMS.entries()) {
+    const saved = { ...newAdventureState(3), courseVersion: 2, checkpoint: index,
+      collected: ['leaf'], player: { x: oldPlatforms[index] + 30, y: 350, height: platform.height } };
+    const restored = restoreAdventureState(3, saved);
+    assert.equal(restored.player.x, platform.left + 30);
+    assert.equal(restored.checkpoint, index);
+    assert.deepEqual(restored.collected, ['leaf']);
+    assert.equal(restored.courseVersion, 3);
+  }
+  const crossing = CANOPY_CROSSINGS['high-rope'];
+  const saved = { ...newAdventureState(3), courseVersion: 2, checkpoint: 3,
+    player: { x: 972.5, y: 350, height: 138.75 },
+    traversal: { kind: 'rope', crossingId: 'high-rope', progress: 0.25, elapsed: 0, armed: true } };
+  const restored = restoreAdventureState(3, saved);
+  assert.equal(restored.player.x, crossing.start[0] + (crossing.end[0] - crossing.start[0]) * 0.25);
+  assert.equal(restored.traversal.progress, 0.25);
+  const zip = restoreAdventureState(3, { ...newAdventureState(3), courseVersion: 2, checkpoint: 7,
+    player: { x: 2000, y: 460, height: 90 }, zipline: true, zipProgress: 0.5, treasuresUsed: true });
+  assert.deepEqual(zip.player, canopyZipPosition(0.5));
+  assert.equal(runCanopy(zip, 1.6).complete, true);
+});
+
+test('GoApe moves saved players clear of solid objects and retains their progress', () => {
+  const leaf = OBJECTS[3].find((object) => object.id === 'leaf');
+  const saved = { ...newAdventureState(3), courseVersion: 2, collected: ['leaf'],
+    player: { x: leaf.x, y: leaf.y, height: leaf.height } };
+  const restored = restoreAdventureState(3, saved);
+  const obstacles = CANOPY_OBSTACLES.filter((obstacle) =>
+    restored.player.height < obstacle.maxHeight && restored.player.height + 80 > obstacle.minHeight);
+  assert.equal(createCollision(obstacles, 10).blocked(restored.player), false);
+  assert.ok(adventureObjectInRange(3, restored.player, leaf));
+  assert.deepEqual(restored.collected, ['leaf']);
+});
+
+test('every GoApe crossing works in both directions and keeps checkpoint progress', () => {
+  for (const [id, crossing] of Object.entries(CANOPY_CROSSINGS)) {
+    const object = OBJECTS[3].find((item) => item.id === id);
+    const [x, y, height] = crossing.end;
+    let state = { ...newAdventureState(3), checkpoint: 7, player: { x, y, height },
+      collected: ['leaf', 'feather', 'acorn', 'star'], lanterns: ['lantern-1', 'lantern-2', 'lantern-3'] };
+    assert.equal(adventureObjectInRange(3, state.player, object), true, `${id} is accessible from the far side`);
+    state = interactAdventure(3, state, id);
+    assert.equal(state.traversal.reverse, true);
+    const failed = advanceCanopy(state);
+    assert.equal(failed.traversal, null);
+    assert.deepEqual(failed.player, { x: x + 10, y, height });
+    state = advanceCanopy(waitForCanopyWindow(state));
+    state = restoreAdventureState(3, JSON.parse(JSON.stringify(state)));
+    assert.equal(state.traversal.reverse, true);
+    state = crossCanopy(state);
+    assert.deepEqual(state.player, { x: crossing.start[0], y: crossing.start[1], height: crossing.start[2] });
+    assert.equal(state.checkpoint, 7);
+    state = interactAdventure(3, state, id);
+    assert.equal(state.traversal.reverse, false);
+    state = crossCanopy(state);
+    assert.deepEqual(state.player, { x, y, height });
+    assert.equal(state.checkpoint, 7);
+  }
+});
+
+test('both GoApe jump gaps can be crossed backwards and a failed jump returns to its starting platform', () => {
+  for (const [from, to] of [[3, 2], [5, 4]]) {
+    const platform = CANOPY_PLATFORMS[from];
+    let state = { ...newAdventureState(3), checkpoint: 7,
+      player: { x: platform.left + 5, y: 350, height: platform.height } };
+    state = jumpCanopy(state);
+    for (let i = 0; i < 21; i += 1) {
+      state = walkAdventure(3, state, -175, 0, 0.05);
+      state = tickCanopy(state, 0.05);
+    }
+    assert.equal(state.flight, null);
+    assert.ok(state.player.x >= CANOPY_PLATFORMS[to].left && state.player.x <= CANOPY_PLATFORMS[to].right);
+    assert.equal(state.checkpoint, 7);
+    let failed = jumpCanopy({ ...newAdventureState(3), checkpoint: 7,
+      player: { x: platform.left + 5, y: 350, height: platform.height } });
+    failed = { ...failed, player: { ...failed.player, x: platform.left - 20 } };
+    const restored = restoreAdventureState(3, JSON.parse(JSON.stringify(failed)));
+    assert.ok(restored.player.x >= platform.left && restored.player.x <= platform.right);
+    failed = runCanopy(failed, 2);
+    assert.ok(failed.player.x >= platform.left && failed.player.x <= platform.right);
+    assert.equal(failed.checkpoint, 7);
+  }
 });
 
 test('GoApe requires its crossings, jumps, lanterns and four treasures for the zip-wire', () => {
@@ -1053,7 +1215,7 @@ test('GoApe requires its crossings, jumps, lanterns and four treasures for the z
   state = crossCanopy(state);
   assert.equal(state.player.height, 130);
   state = visit(3, state, 'acorn');
-  state = { ...state, player: { x: 725, y: 350, height: 130 } };
+  state = { ...state, player: { x: CANOPY_PLATFORMS[2].right - 5, y: 350, height: 130 } };
   assert.strictEqual(walkAdventure(3, state, 100, 0, 0.1), state);
   state = jumpCanopy(state);
   for (let i = 0; i < 21; i += 1) {
@@ -1071,7 +1233,7 @@ test('GoApe requires its crossings, jumps, lanterns and four treasures for the z
   state = crossCanopy(state);
   assert.equal(state.checkpoint, 4);
   state = visit(3, state, 'lantern-1');
-  state = { ...state, player: { x: 1175, y: 350, height: 165 } };
+  state = { ...state, player: { x: CANOPY_PLATFORMS[4].right - 5, y: 350, height: 165 } };
   state = jumpCanopy(state);
   for (let i = 0; i < 21; i += 1) {
     state = walkAdventure(3, state, 100, 0, 0.05);
@@ -1101,7 +1263,7 @@ test('GoApe lantern order, crossing failures and mid-crossing saves are preserve
   assert.deepEqual(visit(3, state, 'lantern-2').lanterns, []);
   state = {
     ...state, checkpoint: 3, collected: ['leaf', 'feather', 'acorn', 'star'],
-    player: { x: 945, y: 350, height: 130 }
+    player: { x: CANOPY_CROSSINGS['high-rope'].start[0], y: 350, height: 130 }
   };
   state = interactAdventure(3, state, 'high-rope');
   const failed = advanceCanopy(state);
@@ -1143,32 +1305,36 @@ test('the expanded GoApe course is playable by walking without teleporting', () 
     }
     assert.equal(state.checkpoint, checkpoint);
   };
-  walkTo(200, 295); interact('leaf');
-  walkTo(330, 350); interact('net'); state = crossCanopy(state);
-  walkTo(440, 405); interact('feather');
-  walkTo(500, 350); interact('rope'); state = crossCanopy(state);
-  walkTo(680, 290); interact('acorn');
-  jumpAcross(725, 3);
-  walkTo(850, 405); interact('star');
-  walkTo(945, 350); interact('high-rope'); state = crossCanopy(state);
-  walkTo(1110, 300); interact('lantern-1');
-  jumpAcross(1175, 5);
-  walkTo(1300, 405); interact('lantern-2');
-  walkTo(1370, 350); interact('high-net'); state = crossCanopy(state);
-  walkTo(1575, 350); interact('summit-rope'); state = crossCanopy(state);
-  walkTo(1720, 300); interact('lantern-3');
-  walkTo(1800, 350); interact('zipline');
+  const approach = (id, offsetY) => {
+    const object = OBJECTS[3].find((item) => item.id === id);
+    walkTo(object.x, object.y + offsetY); interact(id);
+  };
+  approach('leaf', 45);
+  approach('net', 0); state = crossCanopy(state);
+  approach('feather', -45);
+  approach('rope', 0); state = crossCanopy(state);
+  approach('acorn', 45);
+  jumpAcross(CANOPY_PLATFORMS[2].right - 5, 3);
+  approach('star', -45);
+  approach('high-rope', 0); state = crossCanopy(state);
+  approach('lantern-1', 40);
+  jumpAcross(CANOPY_PLATFORMS[4].right - 5, 5);
+  approach('lantern-2', -40);
+  approach('high-net', 0); state = crossCanopy(state);
+  approach('summit-rope', 0); state = crossCanopy(state);
+  approach('lantern-3', 40);
+  walkTo(CANOPY_ZIPLINE.start.x - 30, CANOPY_ZIPLINE.start.y); interact('zipline');
   assert.equal(runCanopy(state, 3.1).complete, true);
 });
 
 test('GoApe prevents leaving required treasures or lanterns behind on one-way crossings', () => {
-  let state = { ...newAdventureState(3), checkpoint: 3, player: { x: 945, y: 350, height: 130 } };
+  let state = { ...newAdventureState(3), checkpoint: 3, player: { x: CANOPY_CROSSINGS['high-rope'].start[0], y: 350, height: 130 } };
   state = interactAdventure(3, state, 'high-rope');
   assert.equal(state.traversal, null);
   assert.match(state.message, /four treasures/);
   state = {
     ...state, checkpoint: 5, collected: ['leaf', 'feather', 'acorn', 'star'],
-    lanterns: ['lantern-1'], player: { x: 1370, y: 350, height: 165 }
+    lanterns: ['lantern-1'], player: { x: CANOPY_CROSSINGS['high-net'].start[0], y: 350, height: 165 }
   };
   state = interactAdventure(3, state, 'high-net');
   assert.equal(state.traversal, null);

@@ -131,7 +131,7 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
     }
     const nearby = OBJECTS[index].filter((object) => (index !== 3 || canopyObjectAvailable(state, object))
       && adventureObjectDistance(index, state.player, object) < 180
-      && Math.abs(state.player.height - (object.height || 0)) < 30);
+      && (index === 3 && CANOPY_CROSSINGS[object.id] || Math.abs(state.player.height - (object.height || 0)) < 30));
     const signature = nearby.map((object) => object.id).join(',');
     if (signature !== objectSignature) {
       objectSignature = signature;

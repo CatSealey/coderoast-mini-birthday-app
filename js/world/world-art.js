@@ -17,6 +17,7 @@ import { drawRoofTiles } from './town-textures.js';
 import { drawFrightMarqueeSign, FRIGHT_MARQUEE } from './fright-marquee.js';
 import { drawGravestoneFace, gravestoneLean, gravestoneStyle, GRAVESTONE_HEIGHT, GRAVESTONE_WIDTH } from './gravestones.js';
 import { WORLD_LAMPS } from './world-lamps.js';
+import { drawCanopyPlatformFace } from './canopy-platform.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -392,8 +393,7 @@ function drawCanopy(ctx) {
     ctx.save(); ctx.translate(x, -67); ctx.scale(1.35, 1.15);
     drawFirFoliage(ctx, index === 0 ? 0 : 2);
     ctx.restore();
-    ctx.fillStyle = '#a18152'; ctx.fillRect(x - 49, -105, 98, 11);
-    ctx.strokeStyle = '#dfc795'; ctx.lineWidth = 2; ctx.strokeRect(x - 49, -105, 98, 11);
+    drawCanopyPlatformFace(ctx, x - 49, -105, 98, 11, index);
   });
   ctx.strokeStyle = '#d1b785'; ctx.lineWidth = 3;
   ctx.beginPath(); ctx.moveTo(-98, -145); ctx.quadraticCurveTo(0, -117, 98, -145);

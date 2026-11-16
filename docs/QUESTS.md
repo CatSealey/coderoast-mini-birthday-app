@@ -49,8 +49,11 @@ awarded exit ticket.
 Explore the platforms and collect four treasures. Use Space or **Move** when
 the timing marker reaches the green zone to climb or cross, allowing it to
 leave the zone between moves. Jump across gaps, light the three lanterns in
-order, and present the treasures at the zip-wire. A fall or bad timing returns
-the player to a checkpoint without losing progress.
+order, and present the treasures at the zip-wire. Longer gaps require their
+rope or net crossings; the two shorter gaps are for jumping. Crossings can be
+used in either direction, and you can jump back across the short gaps. Walk
+around pedestals, lanterns and platform railings to reach the objects. A fall
+or bad timing returns the player to a platform without losing progress.
 
 ### Fright Nights
 

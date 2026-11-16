@@ -12,10 +12,12 @@ export const COASTER_GOODBYE = 'Cat: You look so happy with yourself 😅, you g
 export const COUPLE_GOODBYE_SECONDS = 3;
 export const COASTER_JOIN_POINT = Object.freeze({ x: 860, y: 580 });
 export const COASTER_EXIT = Object.freeze({ x: 900, y: 656 });
+const CANOPY_OFFSETS = [0, 200, 400, 400, 600, 600, 800, 1000];
+const canopyX = (x, platform) => x + CANOPY_OFFSETS[platform];
 export const CANOPY_ZIPLINE = Object.freeze({
-  start: Object.freeze({ x: 1800, y: 350, height: 190 }),
-  departure: Object.freeze({ x: 1850, y: 375, height: 190 }),
-  end: Object.freeze({ x: 2200, y: 570, height: 0 }),
+  start: Object.freeze({ x: canopyX(1800, 7), y: 350, height: 190 }),
+  departure: Object.freeze({ x: canopyX(1850, 7), y: 375, height: 190 }),
+  end: Object.freeze({ x: canopyX(2200, 7), y: 570, height: 0 }),
   departureProgress: 0.15,
   cableHeight: 85
 });
@@ -46,17 +48,17 @@ export const OBJECTS = {
   ],
   3: [
     { id: 'leaf', name: 'Glowing leaf', x: 200, y: 295, kind: 'collectible', height: 0 },
-    { id: 'net', name: 'Climbing net', x: 330, y: 350, kind: 'net', height: 0 },
-    { id: 'feather', name: 'Night feather', x: 440, y: 405, kind: 'collectible', height: 80 },
-    { id: 'rope', name: 'Rope crossing', x: 500, y: 350, kind: 'rope', height: 80 },
-    { id: 'acorn', name: 'Silver acorn', x: 680, y: 290, kind: 'collectible', height: 130 },
-    { id: 'star', name: 'Forest star', x: 850, y: 405, kind: 'collectible', height: 130 },
-    { id: 'high-rope', name: 'High rope bridge', x: 945, y: 350, kind: 'rope', height: 130 },
-    { id: 'lantern-1', name: 'First lantern', x: 1110, y: 300, kind: 'beacon', height: 165 },
-    { id: 'lantern-2', name: 'Second lantern', x: 1300, y: 405, kind: 'beacon', height: 165 },
-    { id: 'high-net', name: 'Summit net', x: 1370, y: 350, kind: 'net', height: 165 },
-    { id: 'summit-rope', name: 'Summit rope bridge', x: 1575, y: 350, kind: 'rope', height: 190 },
-    { id: 'lantern-3', name: 'Final lantern', x: 1720, y: 300, kind: 'beacon', height: 190 },
+    { id: 'net', name: 'Climbing net', x: canopyX(330, 0), y: 350, kind: 'net', height: 0 },
+    { id: 'feather', name: 'Night feather', x: canopyX(440, 1), y: 405, kind: 'collectible', height: 80 },
+    { id: 'rope', name: 'Rope crossing', x: canopyX(500, 1), y: 350, kind: 'rope', height: 80 },
+    { id: 'acorn', name: 'Silver acorn', x: canopyX(680, 2), y: 290, kind: 'collectible', height: 130 },
+    { id: 'star', name: 'Forest star', x: canopyX(850, 3), y: 405, kind: 'collectible', height: 130 },
+    { id: 'high-rope', name: 'High rope bridge', x: canopyX(945, 3), y: 350, kind: 'rope', height: 130 },
+    { id: 'lantern-1', name: 'First lantern', x: canopyX(1110, 4), y: 300, kind: 'beacon', height: 165 },
+    { id: 'lantern-2', name: 'Second lantern', x: canopyX(1300, 5), y: 405, kind: 'beacon', height: 165 },
+    { id: 'high-net', name: 'Summit net', x: canopyX(1370, 5), y: 350, kind: 'net', height: 165 },
+    { id: 'summit-rope', name: 'Summit rope bridge', x: canopyX(1575, 6), y: 350, kind: 'rope', height: 190 },
+    { id: 'lantern-3', name: 'Final lantern', x: canopyX(1720, 7), y: 300, kind: 'beacon', height: 190 },
     {
       id: 'zipline', name: 'Zip-wire', x: CANOPY_ZIPLINE.start.x, y: CANOPY_ZIPLINE.start.y,
       kind: 'zipline', height: CANOPY_ZIPLINE.start.height
@@ -199,6 +201,11 @@ function furnitureApproaches(point, { x, y, width, depth, radius }) {
 }
 
 export function adventureObjectDistance(index, player, object) {
+  const crossing = index === 3 && CANOPY_CROSSINGS[object.id];
+  if (crossing) {
+    const endpoints = [crossing.start, crossing.end].filter((point) => Math.abs(player.height - point[2]) <= 25);
+    return Math.min(...endpoints.map(([x, y]) => Math.hypot(player.x - x, player.y - y)));
+  }
   return (index === 1 || (index === 2 && object.kind !== 'npc')) && object.footprint
     ? footprintDistance(player, object.interactionArea || { ...object.footprint, x: object.x, y: object.y })
     : Math.hypot(player.x - object.x, player.y - object.y);
@@ -207,7 +214,7 @@ export function adventureObjectDistance(index, player, object) {
 export function adventureObjectInRange(index, player, object) {
   const range = (index === 1 || (index === 2 && object.kind !== 'npc')) && object.footprint ? PUB_INTERACTION_RANGE : 85;
   return adventureObjectDistance(index, player, object) <= range
-    && Math.abs(player.height - (object.height || 0)) <= 25;
+    && (Boolean(index === 3 && CANOPY_CROSSINGS[object.id]) || Math.abs(player.height - (object.height || 0)) <= 25);
 }
 
 function furniturePath(player, destination, object, collision) {
@@ -234,7 +241,7 @@ export function coasterPath(player, destination, object = null) {
   return furniturePath(player, destination, object, coasterCollision);
 }
 
-export const CANOPY_PLATFORMS = [
+const LEGACY_CANOPY_PLATFORMS = [
   { left: 40, right: 350, top: 265, bottom: 435, height: 0 },
   { left: 380, right: 525, top: 265, bottom: 435, height: 80 },
   { left: 600, right: 730, top: 265, bottom: 435, height: 130 },
@@ -244,13 +251,50 @@ export const CANOPY_PLATFORMS = [
   { left: 1450, right: 1585, top: 265, bottom: 435, height: 190 },
   { left: 1660, right: 1840, top: 265, bottom: 435, height: 190 }
 ];
+export const CANOPY_PLATFORMS = LEGACY_CANOPY_PLATFORMS.map((platform, index) => ({
+  ...platform, left: canopyX(platform.left, index), right: canopyX(platform.right, index)
+}));
 export const CANOPY_CROSSINGS = Object.freeze({
-  net: { kind: 'net', from: 0, to: 1, start: [330, 350, 0], end: [400, 350, 80], moves: 3 },
-  rope: { kind: 'rope', from: 1, to: 2, start: [500, 350, 80], end: [615, 350, 130], moves: 3 },
-  'high-rope': { kind: 'rope', from: 3, to: 4, start: [945, 350, 130], end: [1055, 350, 165], moves: 4 },
-  'high-net': { kind: 'net', from: 5, to: 6, start: [1370, 350, 165], end: [1465, 350, 190], moves: 4 },
-  'summit-rope': { kind: 'rope', from: 6, to: 7, start: [1575, 350, 190], end: [1675, 350, 190], moves: 5 }
+  net: { kind: 'net', from: 0, to: 1, start: [canopyX(330, 0), 350, 0], end: [canopyX(400, 1), 350, 80], moves: 3 },
+  rope: { kind: 'rope', from: 1, to: 2, start: [canopyX(500, 1), 350, 80], end: [canopyX(615, 2), 350, 130], moves: 3 },
+  'high-rope': { kind: 'rope', from: 3, to: 4, start: [canopyX(945, 3), 350, 130], end: [canopyX(1055, 4), 350, 165], moves: 4 },
+  'high-net': { kind: 'net', from: 5, to: 6, start: [canopyX(1370, 5), 350, 165], end: [canopyX(1465, 6), 350, 190], moves: 4 },
+  'summit-rope': { kind: 'rope', from: 6, to: 7, start: [canopyX(1575, 6), 350, 190], end: [canopyX(1675, 7), 350, 190], moves: 5 }
 });
+export const CANOPY_COURSE_LENGTH = CANOPY_ZIPLINE.end.x + 120;
+const CANOPY_PLAYER_RADIUS = 10;
+export const CANOPY_OBSTACLES = [
+  ...CANOPY_PLATFORMS.flatMap((p) => [
+    ...[p.top + 8, p.bottom - 8].map((y) => ({
+      x: (p.left + p.right) / 2, y, width: p.right - p.left - 12, depth: 4,
+      minHeight: p.height, maxHeight: p.height + 54
+    })),
+    { x: (p.left + p.right) / 2, y: p.top + 16, width: 6, depth: 6, minHeight: p.height, maxHeight: p.height + 105 }
+  ]),
+  ...OBJECTS[3].filter((object) => ['collectible', 'beacon', 'zipline'].includes(object.kind)).map((object) => ({
+    x: object.x, y: object.y, radius: object.kind === 'collectible' ? 18 : object.kind === 'beacon' ? 5 : 5,
+    minHeight: object.height, maxHeight: object.height + (object.kind === 'collectible' ? 22 : object.kind === 'beacon' ? 67 : 130)
+  }))
+];
+
+function canopyCollision(height) {
+  return createCollision(CANOPY_OBSTACLES.filter((obstacle) =>
+    height < obstacle.maxHeight && height + 80 > obstacle.minHeight), CANOPY_PLAYER_RADIUS);
+}
+
+function clearCanopyPosition(player, platform) {
+  const collision = canopyCollision(platform.height);
+  if (!collision.blocked(player)) return player;
+  for (let distance = 10; distance <= 200; distance += 10) {
+    for (let angle = 0; angle < 16; angle += 1) {
+      const x = player.x + Math.cos(angle * Math.PI / 8) * distance;
+      const y = player.y + Math.sin(angle * Math.PI / 8) * distance;
+      if (x >= platform.left && x <= platform.right && y >= platform.top && y <= platform.bottom
+        && !collision.blocked({ x, y })) return { ...player, x, y };
+    }
+  }
+  throw new Error('Could not find a clear position on the canopy platform.');
+}
 export const CANOPY_LANTERNS = Object.freeze(['lantern-1', 'lantern-2', 'lantern-3']);
 const ITEMS = ['leaf', 'feather', 'acorn', 'star'];
 export function canopyObjectAvailable(state, object) {
@@ -272,7 +316,7 @@ export function newAdventureState(index) {
   };
   if (index === 2) return { ...base, rideVersion: 3, phase: 'boarding', progress: 0, speed: 0, stalled: 0, lane: 0, treats: [], bags: false, ticket: false, rideEnding: null };
   return {
-    ...base, courseVersion: 2, collected: [], lanterns: [], checkpoint: 0, flight: null, traversal: null,
+    ...base, courseVersion: 3, collected: [], lanterns: [], checkpoint: 0, flight: null, traversal: null,
     zipline: false, zipProgress: 0, treasuresUsed: false
   };
 }
@@ -284,7 +328,7 @@ export function restoreAdventureState(index, saved) {
     return { ...initial, legacyProgress: saved, complete: saved.complete === true };
   }
   const player = saved.player;
-  const maxX = index === 3 ? (saved.zipline ? CANOPY_ZIPLINE.end.x : 1850) : 960;
+  const maxX = index === 3 ? (saved.zipline ? CANOPY_ZIPLINE.end.x : CANOPY_ZIPLINE.departure.x) : 960;
   const validPlayer = player && Number.isFinite(player.x) && player.x >= 40 && player.x <= maxX
     && Number.isFinite(player.y) && player.y >= 40 && player.y <= 660 && Number.isFinite(player.height)
     && player.height >= 0 && player.height <= (index === 3 ? 400 : 200);
@@ -318,6 +362,7 @@ export function restoreAdventureState(index, saved) {
         && Number.isFinite(saved.traversal.progress) && saved.traversal.progress >= 0 && saved.traversal.progress <= 1
         && (saved.traversal.elapsed === undefined || (Number.isFinite(saved.traversal.elapsed) && saved.traversal.elapsed >= 0))
         && (saved.traversal.armed === undefined || typeof saved.traversal.armed === 'boolean')
+        && (saved.traversal.reverse === undefined || typeof saved.traversal.reverse === 'boolean')
         && (saved.traversal.target === undefined || validCanopyTarget(saved.traversal.target))))
       && Number.isFinite(saved.zipProgress) && saved.zipProgress >= 0 && saved.zipProgress <= 1));
   if (!valid) {
@@ -377,7 +422,7 @@ export function restoreAdventureState(index, saved) {
   if (index === 3) {
     restored.collected = [...saved.collected];
     restored.lanterns = [...(saved.lanterns || [])];
-    restored.courseVersion = 2;
+    restored.courseVersion = 3;
     if (saved.zipline && saved.courseVersion === undefined) restored.legacyZipline = true;
     restored.flight = null;
     if (restored.traversal) {
@@ -389,11 +434,34 @@ export function restoreAdventureState(index, saved) {
         elapsed: restored.traversal.elapsed ?? 0, armed: restored.traversal.armed ?? true,
         target: saved.traversal.target ? { ...saved.traversal.target } : createCanopyTarget()
       };
+      if (saved.courseVersion !== 3) {
+        const crossing = CANOPY_CROSSINGS[crossingId];
+        const from = restored.traversal.reverse ? crossing.end : crossing.start;
+        const to = restored.traversal.reverse ? crossing.start : crossing.end;
+        const [x, y, height] = from.map((value, i) =>
+          value + (to[i] - value) * restored.traversal.progress);
+        restored.player = { x, y, height };
+      }
+    }
+    if (saved.courseVersion !== 3 && !restored.traversal) {
+      if (restored.zipline && !restored.legacyZipline) restored.player = canopyZipPosition(restored.zipProgress);
+      else if (!restored.zipline) {
+        const previousPlatform = LEGACY_CANOPY_PLATFORMS.findIndex((p) => player.x >= p.left && player.x <= p.right
+          && player.y >= p.top && player.y <= p.bottom && Math.abs(player.height - p.height) < 1);
+        if (previousPlatform >= 0) restored.player.x += CANOPY_OFFSETS[previousPlatform];
+      }
     }
     if (restored.traversal) restored.message = 'Time your moves as the marker passes through the safe zone.';
-    const platform = CANOPY_PLATFORMS[restored.checkpoint];
+    const flightOrigin = saved.flight?.from;
+    const origin = Number.isInteger(flightOrigin) && flightOrigin >= 0 && flightOrigin <= restored.checkpoint
+      ? flightOrigin : restored.checkpoint;
+    const platform = CANOPY_PLATFORMS[origin];
     if (!restored.zipline && !restored.traversal && platformAt(restored.player.x, restored.player.y, restored.player.height) < 0) {
       restored.player = { x: (platform.left + platform.right) / 2, y: 350, height: platform.height };
+    }
+    if (!restored.zipline && !restored.traversal) {
+      const currentPlatform = CANOPY_PLATFORMS[platformAt(restored.player.x, restored.player.y, restored.player.height)];
+      restored.player = clearCanopyPosition(restored.player, currentPlatform);
     }
   }
   return restored;
@@ -410,7 +478,7 @@ export function walkAdventure(index, state, dx, dy, seconds) {
   const length = Math.hypot(dx, dy);
   if (!length) return state;
   const distance = Math.min(length, 175 * seconds);
-  let x = Math.max(40, Math.min(index === 3 ? 1850 : 960, state.player.x + dx / length * distance));
+  let x = Math.max(40, Math.min(index === 3 ? CANOPY_ZIPLINE.departure.x : 960, state.player.x + dx / length * distance));
   let y = Math.max(40, Math.min(660, state.player.y + dy / length * distance));
   if (index === 1 || index === 2) {
     const collision = index === 1 ? furnitureCollision : platformCollision;
@@ -418,13 +486,21 @@ export function walkAdventure(index, state, dx, dy, seconds) {
     x = next.x; y = next.y;
     if (x === state.player.x && y === state.player.y) return state;
   }
-  if (index === 3 && !state.flight && platformAt(x, y, state.player.height) < 0) return state;
+  if (index === 3) {
+    const next = canopyCollision(state.player.height).move(state.player, x - state.player.x, y - state.player.y);
+    x = next.x; y = next.y;
+    if (x === state.player.x && y === state.player.y) return state;
+    const currentPlatform = platformAt(state.player.x, state.player.y, state.player.height);
+    if (!state.flight && (currentPlatform < 0 || platformAt(x, y, state.player.height) !== currentPlatform)) return state;
+  }
   return { ...state, player: { ...state.player, x, y } };
 }
 
 export function jumpCanopy(state) {
   if (state.complete || state.flight || state.zipline || state.traversal) return state;
-  return { ...state, flight: { velocity: 250 }, message: 'Jump across the gap and land on the next lit platform.' };
+  const from = platformAt(state.player.x, state.player.y, state.player.height);
+  if (from < 0) return state;
+  return { ...state, flight: { velocity: 250, from }, message: 'Jump across the gap to the other platform.' };
 }
 
 export function tickCanopy(state, seconds) {
@@ -457,18 +533,18 @@ export function tickCanopy(state, seconds) {
       && state.player.x >= p.left && state.player.x <= p.right
       && state.player.y >= p.top && state.player.y <= p.bottom && state.player.height >= p.height && height <= p.height);
     if (landed >= 0) return {
-      ...state, player: { ...state.player, height: CANOPY_PLATFORMS[landed].height },
+      ...state, player: clearCanopyPosition({ ...state.player, height: CANOPY_PLATFORMS[landed].height }, CANOPY_PLATFORMS[landed]),
       flight: null, checkpoint: Math.max(state.checkpoint, landed), message: 'Safe landing! Follow the next lantern.'
     };
   }
   if (height < -90) {
-    const platform = CANOPY_PLATFORMS[state.checkpoint];
+    const platform = CANOPY_PLATFORMS[state.flight.from ?? state.checkpoint];
     return {
       ...state, player: { x: (platform.left + platform.right) / 2, y: 350, height: platform.height },
       flight: null, message: 'You slipped into the dark and returned to your last checkpoint.'
     };
   }
-  return { ...state, player: { ...state.player, height }, flight: { velocity } };
+  return { ...state, player: { ...state.player, height }, flight: { ...state.flight, velocity } };
 }
 
 export function canopyMeter(elapsed) {
@@ -507,26 +583,28 @@ export function advanceCanopy(state) {
   if (!state.traversal) return state;
   const { kind, progress, elapsed, armed } = state.traversal;
   const crossing = CANOPY_CROSSINGS[state.traversal.crossingId || kind];
+  const reverse = state.traversal.reverse === true;
+  const from = reverse ? crossing.end : crossing.start;
+  const to = reverse ? crossing.start : crossing.end;
   const meter = canopyMeter(elapsed);
   const target = canopyTarget(state.traversal);
   if (!armed) return message(state, 'Wait for the marker to leave the safe zone before the next move.');
   if (meter < target.start || meter > target.end) {
-    const platform = CANOPY_PLATFORMS[crossing.from];
     return {
       ...state, traversal: null,
-      player: { x: crossing.start[0] - 10, y: crossing.start[1], height: platform.height },
+      player: { x: from[0] + (reverse ? 10 : -10), y: from[1], height: from[2] },
       message: 'You lost your footing and returned to the platform. Try the crossing again.'
     };
   }
   const next = Math.min(1, Math.round(progress * crossing.moves + 1) / crossing.moves);
-  const [x, y, height] = crossing.start.map((value, i) => value + (crossing.end[i] - value) * next);
+  const [x, y, height] = from.map((value, i) => value + (to[i] - value) * next);
   const player = { x, y, height };
   return {
     ...state, player, traversal: next >= 1 ? null
       : { ...state.traversal, progress: next, elapsed, armed: false, target: createCanopyTarget() },
     ...(next >= 1 ? {
-      checkpoint: Math.max(state.checkpoint, crossing.to),
-      message: kind === 'net' ? 'You climbed to the lantern-lit platform.' : 'You crossed the rope to the next platform.'
+      checkpoint: Math.max(state.checkpoint, reverse ? crossing.from : crossing.to),
+      message: kind === 'net' ? 'You climbed to the other platform.' : 'You crossed the rope to the other platform.'
     }
       : { message: 'Good timing. Wait for the marker to return to the safe zone.' })
   };
@@ -599,17 +677,18 @@ export function interactAdventure(index, state, id) {
       : { ...state, collected: [...state.collected, id], message: `You found the ${object.name.toLowerCase()}!` };
     const crossing = CANOPY_CROSSINGS[id];
     if (crossing) {
-      if (state.checkpoint < crossing.from) return message(state, 'Follow the course to reach this crossing first.');
-      if (id === 'high-rope' && state.collected.length < ITEMS.length) {
+      const reverse = platformAt(state.player.x, state.player.y, state.player.height) === crossing.to;
+      if (state.checkpoint < (reverse ? crossing.to : crossing.from)) return message(state, 'Follow the course to reach this crossing first.');
+      if (!reverse && id === 'high-rope' && state.collected.length < ITEMS.length) {
         return message(state, 'Find all four treasures before crossing the high rope bridge.');
       }
-      if (id === 'high-net' && (state.lanterns || []).length < 2) {
+      if (!reverse && id === 'high-net' && (state.lanterns || []).length < 2) {
         return message(state, 'Light the first two lanterns before climbing the summit net.');
       }
-      const [x, y, height] = crossing.start;
+      const [x, y, height] = reverse ? crossing.end : crossing.start;
       return {
         ...state, player: { x, y, height },
-        traversal: { kind: crossing.kind, crossingId: id, progress: 0, elapsed: 0, armed: true, target: createCanopyTarget() },
+        traversal: { kind: crossing.kind, crossingId: id, reverse, progress: 0, elapsed: 0, armed: true, target: createCanopyTarget() },
         message: `Time ${crossing.moves} moves as the marker passes through the safe zone.`
       };
     }

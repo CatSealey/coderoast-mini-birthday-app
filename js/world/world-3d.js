@@ -28,6 +28,7 @@ import { createFrightMarqueeTexture, FRIGHT_MARQUEE } from './fright-marquee.js'
 import { createGravestoneGeometry, createGravestoneTexture, gravestoneLean, gravestoneStyle, GRAVESTONE_DEPTH, GRAVESTONE_HEIGHT, GRAVESTONE_WIDTH } from './gravestones.js';
 import { WORLD_LAMPS } from './world-lamps.js';
 import { ENTRANCE_MARKER_RADIUS, entranceMarkerHit } from './entrance-marker.js';
+import { createCanopyDeckTexture } from './canopy-platform.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -815,13 +816,19 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     parent.add(halo);
   }
   const canopy = groupAt(forest.x + CANOPY_OFFSET.x, forest.y + CANOPY_OFFSET.z);
+  const canopyDeckTexture = createCanopyDeckTexture();
+  canopyDeckTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+  textures.add(canopyDeckTexture);
+  const canopyDeckMaterial = new THREE.MeshStandardMaterial({ color: '#ad8955', map: canopyDeckTexture, roughness: 1 });
+  materials.set('canopy-deck', canopyDeckMaterial);
   CANOPY_PLATFORMS.forEach((platform, index) => {
     const g = new THREE.Group();
     g.position.set(platform.x, 0, platform.z);
     canopy.add(g);
-    box(g, platform.size, 9, platform.size, '#ad8955', 0, platform.height, 0);
-    for (let plank = -2; plank <= 2; plank += 1) {
-      box(g, 2, 2, platform.size - 4, '#765d3e', plank * platform.size / 6, platform.height + 5, 0);
+    box(g, platform.size, 9, platform.size, '#ad8955', 0, platform.height, 0).material = canopyDeckMaterial;
+    for (const side of [-1, 1]) {
+      box(g, platform.size - 4, 3, 5, '#624b32', 0, platform.height - 3, side * (platform.size / 2 - 2.5));
+      box(g, 5, 5, platform.size - 10, '#715538', side * (platform.size / 2 - 5), platform.height - 6, 0);
     }
     for (const side of [-1, 1]) {
       box(g, 4, 38, 4, '#d0aa72', side * (platform.size / 2 - 5), platform.height + 23, -platform.size / 2 + 5);

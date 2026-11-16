@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CANOPY_CROSSINGS, CANOPY_PLATFORMS, CANOPY_ZIPLINE, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_PARTNER_OFFSET, PUB_STOOLS, adventureObjectDistance, couplePartnerPosition } from './adventure-logic.js';
+import { CANOPY_COURSE_LENGTH, CANOPY_CROSSINGS, CANOPY_PLATFORMS, CANOPY_ZIPLINE, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_PARTNER_OFFSET, PUB_STOOLS, adventureObjectDistance, couplePartnerPosition } from './adventure-logic.js';
 import { COASTER_PLATFORM, COASTER_RAIL_OFFSET, COASTER_REJOIN_PROGRESS, COASTER_TREATS, coasterDirection, coasterHeading, coasterLanePosition, coasterPosition, coasterRailPosition } from './coaster-course.js';
 import { drawCoasterItem } from './coaster-art.js';
 import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
@@ -8,6 +8,7 @@ import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms }
 import { createFirCanopy, createNeedleTexture, createPlatformFirTrunk } from '../world/fir-tree.js';
 import { createTreeBarkTexture } from '../world/tree-geometry.js';
 import { CANOPY_EDGE_TREES, CANOPY_FOREST_TREES } from './canopy-scenery.js';
+import { createCanopyDeckTexture, drawCanopyDeck } from '../world/canopy-platform.js';
 
 const BARTENDER_OUTFIT = '#536c67';
 const BARTENDER_STYLE = Object.freeze({ trousers: '#332f2b', belt: '#1e201e', hairLength: 'short' });
@@ -29,7 +30,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   const triangleGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 3);
   const materials = new Map(), textures = [], sceneryGeometries = [], interactive = [], platformMeshes = [];
   const collectibles = new Map(), beacons = new Map(), rideTreats = new Map(), rideItemImages = new Map();
-  let state, player, train, ball, lightMarker, platformAmor, width = 1, height = 1, scale = 1, ballAnimation = 0, lastBallLost = false;
+  let state, player, train, ball, platformAmor, width = 1, height = 1, scale = 1, ballAnimation = 0, lastBallLost = false;
   let platformCarriage, pubLove, joinedHands, pubExitMarker, dropTrack;
   let cueGuide, poolBalls, placedCues, placedDrinks, previousPlayer, walkPhase = 0, facing = 0;
   const theme = index === 1 ? '#342f28' : index === 2 ? '#20272f' : '#152b29';
@@ -250,14 +251,16 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         if (kind === 'net') {
           mesh = beam([x, h + 6, z - 38], [endX, endHeight + 6, z - 38], 5, '#d7bd81');
           for (let dz = -20; dz <= 40; dz += 20) beam([x, h + 6, z + dz], [endX, endHeight + 6, z + dz], 4, '#d7bd81');
-          for (let i = 0; i <= 5; i += 1) {
-            box(x + (endX - x) * i / 5, h + 6 + (endHeight - h) * i / 5, z, 5, 5, 85, '#d7bd81');
+          const segments = Math.ceil((endX - x) / 25);
+          for (let i = 0; i <= segments; i += 1) {
+            box(x + (endX - x) * i / segments, h + 6 + (endHeight - h) * i / segments, z, 5, 5, 85, '#d7bd81');
           }
         } else {
           mesh = beam([x, h + 5, z], [endX, endHeight + 5, z], 7, '#c3a77a');
           for (const dz of [-27, 27]) beam([x, h + 55, z + dz], [endX, endHeight + 55, z + dz], 4, '#d7bd81');
-          for (let i = 0; i <= 4; i += 1) for (const dz of [-27, 27]) {
-            box(x + (endX - x) * i / 4, h + 30 + (endHeight - h) * i / 4, z + dz, 3, 50, 3, '#d7bd81');
+          const segments = Math.ceil((endX - x) / 30);
+          for (let i = 0; i <= segments; i += 1) for (const dz of [-27, 27]) {
+            box(x + (endX - x) * i / segments, h + 30 + (endHeight - h) * i / segments, z + dz, 3, 50, 3, '#d7bd81');
           }
         }
       } else if (kind === 'zipline') {
@@ -400,7 +403,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       }
       train = carriage(true);
     } else {
-      box(1160, -100, 350, 2320, 10, 700, '#142d24');
+      box(CANOPY_COURSE_LENGTH / 2, -100, 350, CANOPY_COURSE_LENGTH, 10, 700, '#142d24');
       const barkTexture = createTreeBarkTexture(), needleTexture = createNeedleTexture();
       for (const texture of [barkTexture, needleTexture]) {
         texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
@@ -441,11 +444,20 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           o.scale.set(1, 260 / (165 * (1 + (variant - 1) * 0.025)), 1);
         });
       }
-      box(CANOPY_ZIPLINE.end.x, -8, CANOPY_ZIPLINE.end.y, 150, 16, 110, '#806443');
+      const deckTexture = createCanopyDeckTexture();
+      deckTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+      textures.push(deckTexture);
+      for (const [name, color] of [['canopy-deck-active', '#a78760'], ['canopy-deck-locked', '#33473c']]) {
+        materials.set(name, new THREE.MeshStandardMaterial({ color, map: deckTexture, roughness: 1 }));
+      }
+      box(CANOPY_ZIPLINE.end.x, -8, CANOPY_ZIPLINE.end.y, 150, 16, 110, '#806443').material = materials.get('canopy-deck-active');
       for (const p of CANOPY_PLATFORMS) {
-        platformMeshes.push(box((p.left + p.right) / 2, p.height - 8, (p.top + p.bottom) / 2,
-          p.right - p.left, 16, p.bottom - p.top, '#806443'));
-        for (let x = p.left + 15; x < p.right; x += 35) box(x, p.height + 1, 350, 2, 2, 160, '#5b4530');
+        const deck = box((p.left + p.right) / 2, p.height - 8, (p.top + p.bottom) / 2,
+          p.right - p.left, 16, p.bottom - p.top, '#806443');
+        deck.material = materials.get('canopy-deck-active'); platformMeshes.push(deck);
+        for (const z of [p.top + 3, p.bottom - 3]) {
+          box((p.left + p.right) / 2, p.height - 11, z, p.right - p.left, 5, 6, '#58432f');
+        }
         for (const x of [p.left + 8, p.right - 8]) for (const z of [p.top + 8, p.bottom - 8]) {
           box(x, (p.height - 95) / 2, z, 14, p.height + 95, 14, '#4a3d2c');
           box(x, p.height + 27, z, 8, 54, 8, '#775d3e');
@@ -462,7 +474,6 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         box(x, p.height + 105, z, 24, 4, 4, '#856f4c');
         round(sphereGeometry, x + 10, p.height + 96, z, 14, 18, 14, '#f0d484', scene, true);
       }
-      lightMarker = box(220, 3, 350, 80, 4, 80, '#e9ca76', scene, true);
     }
     OBJECTS[index].forEach(makeObject);
     player = person(PLAYER_OUTFIT, null, 0, 0, scene, PLAYER_STYLE);
@@ -587,10 +598,10 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           rideTreats.get(treat.id).visible = !state.treats.includes(treat.id);
         }
       }
-      if (lightMarker) {
-        const p = CANOPY_PLATFORMS[Math.min(state.checkpoint + 1, CANOPY_PLATFORMS.length - 1)];
-        lightMarker.position.set((p.left + p.right) / 2, p.height + 3, 350);
-        platformMeshes.forEach((platform, i) => { platform.material = material(i <= state.checkpoint + 1 ? '#806443' : '#283a32'); });
+      if (index === 3) {
+        platformMeshes.forEach((platform, i) => {
+          platform.material = materials.get(i <= state.checkpoint + 1 ? 'canopy-deck-active' : 'canopy-deck-locked');
+        });
       }
       collectibles.forEach((item, id) => {
         const platform = ['leaf', 'feather', 'acorn', 'star'].indexOf(id);
@@ -607,17 +618,30 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     const partnerScreen = { x: sx(state.player.x) + PUB_PARTNER_OFFSET * scale, y: sy(state.player.y) };
     if (index !== 3) { ctx.fillStyle = index === 1 ? '#71583f' : '#414d3d'; ctx.fillRect(sx(0), sy(0), 1000 * scale, 700 * scale); }
     else for (const [i, p] of CANOPY_PLATFORMS.entries()) {
-      ctx.fillStyle = i <= state.checkpoint + 1 ? '#806443' : '#283a32'; ctx.fillRect(sx(p.left), sy(p.top), (p.right - p.left) * scale, (p.bottom - p.top) * scale);
-      ctx.strokeStyle = i === Math.min(state.checkpoint + 1, CANOPY_PLATFORMS.length - 1) ? '#e9ca76' : '#594c36'; ctx.lineWidth = 3;
+      drawCanopyDeck(ctx, sx(p.left), sy(p.top), (p.right - p.left) * scale, (p.bottom - p.top) * scale,
+        { variant: i, tone: i <= state.checkpoint + 1 ? 'warm' : 'locked' });
+      ctx.strokeStyle = '#594c36'; ctx.lineWidth = 3;
       ctx.strokeRect(sx(p.left), sy(p.top), (p.right - p.left) * scale, (p.bottom - p.top) * scale);
     }
     if (index === 3) {
+      ctx.fillStyle = '#6d5537';
+      for (const p of CANOPY_PLATFORMS) {
+        ctx.fillRect(sx((p.left + p.right) / 2 - 3), sy(p.top + 13), 6 * scale, 6 * scale);
+      }
+      for (const object of OBJECTS[3]) {
+        if (object.kind === 'collectible') {
+          ctx.fillStyle = '#644c35';
+          ctx.fillRect(sx(object.x - 18), sy(object.y - 18), 36 * scale, 36 * scale);
+        } else if (object.kind === 'beacon' || object.kind === 'zipline') {
+          ctx.fillStyle = '#6d5537';
+          ctx.fillRect(sx(object.x - 5), sy(object.y - 5), 10 * scale, 10 * scale);
+        }
+      }
       ctx.strokeStyle = '#d7bd81'; ctx.lineWidth = 4;
       Object.values(CANOPY_CROSSINGS).forEach(({ start, end }) => {
         ctx.beginPath(); ctx.moveTo(sx(start[0]), sy(start[1])); ctx.lineTo(sx(end[0]), sy(end[1])); ctx.stroke();
       });
-      ctx.fillStyle = '#806443';
-      ctx.fillRect(sx(CANOPY_ZIPLINE.end.x - 75), sy(CANOPY_ZIPLINE.end.y - 55), 150 * scale, 110 * scale);
+      drawCanopyDeck(ctx, sx(CANOPY_ZIPLINE.end.x - 75), sy(CANOPY_ZIPLINE.end.y - 55), 150 * scale, 110 * scale);
       ctx.beginPath();
       ctx.moveTo(sx(CANOPY_ZIPLINE.start.x), sy(CANOPY_ZIPLINE.start.y));
       ctx.lineTo(sx(CANOPY_ZIPLINE.departure.x), sy(CANOPY_ZIPLINE.departure.y));
@@ -785,7 +809,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     if (!state) return 500;
     if (state.pubTogether) return state.player.x;
     if (index === 3 && state.zipline) return state.player.x;
-    if (index === 3) return Math.max(220, Math.min(1660, state.player.x));
+    if (index === 3) return Math.max(220, Math.min(CANOPY_PLATFORMS.at(-1).left, state.player.x));
     if (!renderer && index === 2) return 500;
     return width < 520 ? Math.max(220, Math.min(780, state.player.x)) : 500;
   }
