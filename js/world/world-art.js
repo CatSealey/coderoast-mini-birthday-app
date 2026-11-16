@@ -44,6 +44,10 @@ function random(index, salt = 0) {
   return value - Math.floor(value);
 }
 
+function paletteColor(palette, x, y, salt) {
+  return palette[Math.floor(random(x, y + salt) * palette.length)];
+}
+
 function distanceToSegment(point, a, b) {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -207,7 +211,7 @@ function addProps() {
   });
   add('mazeGate', harvest.x - 175, harvest.y - 175, 1);
   worldCornWalls().forEach((wall) => add('cornWall', wall.x, wall.y, 1, Number(wall.vertical)));
-  harvestPumpkins().forEach(({ x, y, scale }) => add('pumpkin', x, y, scale));
+  harvestPumpkins().forEach(({ x, y, scale, variant }) => add('pumpkin', x, y, scale, variant));
   [WORLD_SPAWN, escape, park, harvest].forEach((quest) => {
     add('lamp', quest.x - 75, quest.y - 50);
     add('lamp', quest.x + 95, quest.y + 75);
@@ -538,10 +542,12 @@ function drawProp(ctx, prop) {
     ctx.beginPath(); ctx.moveTo(-2, -5); ctx.bezierCurveTo(-5, -27, 4, -41, 0, -61);
     ctx.moveTo(6, -64); ctx.bezierCurveTo(3, -81, 5, -96, 3, -104); ctx.stroke();
   } else if (prop.type === 'grave') {
+    const stone = paletteColor(['#6e746c', '#85877b', '#928f80', '#72796f', '#9c9885'], prop.x, prop.y, 43);
+    const engraving = paletteColor(['#414a46', '#555a51', '#625d50', '#48534e', '#696454'], prop.x, prop.y, 44);
     ellipse(ctx, 0, 2, 22, 7, 'rgba(15, 20, 19, .35)');
-    ctx.fillStyle = '#777c72'; ctx.beginPath(); ctx.arc(0, -25, 14, Math.PI, 0);
+    ctx.fillStyle = stone; ctx.beginPath(); ctx.arc(0, -25, 14, Math.PI, 0);
     ctx.lineTo(14, 0); ctx.lineTo(-14, 0); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#4b514c'; ctx.lineWidth = 2;
+    ctx.strokeStyle = engraving; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(0, -12); ctx.moveTo(-6, -24); ctx.lineTo(6, -24); ctx.stroke();
   } else if (prop.type === 'cafeTable') {
     ellipse(ctx, 0, 3, 32, 10, 'rgba(15, 22, 18, .25)');
@@ -574,7 +580,8 @@ function drawProp(ctx, prop) {
     drawLight(ctx, 0, -68, colors[prop.variant]);
   } else if (prop.type === 'mazeGate') {
     ctx.fillStyle = '#514334'; ctx.fillRect(-57, -100, 10, 100); ctx.fillRect(47, -100, 10, 100);
-    ctx.fillStyle = '#9b713a'; ctx.fillRect(-66, -102, 132, 22);
+    ctx.fillStyle = paletteColor(['#9b713a', '#a67b42', '#8e7042', '#ad8248'], prop.x, prop.y, 62);
+    ctx.fillRect(-66, -102, 132, 22);
     drawSignText(ctx, 'Fright Nights', -86, 100, '#e8b670');
   } else if (prop.type === 'scarecrow') {
     ctx.strokeStyle = '#59452f'; ctx.lineWidth = 6;
@@ -583,7 +590,8 @@ function drawProp(ctx, prop) {
     ellipse(ctx, 0, -68, 11, 12, '#d6bb7c');
     ctx.fillStyle = '#49382c'; ctx.fillRect(-17, -80, 34, 5); ctx.fillRect(-9, -91, 18, 12);
   } else if (prop.type === 'bench') {
-    ctx.fillStyle = '#72543c'; ctx.fillRect(-30, -25, 60, 9); ctx.fillRect(-27, -13, 54, 7);
+    ctx.fillStyle = paletteColor(['#72543c', '#806044', '#8a6848', '#70513a', '#94704c'], prop.x, prop.y, 52);
+    ctx.fillRect(-30, -25, 60, 9); ctx.fillRect(-27, -13, 54, 7);
     ctx.fillRect(-23, -8, 5, 8); ctx.fillRect(18, -8, 5, 8);
   } else if (prop.type === 'barrel') {
     ctx.fillStyle = '#876040'; ctx.fillRect(-12, -30, 24, 30);
@@ -592,15 +600,51 @@ function drawProp(ctx, prop) {
   }
   else if (prop.type === 'parkGate') {
     ctx.fillStyle = '#59504a'; ctx.fillRect(-52, -90, 12, 90); ctx.fillRect(40, -90, 12, 90);
-    ctx.strokeStyle = '#784a43'; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(0, -78, 46, Math.PI, 0); ctx.stroke();
+    ctx.strokeStyle = paletteColor(['#784a43', '#855340', '#765346', '#925947'], prop.x, prop.y, 61);
+    ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(0, -78, 46, Math.PI, 0); ctx.stroke();
     drawSignText(ctx, 'THIRTEEN', -79, 84);
   } else if (prop.type === 'banner') {
     ctx.fillStyle = '#6f5842'; ctx.fillRect(-3, -82, 6, 82);
     ctx.fillStyle = prop.variant ? '#ccad6c' : '#b5614c'; ctx.beginPath(); ctx.moveTo(3, -80); ctx.lineTo(35, -72); ctx.lineTo(3, -58); ctx.fill();
   } else if (prop.type === 'pumpkin') {
-    ellipse(ctx, 0, -8, 19, 11, '#b36d2e');
-    ellipse(ctx, 0, -8, 9, 11, '#d88a35');
-    ctx.fillStyle = '#556241'; ctx.fillRect(-2, -22, 4, 6);
+    const pumpkinColors = ['#b65c2d', '#c8732e', '#d58a32', '#b88739', '#955c35'];
+    const pumpkinHighlights = ['#d57c3b', '#df913c', '#e7aa4b', '#d4a84e', '#bd7942'];
+    const colorIndex = Math.floor(random(prop.x, prop.y + 61) * pumpkinColors.length);
+    ellipse(ctx, 0, -7, 20, 12, pumpkinColors[colorIndex]);
+    for (let lobe = -2; lobe <= 2; lobe += 1) {
+      ctx.strokeStyle = lobe % 2 ? 'rgba(92, 48, 29, .45)' : 'rgba(247, 176, 88, .46)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(lobe * 6, -7, 5 + Math.abs(lobe), 10, 0, -Math.PI * 0.48, Math.PI * 0.48);
+      ctx.stroke();
+    }
+    ellipse(ctx, 0, -8, 3, 8, pumpkinHighlights[colorIndex]);
+    ctx.save();
+    ctx.translate(0, -19);
+    ctx.rotate(-0.2);
+    ctx.fillStyle = paletteColor(['#745137', '#80583a', '#695138'], prop.x, prop.y, 63);
+    ctx.fillRect(-2, -5, 4, 8);
+    ctx.strokeStyle = '#9b7447';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(-1, 1); ctx.lineTo(-1, -3); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = paletteColor(['#556241', '#687044', '#717344', '#5d6b43'], prop.x, prop.y, 62);
+    ctx.beginPath();
+    ctx.moveTo(1, -19);
+    ctx.quadraticCurveTo(8, -25, 10, -21);
+    ctx.quadraticCurveTo(6, -18, 1, -19);
+    ctx.fill();
+    if (prop.variant === 0) {
+      ctx.fillStyle = '#4d3827';
+      for (const x of [-5, 5]) {
+        ctx.beginPath(); ctx.moveTo(x - 2, -10); ctx.lineTo(x + 2, -10); ctx.lineTo(x, -6); ctx.closePath(); ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.moveTo(-5, -2);
+      ctx.quadraticCurveTo(0, 3, 5, -2);
+      ctx.quadraticCurveTo(0, 2, -5, -2);
+      ctx.fill();
+    }
   }
   else if (prop.type === 'rock') {
     ellipse(ctx, 4, 3, 26, 10, 'rgba(12, 25, 17, .3)');
@@ -620,15 +664,26 @@ function drawProp(ctx, prop) {
     ctx.fillStyle = 'rgba(228, 230, 209, .35)';
     ROCK_GRAIN.forEach(([x, y]) => ctx.fillRect(x, y, 1.5, 1));
   } else if (prop.type === 'lamp' || prop.type === 'sign') {
-    ctx.fillStyle = '#55442e'; ctx.fillRect(-3, -44, 6, 44);
-    ctx.fillStyle = prop.type === 'lamp' ? '#e5c16e' : '#b59a68'; ctx.fillRect(-9, -53, 18, 13);
-    ctx.strokeStyle = '#463e2b'; ctx.strokeRect(-9, -53, 18, 13);
+    ctx.fillStyle = paletteColor(['#55442e', '#62503a', '#725940', '#4b493c'], prop.x, prop.y, 71);
+    ctx.fillRect(-3, -44, 6, 44);
+    ctx.fillStyle = prop.type === 'lamp'
+      ? paletteColor(['#e5c16e', '#efd18a', '#d7bd81', '#e4aa68', '#cbb779'], prop.x, prop.y, 72)
+      : paletteColor(['#b59a68', '#c5a873', '#a88a5f', '#c0a27a', '#9e8965'], prop.x, prop.y, 73);
+    ctx.fillRect(-9, -53, 18, 13);
+    ctx.strokeStyle = paletteColor(['#463e2b', '#554633', '#61503a'], prop.x, prop.y, 74);
+    ctx.strokeRect(-9, -53, 18, 13);
   } else if (prop.type === 'stall') {
-    ctx.fillStyle = '#59452f'; ctx.fillRect(-24, -31, 4, 31); ctx.fillRect(20, -31, 4, 31);
-    ctx.fillStyle = '#8b634b'; ctx.fillRect(-27, -20, 54, 14);
-    ctx.fillStyle = prop.variant ? '#a77151' : '#c1a477';
+    ctx.fillStyle = paletteColor(['#59452f', '#66503a', '#72553b', '#56463a'], prop.x, prop.y, 81);
+    ctx.fillRect(-24, -31, 4, 31); ctx.fillRect(20, -31, 4, 31);
+    ctx.fillStyle = paletteColor(['#8b634b', '#986b4e', '#80634b', '#a17855'], prop.x, prop.y, 82);
+    ctx.fillRect(-27, -20, 54, 14);
+    ctx.fillStyle = paletteColor(
+      prop.variant ? ['#a77151', '#ae7651', '#98674e', '#b78356', '#a36e48'] : ['#c1a477', '#b69a69', '#c9ae7b', '#b99b6d', '#c2a06b'],
+      prop.x, prop.y, 83
+    );
     ctx.beginPath(); ctx.moveTo(-31, -30); ctx.lineTo(-23, -45); ctx.lineTo(25, -45); ctx.lineTo(31, -30); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#e2c99a'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.strokeStyle = paletteColor(['#e2c99a', '#e8d2a6', '#d9c198', '#cdbb92'], prop.x, prop.y, 84);
+    ctx.lineWidth = 3; ctx.stroke();
   } else if (prop.type === 'field') {
     ctx.fillStyle = '#6f6b3f'; ctx.fillRect(-90, -35, 180, 35);
     ctx.strokeStyle = '#c8b56b'; ctx.lineWidth = 2;

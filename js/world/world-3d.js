@@ -18,10 +18,15 @@ import { createFirCanopy, createFirTrunk, createNeedleTexture, createPlatformFir
 import { createRockGeometry, createRockTexture } from './rock-geometry.js';
 import { rockVariant } from './rock-style.js';
 import { cornStalks, createCornGeometry, createCornTexture } from './corn-scenery.js';
+import { createPumpkinGeometry, pumpkinHasFace } from './pumpkin-scenery.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
   return value - Math.floor(value);
+}
+
+function paletteColor(palette, x, z, salt) {
+  return palette[Math.floor(random(x, z + salt) * palette.length)];
 }
 
 export function configureWorldCamera(camera, width, height, zoom, position) {
@@ -396,28 +401,37 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   const escapeSign = textSprite('ESCAPE ROOM', 'rgba(36, 41, 38, .95)');
   escapeSign.position.set(escape.x - 70, 120, escape.y - 125); scene.add(escapeSign);
 
-  function lamp(x, z, color = '#f8cc77') {
+  function lamp(x, z, color) {
     const g = groupAt(x, z);
-    box(g, 14, 7, 14, '#5e594c', 0, 4, 0);
-    box(g, 5, 65, 5, '#504b3e', 0, 37, 0);
-    box(g, 17, 22, 17, '#584c3b', 0, 77, 0);
-    box(g, 12, 16, 18, color, 0, 77, 0);
-    mesh(new THREE.ConeGeometry(14, 12, 4), '#574a3b', g, 0, 93, 0).rotation.y = Math.PI / 4;
+    const frame = paletteColor(['#5e594c', '#615848', '#685846', '#575548'], x, z, 91);
+    const post = paletteColor(['#504b3e', '#5a4f3e', '#554c41', '#665340'], x, z, 92);
+    box(g, 14, 7, 14, frame, 0, 4, 0);
+    box(g, 5, 65, 5, post, 0, 37, 0);
+    box(g, 17, 22, 17, frame, 0, 77, 0);
+    box(g, 12, 16, 18, color ?? paletteColor(['#f8cc77', '#f2d89b', '#ead08a', '#e3b976', '#d8d0a0'], x, z, 93), 0, 77, 0);
+    mesh(new THREE.ConeGeometry(14, 12, 4), post, g, 0, 93, 0).rotation.y = Math.PI / 4;
   }
   function bench(x, z) {
     const g = groupAt(x, z);
-    box(g, 58, 5, 20, '#876646', 0, 19, 0);
-    for (const side of [-22, 22]) box(g, 5, 19, 14, '#5c4c3b', side, 10, 0);
-    box(g, 58, 20, 4, '#876646', 0, 32, -9);
+    const wood = paletteColor(['#876646', '#936e4b', '#806043', '#9a744e', '#765a40'], x, z, 101);
+    const frame = paletteColor(['#5c4c3b', '#65503c', '#55483b', '#70553d'], x, z, 102);
+    box(g, 58, 5, 20, wood, 0, 19, 0);
+    for (const side of [-22, 22]) box(g, 5, 19, 14, frame, side, 10, 0);
+    box(g, 58, 20, 4, wood, 0, 32, -9);
   }
   function stall(x, z, color) {
     const g = groupAt(x, z);
-    box(g, 75, 38, 40, '#7b6047', 0, 19, 0);
-    box(g, 82, 5, 45, '#a78c64', 0, 40, 0);
-    for (const side of [-34, 34]) box(g, 5, 60, 5, '#66503d', side, 67, -16);
+    const wood = paletteColor(['#7b6047', '#866749', '#745b43', '#8a6a4b'], x, z, 111);
+    const trim = paletteColor(['#a78c64', '#b1966d', '#9e8764', '#b49a72'], x, z, 112);
+    const stripe = paletteColor(['#dfcba0', '#e8d8ba', '#d7c6a0', '#ead9b5'], x, z, 113);
+    box(g, 75, 38, 40, wood, 0, 19, 0);
+    box(g, 82, 5, 45, trim, 0, 40, 0);
+    for (const side of [-34, 34]) box(g, 5, 60, 5, wood, side, 67, -16);
     box(g, 84, 6, 55, color, 0, 99, 0);
-    for (let stripe = -3; stripe <= 3; stripe += 2) box(g, 10, 7, 55, '#dfcba0', stripe * 10, 100, 0);
-    for (const side of [-20, 0, 20]) box(g, 9, 12, 9, '#b8a472', side, 48, 0);
+    for (let stripeIndex = 0, stripePosition = -3; stripePosition <= 3; stripePosition += 2, stripeIndex += 1) {
+      box(g, 10, 7, 55, stripeIndex % 2 ? trim : stripe, stripePosition * 10, 100, 0);
+    }
+    for (const side of [-20, 0, 20]) box(g, 9, 12, 9, trim, side, 48, 0);
   }
   function cafeTable(x, z) {
     const g = groupAt(x, z);
@@ -458,19 +472,21 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     grave.rotation.y = rotation;
     grave.rotation.z = rotation * 0.18;
     grave.scale.setScalar(scale);
-    box(grave, 26, 5, 18, '#666d64', 0, 3, 0);
+    const stone = paletteColor(['#6e746c', '#85877b', '#928f80', '#72796f', '#9c9885'], x, y, 43);
+    const engraving = paletteColor(['#a4a79a', '#b5b4a1', '#c2bda5', '#a8b0a2', '#c4bea8'], x, y, 44);
+    box(grave, 26, 5, 18, paletteColor(['#555d56', '#66685e', '#706c60', '#596158'], x, y, 45), 0, 3, 0);
     if (variant === 0) {
-      box(grave, 22, 38, 10, '#7b8174', 0, 22, 0);
-      box(grave, 4, 22, 2, '#a4a79a', 0, 25, 6);
-      box(grave, 14, 4, 2, '#a4a79a', 0, 29, 6);
+      box(grave, 22, 38, 10, stone, 0, 22, 0);
+      box(grave, 4, 22, 2, engraving, 0, 25, 6);
+      box(grave, 14, 4, 2, engraving, 0, 29, 6);
     } else if (variant === 1) {
-      box(grave, 24, 25, 10, '#888c7d', 0, 17, 0);
-      const top = mesh(new THREE.CylinderGeometry(12, 12, 10, 12, 1, false, 0, Math.PI), '#888c7d', grave, 0, 29, 0);
+      box(grave, 24, 25, 10, stone, 0, 17, 0);
+      const top = mesh(new THREE.CylinderGeometry(12, 12, 10, 12, 1, false, 0, Math.PI), stone, grave, 0, 29, 0);
       top.rotation.x = Math.PI / 2;
-      box(grave, 14, 2, 2, '#b7b7a5', 0, 20, 6);
+      box(grave, 14, 2, 2, engraving, 0, 20, 6);
     } else {
-      box(grave, 7, 42, 8, '#97988a', 0, 24, 0);
-      box(grave, 25, 7, 8, '#97988a', 0, 34, 0);
+      box(grave, 7, 42, 8, stone, 0, 24, 0);
+      box(grave, 25, 7, 8, stone, 0, 34, 0);
     }
   });
   const coasterTrains = [];
@@ -634,15 +650,44 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     }
   });
   const corn = cornStalks(worldCornWalls());
+  const pumpkinGeometries = [0, 1, 2].map(createPumpkinGeometry);
+  const pumpkinMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88 });
+  materials.set('pumpkins', pumpkinMaterial);
+  const pumpkinStem = new THREE.CylinderGeometry(1.8, 2.8, 7, 6);
+  const pumpkinEyeShape = new THREE.Shape();
+  pumpkinEyeShape.moveTo(-2, 1.5);
+  pumpkinEyeShape.lineTo(2, 1.5);
+  pumpkinEyeShape.lineTo(0, -2);
+  pumpkinEyeShape.closePath();
+  const pumpkinEye = new THREE.ShapeGeometry(pumpkinEyeShape);
+  const pumpkinMouthShape = new THREE.Shape();
+  pumpkinMouthShape.moveTo(-5, 1);
+  pumpkinMouthShape.quadraticCurveTo(0, -4, 5, 1);
+  pumpkinMouthShape.quadraticCurveTo(0, -5, -5, 1);
+  const pumpkinMouth = new THREE.ShapeGeometry(pumpkinMouthShape);
+  const pumpkinFace = material('#4d3827');
   harvestPumpkins().forEach(({ x, y, variant, scale, rotation }) => {
     const pumpkin = groupAt(x, y);
     pumpkin.rotation.y = rotation;
     pumpkin.scale.setScalar(scale);
-    mesh(new THREE.SphereGeometry(15, 10, 6), ['#c97c36', '#a85b2e', '#e29b43'][variant], pumpkin, 0, 12, 0).scale.y = 0.8;
-    box(pumpkin, 4, 7, 4, '#576341', 0, 25, 0);
-    box(pumpkin, 3, 4, 2, '#4d3827', -5, 14, 14);
-    box(pumpkin, 3, 4, 2, '#4d3827', 5, 14, 14);
-    box(pumpkin, 10, 2, 2, '#4d3827', 0, 8, 15);
+    const body = new THREE.Mesh(pumpkinGeometries[variant], pumpkinMaterial);
+    geometries.add(pumpkinGeometries[variant]);
+    body.position.y = 12;
+    pumpkin.add(body);
+    mesh(pumpkinStem, paletteColor(['#556241', '#687044', '#717344', '#5d6b43'], x, y, 62), pumpkin, 0, 26, 0);
+    if (pumpkinHasFace(variant)) {
+      const leftEye = new THREE.Mesh(pumpkinEye, pumpkinFace);
+      leftEye.position.set(-4.5, 15, 13);
+      pumpkin.add(leftEye);
+      const rightEye = new THREE.Mesh(pumpkinEye, pumpkinFace);
+      rightEye.position.set(4.5, 15, 13);
+      pumpkin.add(rightEye);
+      const mouth = new THREE.Mesh(pumpkinMouth, pumpkinFace);
+      mouth.position.set(0, 8.5, 13.5);
+      pumpkin.add(mouth);
+      geometries.add(pumpkinEye);
+      geometries.add(pumpkinMouth);
+    }
   });
 
   const treeData = [...worldTrees(), ...surroundingTrees()];
