@@ -22,6 +22,7 @@ export const CASTLE_TOWERS = Object.freeze([-1, 1].flatMap((side) =>
     height: CASTLE_LAYOUT.towerHeight,
     hasBanner: depthSide > 0
   }))));
+export const CASTLE_KEEP_WIDTH = 216;
 export const CASTLE_SIDE_BATTLEMENT_Z = Object.freeze(
   Array.from({ length: 9 }, (_, i) => -126 + i * 20).filter((z) =>
     z - 6 >= CASTLE_LAYOUT.centerOffset - CASTLE_LAYOUT.depth / 2 + CASTLE_LAYOUT.towerSize
@@ -35,7 +36,7 @@ export const CASTLE_CRATE_COLLISION_SIZE = 24.2;
 export const CASTLE_ROOF_SUPPLIES = Object.freeze([
   Object.freeze({ kind: 'barrel', x: -72, z: -105, size: 1.05, variant: 0, rotation: 0.15 }),
   Object.freeze({ kind: 'crate', x: -47, z: -95, size: 1, variant: 0, rotation: -0.12 }),
-  Object.freeze({ kind: 'crate', x: -70, z: -66, size: 0.7, variant: 1, rotation: 0.22 }),
+  Object.freeze({ kind: 'crate', x: -70, z: -33, size: 0.7, variant: 1, rotation: 0.22 }),
   Object.freeze({ kind: 'crate', x: 68, z: -82, size: 1.1, variant: 2, rotation: -0.2 }),
   Object.freeze({ kind: 'barrel', x: 65, z: -45, size: 0.9, variant: 1, rotation: 0 }),
   Object.freeze({ kind: 'barrel', x: 42, z: -44, size: 0.65, variant: 2, rotation: 0.3 })

@@ -8,6 +8,7 @@ import { createMazeWalls } from './maze-scenery.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { PACE_DISTANCE, SIDE_QUESTS } from '../side-quests.js';
 import { ESCAPE_DECORATIVE_TREE, spaceDeadTrees } from './tree-spacing.js';
+import { WORLD_SUPPLIES } from './world-supplies.js';
 
 const random = (index, salt) => {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -79,18 +80,19 @@ export function worldObstacles(trees = worldTrees()) {
   const [escape, , park, forest, harvest] = QUEST_LOCATIONS;
   const rect = (x, y, width, depth) => ({ x, y, width, depth });
   const circle = (x, y, radius) => ({ x, y, radius });
+  const supplyObstacle = (item, x, y) => {
+    if (item.kind === 'barrel') return circle(x, y, CASTLE_BARREL_COLLISION_RADIUS * item.size);
+    const extent = CASTLE_CRATE_COLLISION_SIZE * item.size
+      * (Math.abs(Math.cos(item.rotation)) + Math.abs(Math.sin(item.rotation)));
+    return rect(x, y, extent, extent);
+  };
   const obstacles = [
     ...[...QUEST_LOCATIONS, ...WORLD_NPCS].map((npc) => npc.prop === 'pace'
       ? rect(npc.x, npc.y, (WORLD_CHARACTER_RADIUS + PACE_DISTANCE) * 2, WORLD_CHARACTER_RADIUS * 2)
       : circle(npc.x, npc.y, WORLD_CHARACTER_RADIUS)),
     rect(CASTLE_LAYOUT.x, CASTLE_LAYOUT.y + CASTLE_LAYOUT.centerOffset, CASTLE_LAYOUT.width, CASTLE_LAYOUT.depth),
-    ...CASTLE_EXTERIOR_SUPPLIES.map((item) => {
-      const x = CASTLE_LAYOUT.x + item.x, y = CASTLE_LAYOUT.y + item.z;
-      if (item.kind === 'barrel') return circle(x, y, CASTLE_BARREL_COLLISION_RADIUS * item.size);
-      const extent = CASTLE_CRATE_COLLISION_SIZE * item.size
-        * (Math.abs(Math.cos(item.rotation)) + Math.abs(Math.sin(item.rotation)));
-      return rect(x, y, extent, extent);
-    }),
+    ...CASTLE_EXTERIOR_SUPPLIES.map((item) => supplyObstacle(item, CASTLE_LAYOUT.x + item.x, CASTLE_LAYOUT.y + item.z)),
+    ...WORLD_SUPPLIES.map((item) => supplyObstacle(item, item.x, item.y)),
     rect(WORLD_SPAWN.x - 205, WORLD_SPAWN.y - 95, 102, 84),
     rect(escape.x - 70, escape.y - 185, 147, 121),
     ...TOWN_VENUES.map(({ x, y, width, depth }) => rect(x, y, width, depth)),

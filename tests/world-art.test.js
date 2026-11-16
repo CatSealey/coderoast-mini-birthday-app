@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cameraFor, createWorldArt } from '../js/world/world-art.js';
 import { QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from '../js/world/world-data.js';
-import { CASTLE_PALETTE } from '../js/world/castle-scenery.js';
+import { CASTLE_PALETTE, castleSupplyStyle } from '../js/world/castle-scenery.js';
 import { CHURCH_STONE, CHURCH_WOOD, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_PLAZA, TOWN_VENUES } from '../js/world/town-scenery.js';
 import { SURROUNDINGS_BOUNDS } from '../js/world/world-surroundings.js';
+import { WORLD_SUPPLIES } from '../js/world/world-supplies.js';
 
 test('minimap preserves unpaved town terrain while retaining the rest of the world ground', () => {
   const previousDocument = globalThis.document;
@@ -108,6 +109,23 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
       labels.length = 0;
       art.draw(townContext, cameraFor(venue, 800, 600, 1), 1, 800, 600, []);
       assert.ok(labels.some(([text]) => text === venue.name));
+    }
+    const supplyEvents = [];
+    const supplyContext = new Proxy({
+      translate: (...args) => supplyEvents.push({ type: 'translate', args }),
+      fillRect: (...args) => supplyEvents.push({ type: 'rect', args, color: supplyContext.fillStyle }),
+      createRadialGradient: () => ({ addColorStop: () => {} })
+    }, { get: (target, key) => target[key] || (() => {}) });
+    for (const item of WORLD_SUPPLIES) {
+      supplyEvents.length = 0;
+      art.draw(supplyContext, cameraFor(item, 800, 600, 1), 1, 800, 600, []);
+      const start = supplyEvents.findIndex((event) => event.type === 'translate'
+        && event.args[0] === item.x && event.args[1] === item.y * 0.68);
+      assert.ok(start >= 0, `${item.kind} is visible at its world position`);
+      const body = item.kind === 'barrel' ? [-9, -24, 18, 24] : [-10, -20, 20, 20];
+      assert.deepEqual(supplyEvents[start + 1], {
+        type: 'rect', args: body, color: castleSupplyStyle(item.kind, item.variant).wood
+      });
     }
     paintedRectangles.length = 0;
     filledColors.length = 0;

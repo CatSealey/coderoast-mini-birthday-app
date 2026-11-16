@@ -12,6 +12,7 @@ import { drawCobblestone } from './cobblestones.js';
 import { drawGamesSign } from './games-sign.js';
 import { drawVenueSign } from './venue-sign.js';
 import { drawCastle, drawCastleSupply } from './castle-scenery.js';
+import { WORLD_SUPPLIES } from './world-supplies.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -176,6 +177,7 @@ function addProps() {
   for (const item of CASTLE_EXTERIOR_SUPPLIES) {
     add(item.kind, CASTLE_LAYOUT.x + item.x, CASTLE_LAYOUT.y + item.z, item.size, item.variant);
   }
+  for (const item of WORLD_SUPPLIES) add(item.kind, item.x, item.y, item.size, item.variant);
   add('house', WORLD_SPAWN.x - 205, WORLD_SPAWN.y - 95, 0.85);
   add('lamp', WORLD_SPAWN.x - 70, WORLD_SPAWN.y - 80);
   add('sign', WORLD_SPAWN.x - 120, WORLD_SPAWN.y + 20);

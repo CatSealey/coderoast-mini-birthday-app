@@ -7,6 +7,8 @@ import { CANOPY_OFFSET, CANOPY_PLATFORMS, harvestPumpkins, placeQuestDecorations
 import { regionBlendAt } from '../js/world/world-regions.js';
 import { roadDistance } from '../js/world/world-art.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from '../js/world/town-scenery.js';
+import { WORLD_SUPPLIES } from '../js/world/world-supplies.js';
+import { castleSupplyStyle } from '../js/world/castle-scenery.js';
 
 test('castle, buildings and tree trunks are solid without blocking nearby entrances', () => {
   const trees = worldTrees(), collision = createCollision(worldObstacles(trees));
@@ -58,6 +60,53 @@ test('the enlarged castle covers every corner tower and keeps trees and rocks cl
   assert.ok(path);
   const endpoint = path.at(-1) || WORLD_SPAWN;
   assert.ok(Math.hypot(endpoint.x - CASTLE_ENTRANCE.x, endpoint.y - CASTLE_ENTRANCE.y) < INTERACTION_RANGE);
+});
+
+test('scattered supplies are varied, solid and clear of existing scenery', () => {
+  const obstacles = worldObstacles();
+  const otherObstacles = obstacles.filter((obstacle) =>
+    !WORLD_SUPPLIES.some((item) => item.x === obstacle.x && item.y === obstacle.y));
+  assert.ok(WORLD_SUPPLIES.length >= 10);
+  for (const kind of ['barrel', 'crate']) {
+    const items = WORLD_SUPPLIES.filter((item) => item.kind === kind);
+    assert.ok(items.length >= 4);
+    assert.ok(new Set(items.map((item) => castleSupplyStyle(kind, item.variant).wood)).size >= 3);
+    assert.ok(new Set(items.map((item) => item.size)).size >= 3);
+  }
+  for (const [index, item] of WORLD_SUPPLIES.entries()) {
+    const obstacle = obstacles.find((entry) => entry.x === item.x && entry.y === item.y);
+    assert.ok(obstacle, `${item.kind} has a collision footprint`);
+    const halfExtent = item.kind === 'barrel' ? CASTLE_BARREL_COLLISION_RADIUS * item.size
+      : CASTLE_CRATE_COLLISION_SIZE * item.size
+        * (Math.abs(Math.cos(item.rotation)) + Math.abs(Math.sin(item.rotation))) / 2;
+    if (item.kind === 'barrel') assert.equal(obstacle.radius, halfExtent);
+    else assert.equal(obstacle.width, halfExtent * 2);
+    assert.ok(!createCollision(otherObstacles, halfExtent + 2).blocked(item), `${item.kind} clears existing scenery`);
+    for (const other of WORLD_SUPPLIES.slice(index + 1)) {
+      const otherObstacle = obstacles.find((entry) => entry.x === other.x && entry.y === other.y);
+      assert.ok(!createCollision([otherObstacle], halfExtent + 2).blocked(item), 'supplies do not overlap');
+    }
+  }
+});
+
+test('town storefronts have varied groups of supplies', () => {
+  for (const venue of TOWN_VENUES) {
+    const items = WORLD_SUPPLIES.filter((item) => Math.abs(item.x - venue.x) < venue.width / 2 + 28
+      && item.y > venue.y + venue.depth / 2 && item.y <= venue.y + 155);
+    assert.ok(items.length >= (venue.kind === 'games' ? 3 : 2), `${venue.name} has a group`);
+    assert.ok(items.some((item) => item.kind === 'barrel'));
+    assert.ok(items.some((item) => item.kind === 'crate'));
+    assert.ok(new Set(items.map((item) => item.size)).size > 1);
+    assert.ok(items.every((item) => items.some((other) => other !== item
+      && Math.hypot(item.x - other.x, item.y - other.y) <= 35)), `${venue.name} supplies form a cluster`);
+    assert.ok(Math.max(...items.map((item) => item.x)) - Math.min(...items.map((item) => item.x)) >= 24,
+      `${venue.name} supplies spread sideways instead of forming a line`);
+    if (items.length >= 3) {
+      const [a, b, c] = items;
+      assert.ok(Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) >= 200,
+        `${venue.name} supplies form an irregular group`);
+    }
+  }
 });
 
 test('every guide and town character is solid and can still be approached', () => {

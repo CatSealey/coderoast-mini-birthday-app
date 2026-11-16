@@ -19,8 +19,13 @@ export const CASTLE_PALETTE = Object.freeze({
 export const CASTLE_TOWER_WINDOWS = Object.freeze({
   upper: Object.freeze({ width: 22, spring: 24, height: 34, innerWidth: 14, innerSpring: 21, innerHeight: 29, bottomOffset: -100 }),
   lower: Object.freeze({ width: 18, spring: 16, height: 24, innerWidth: 10, innerSpring: 13, innerHeight: 19, bottomOffset: -145 }),
-  rear: Object.freeze({ width: 16, spring: 12, height: 19, innerWidth: 10, innerSpring: 10, innerHeight: 15, bottomOffset: -50, outwardOffset: 14 })
+  rear: Object.freeze({ width: 16, spring: 12, height: 19, innerWidth: 10, innerSpring: 10, innerHeight: 15, bottomOffset: -50 })
 });
+
+// Align the pole foot with the tower roof's center in the elevated world-camera view.
+export function castleFlagPosition(tower) {
+  return { x: tower.x, z: tower.z + 15.5 * 970 / 650 };
+}
 
 export const CASTLE_GATE_PLANKS = Object.freeze([
   Object.freeze({ x: -20, top: 64, color: '#76553a' }),
@@ -148,8 +153,9 @@ export function drawCastle(ctx) {
     ctx.fillStyle = shadow; ctx.fillRect(x - 23, top - 4, 46, 8);
     ctx.fillStyle = trim;
     for (let dx = -18; dx <= 18; dx += 12) ctx.fillRect(x + dx - 4, top - 16, 8, 13);
-    for (const y of hasBanner ? [top + 55, top + 95] : [top + 58]) {
-      drawTowerWindow(hasBanner ? x : x + Math.sign(x) * 14, y);
+    // The illustrated foreground battlements overlap the lower part of the rear towers.
+    for (const y of hasBanner ? [top + 55, top + 95] : [top + 35]) {
+      drawTowerWindow(x, y);
     }
     if (hasBanner) {
       ctx.fillStyle = royalBlue; ctx.strokeStyle = heraldryGold; ctx.lineWidth = 2;
@@ -157,16 +163,17 @@ export function drawCastle(ctx) {
       ctx.lineTo(x + 8, top + 27); ctx.lineTo(x, top + 32); ctx.lineTo(x - 8, top + 27); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = heraldryGold; ctx.fillRect(x - 1, top + 9, 2, 15); ctx.fillRect(x - 4, top + 14, 8, 2);
     }
+    const flagX = x;
+    const flagTop = top - (hasBanner ? 53 : 39);
     ctx.strokeStyle = '#6f5c45'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(x, top - 16); ctx.lineTo(x, top - 41); ctx.stroke();
-    const direction = x < 0 ? 1 : -1;
+    ctx.beginPath(); ctx.moveTo(flagX, top - 16); ctx.lineTo(flagX, flagTop - 2); ctx.stroke();
     ctx.fillStyle = royalBlue;
-    ctx.beginPath(); ctx.moveTo(x, top - 39); ctx.lineTo(x + direction * 21, top - 38);
-    ctx.lineTo(x + direction * 17, top - 33); ctx.lineTo(x + direction * 21, top - 28);
-    ctx.lineTo(x, top - 27); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(flagX, flagTop); ctx.lineTo(flagX + 21, flagTop + 1);
+    ctx.lineTo(flagX + 17, flagTop + 6); ctx.lineTo(flagX + 21, flagTop + 11);
+    ctx.lineTo(flagX, flagTop + 12); ctx.closePath(); ctx.fill();
     ctx.fillStyle = heraldryGold;
-    ctx.fillRect(x + direction * 2, top - 38, 1, 10); ctx.fillRect(x + direction * 9, top - 36, 1, 7);
-    ctx.fillRect(x + direction * 9 - 3, top - 33, 7, 1);
+    ctx.fillRect(flagX + 2, flagTop + 1, 1, 10); ctx.fillRect(flagX + 9, flagTop + 3, 1, 7);
+    ctx.fillRect(flagX + 6, flagTop + 6, 7, 1);
   }
   for (const side of [-1, 1]) drawTower(side * 103, -72, 175, false);
   ctx.fillStyle = roof;

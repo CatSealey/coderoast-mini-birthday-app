@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CASTLE_GATE_PLANKS, CASTLE_PALETTE, CASTLE_TOWER_WINDOWS, castleSupplyStyle, createCastleArchGeometry, createCastleBannerGeometry, createCastleFlagGeometry, drawCastle, drawCastleSupply } from '../js/world/castle-scenery.js';
-import { CASTLE_EXTERIOR_SUPPLIES, CASTLE_FRONT_WINDOWS, CASTLE_LAYOUT, CASTLE_ROOF_SUPPLIES, CASTLE_SIDE_BATTLEMENT_Z, CASTLE_TOWERS, CASTLE_WINDOW_LEVELS, CASTLE_WINDOW_WIDTH_SCALE } from '../js/world/world-data.js';
+import * as THREE from 'three';
+import { CASTLE_GATE_PLANKS, CASTLE_PALETTE, CASTLE_TOWER_WINDOWS, castleFlagPosition, castleSupplyStyle, createCastleArchGeometry, createCastleBannerGeometry, createCastleFlagGeometry, drawCastle, drawCastleSupply } from '../js/world/castle-scenery.js';
+import { CASTLE_EXTERIOR_SUPPLIES, CASTLE_FRONT_WINDOWS, CASTLE_KEEP_WIDTH, CASTLE_LAYOUT, CASTLE_ROOF_SUPPLIES, CASTLE_SIDE_BATTLEMENT_Z, CASTLE_TOWERS, CASTLE_WINDOW_LEVELS, CASTLE_WINDOW_WIDTH_SCALE } from '../js/world/world-data.js';
+import { configureWorldCamera } from '../js/world/world-3d.js';
 
 test('castle arches and banners have predictable front-facing dimensions', () => {
   const arch = createCastleArchGeometry(70, 52, 83);
@@ -44,6 +46,19 @@ test('four distinct towers occupy the corners of the enlarged castle footprint',
   assert.equal(corners.size, 4);
 });
 
+test('flagpole feet align with the center of each tower roof in the world view', () => {
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 6000);
+  configureWorldCamera(camera, 1100, 700, 2, { x: 0, y: 0 });
+  for (const tower of CASTLE_TOWERS) {
+    const position = castleFlagPosition(tower);
+    const roofCenter = new THREE.Vector3(tower.x, tower.height + 2, tower.z).project(camera);
+    const poleFoot = new THREE.Vector3(position.x, tower.height + 17.5, position.z).project(camera);
+    assert.ok(Math.abs(roofCenter.x - poleFoot.x) < 1e-10);
+    assert.ok(Math.abs(roofCenter.y - poleFoot.y) < 1e-10);
+    assert.ok(Math.abs(position.z - tower.z) + 2.5 < CASTLE_LAYOUT.towerSize / 2);
+  }
+});
+
 test('front windows fit between the gate and towers without overlapping', () => {
   const towerInnerEdge = CASTLE_LAYOUT.width / 2 - CASTLE_LAYOUT.towerSize;
   const halfWidth = 29 * CASTLE_WINDOW_WIDTH_SCALE / 2;
@@ -73,8 +88,10 @@ test('arched tower windows clear the roof, battlements and banners', () => {
   }
   assert.ok(CASTLE_LAYOUT.towerHeight + rear.bottomOffset < 174, 'rear windows sit below the roofline');
   const towerX = (CASTLE_LAYOUT.width - CASTLE_LAYOUT.towerSize) / 2;
-  assert.ok(towerX + rear.outwardOffset - (rear.width + 4) / 2 > 124, 'rear windows and sills clear the keep');
-  assert.ok(rear.outwardOffset + (rear.width + 4) / 2 < CASTLE_LAYOUT.towerSize / 2, 'rear windows stay within the towers');
+  assert.equal(rear.outwardOffset, undefined, 'rear windows are centered on their towers');
+  assert.ok(towerX - (rear.width + 4) / 2 > (CASTLE_KEEP_WIDTH + 4) / 2, 'centered windows and sills clear the keep cap');
+  assert.ok((rear.width + 4) / 2 < CASTLE_LAYOUT.towerSize / 2, 'rear windows stay within the towers');
+  assert.ok(CASTLE_KEEP_WIDTH / 2 > towerX - CASTLE_LAYOUT.towerSize / 2, 'keep remains joined to the towers');
   assert.ok(rear.bottomOffset + rear.height < -8, 'rear arch clears the parapet');
   assert.ok(lower.bottomOffset + lower.height < upper.bottomOffset, 'front windows do not overlap');
   assert.ok(upper.bottomOffset + upper.height < -48 - 6 * 1.05, 'upper window clears the banner');
@@ -119,10 +136,17 @@ test('castle supplies vary in size, finish and arrangement on the roof and exter
 });
 
 test('illustrated castle has four towers, heraldic banners and a layered arched gate', () => {
-  const rectangles = [], fills = [], curves = [];
+  const rectangles = [], fills = [], curves = [], bluePaths = [];
+  let path = [];
   const ctx = new Proxy({
     fillRect: (...args) => rectangles.push({ color: ctx.fillStyle, args }),
-    fill: () => fills.push(ctx.fillStyle),
+    beginPath: () => { path = []; },
+    moveTo: (...args) => path.push(args),
+    lineTo: (...args) => path.push(args),
+    fill: () => {
+      fills.push(ctx.fillStyle);
+      if (ctx.fillStyle === CASTLE_PALETTE.royalBlue) bluePaths.push([...path]);
+    },
     quadraticCurveTo: (...args) => curves.push(args)
   }, { get: (target, key) => target[key] || (() => {}) });
   drawCastle(ctx);
@@ -145,9 +169,14 @@ test('illustrated castle has four towers, heraldic banners and a layered arched 
   assert.ok(fills.indexOf(CASTLE_PALETTE.trim) < fills.indexOf(CASTLE_PALETTE.gate));
   assert.equal(fills.filter((color) => color === CASTLE_PALETTE.windowGlass).length, 6, 'all tower windows have arched panes');
   assert.equal(curves.length, 28, 'six layered tower windows and the gate have arched crowns');
-  for (const x of [-117, 117]) {
-    assert.ok(curves.some((args) => args[0] === x - 7 && args[1] === -189 && args[2] === x && args[3] === -189),
-      'rear tower windows are lower and toward the outside');
+  for (const x of [-103, 103]) {
+    assert.ok(curves.some((args) => args[0] === x - 7 && args[1] === -212 && args[2] === x && args[3] === -212),
+      'rear tower windows are centered and clear the foreground towers');
+  }
+  for (const [x, flagTop] of [[-103, -286], [103, -286], [-85, -228], [85, -228]]) {
+    assert.ok(bluePaths.some((points) => points.some(([px, py]) => px === x && py === flagTop)
+      && points.some(([px, py]) => px === x + 21 && py === flagTop + 1)),
+    'every flag points in the same direction');
   }
   for (const plank of CASTLE_GATE_PLANKS) {
     assert.ok(rectangles.some(({ color, args }) => color === plank.color
