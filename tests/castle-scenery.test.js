@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { CASTLE_GATE_PLANKS, CASTLE_PALETTE, CASTLE_TOWER_WINDOWS, castleFlagPosition, castleSupplyStyle, createCastleArchGeometry, createCastleBannerGeometry, createCastleFlagGeometry, drawCastle, drawCastleSupply } from '../js/world/castle-scenery.js';
+import { CASTLE_GATE_PLANKS, CASTLE_PALETTE, CASTLE_TOWER_WINDOWS, castleFlagPosition, castleSupplyStyle, createCastleArchGeometry, createCastleBannerGeometry, createCastleFlagGeometry, drawCastle, drawCastleFlag, drawCastleSupply } from '../js/world/castle-scenery.js';
 import { CASTLE_EXTERIOR_SUPPLIES, CASTLE_FRONT_WINDOWS, CASTLE_KEEP_WIDTH, CASTLE_LAYOUT, CASTLE_ROOF_SUPPLIES, CASTLE_SIDE_BATTLEMENT_Z, CASTLE_TOWERS, CASTLE_WINDOW_LEVELS, CASTLE_WINDOW_WIDTH_SCALE } from '../js/world/world-data.js';
 import { configureWorldCamera } from '../js/world/world-3d.js';
 
@@ -29,6 +29,25 @@ test('castle arches and banners have predictable front-facing dimensions', () =>
   } finally {
     arch.dispose(); gate.dispose(); banner.dispose(); flag.dispose();
   }
+});
+
+test('illustrated flags share the notched castle shape and gold heraldry at any size', () => {
+  const path = [], rectangles = [], fills = [];
+  const ctx = {
+    beginPath() {}, closePath() {},
+    moveTo: (...point) => path.push(point),
+    lineTo: (...point) => path.push(point),
+    fill() { fills.push(this.fillStyle); },
+    fillRect(...args) { rectangles.push({ color: this.fillStyle, args }); }
+  };
+  drawCastleFlag(ctx, 3, -80, '#4d6f91', 1.5);
+  assert.deepEqual(path, [[3, -80], [34.5, -78.5], [28.5, -71], [34.5, -63.5], [3, -62]]);
+  assert.deepEqual(fills, ['#4d6f91']);
+  assert.deepEqual(rectangles, [
+    { color: CASTLE_PALETTE.heraldryGold, args: [6, -78.5, 1.5, 15] },
+    { color: CASTLE_PALETTE.heraldryGold, args: [16.5, -75.5, 1.5, 10.5] },
+    { color: CASTLE_PALETTE.heraldryGold, args: [12, -71, 10.5, 1.5] }
+  ]);
 });
 
 test('four distinct towers occupy the corners of the enlarged castle footprint', () => {

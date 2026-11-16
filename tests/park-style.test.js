@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createParkGroundCanvas, createParkGroundTexture, drawParkCar, drawParkGround, PARK_PALETTE } from '../js/world/park-style.js';
+import { drawParkRide } from '../js/world/park-scenery.js';
 
 function recordingContext() {
   const fills = [], ellipses = [];
@@ -55,4 +56,22 @@ test('illustrated park carriage has a body, two seats and brass trim', () => {
   assert.deepEqual(ctx.fills[0].args, [-35, -21, 70, 42]);
   assert.equal(ctx.fills.filter(({ color }) => color === '#493a31').length, 2);
   assert.equal(ctx.fills.filter(({ color }) => color === PARK_PALETTE.brass).length, 3);
+});
+
+test('illustrated coaster variants retain their distinct track colors and detailed cars', () => {
+  const strokes = [], fills = [];
+  const ctx = new Proxy({
+    stroke() { strokes.push(this.strokeStyle); },
+    fillRect(...args) { fills.push({ color: this.fillStyle, args }); }
+  }, { get: (target, key) => target[key] || (() => {}) });
+  drawParkRide(ctx, 'loopCoaster');
+  assert.ok(strokes.includes('#9c4c45'));
+  assert.ok(fills.some(({ color }) => color === PARK_PALETTE.brass));
+  strokes.length = 0;
+  fills.length = 0;
+  drawParkRide(ctx, 'loopCoaster', 1);
+  assert.ok(strokes.includes('#6d8392'));
+  assert.ok(!strokes.includes('#9c4c45'));
+  assert.ok(fills.some(({ color }) => color === '#496476'));
+  assert.throws(() => drawParkRide(ctx, 'unknown'), /Unknown park ride/);
 });

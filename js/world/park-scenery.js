@@ -18,7 +18,7 @@ export const PARK_RIDES = Object.freeze([
     x: park.x + 570, y: park.y - 600, size: 1.35 }),
   Object.freeze({ type: 'loopCoaster', trackType: 'twistingCoaster', color: '#6d8392', rotation: 0.55,
     x: park.x + 580, y: park.y + 200, size: 1.25 }),
-  Object.freeze({ type: 'dropTower', x: park.x - 450, y: park.y + 500, size: 1 })
+  Object.freeze({ type: 'dropTower', x: park.x - 650, y: park.y + 500, size: 1 })
 ]);
 
 function shadow(ctx, width) {
@@ -45,13 +45,14 @@ function train(ctx, x, y, angle, color) {
     ctx.fillStyle = color; ctx.fillRect(i * 16, -14, 14, 10);
     ctx.fillStyle = '#e5c88c'; ctx.fillRect(i * 16 + 3, -12, 8, 3);
     ctx.fillStyle = PARK_PALETTE.brass; ctx.fillRect(i * 16 + 1, -5, 12, 2);
+    ctx.fillStyle = '#9b7b60'; ctx.fillRect(i * 16 + 2, -8, 10, 1);
     ctx.fillStyle = '#292a28'; ctx.fillRect(i * 16 + 2, -2, 4, 4); ctx.fillRect(i * 16 + 10, -2, 4, 4);
     ctx.fillStyle = '#b7a481'; ctx.fillRect(i * 16 + 3, -1, 2, 2); ctx.fillRect(i * 16 + 11, -1, 2, 2);
   }
   ctx.restore();
 }
 
-function drawLoopCoaster(ctx) {
+function drawLoopCoaster(ctx, variant) {
   shadow(ctx, 210);
   ctx.strokeStyle = '#535358'; ctx.lineWidth = 7;
   for (const [x, y] of [[-170, -45], [-105, -75], [-55, -65], [35, -130], [125, -55], [180, -35]]) {
@@ -62,6 +63,7 @@ function drawLoopCoaster(ctx) {
   ctx.strokeStyle = '#a69a87'; ctx.lineWidth = 2;
   for (const [x, y] of [[-170, -45], [-105, -75], [-55, -65], [35, -130], [125, -55], [180, -35]]) {
     ctx.beginPath(); ctx.moveTo(x + 2, -2); ctx.lineTo(x + 2, y + 3); ctx.stroke();
+    ctx.fillStyle = '#d1b99a'; ctx.fillRect(x - 2, y * 0.5, 4, 2);
   }
   const trace = (c) => {
     c.moveTo(-210, -40); c.lineTo(-125, -82);
@@ -71,8 +73,8 @@ function drawLoopCoaster(ctx) {
     c.bezierCurveTo(-5, -35, 75, -29, 125, -55);
     c.quadraticCurveTo(170, -80, 210, -35);
   };
-  track(ctx, '#30383c', '#9c4c45', trace);
-  train(ctx, -139, -77, -0.46, '#542d2c');
+  track(ctx, '#30383c', variant ? '#6d8392' : '#9c4c45', trace);
+  train(ctx, -139, -77, -0.46, variant ? '#496476' : '#542d2c');
 }
 
 function drawWoodCoaster(ctx) {
@@ -86,6 +88,8 @@ function drawWoodCoaster(ctx) {
     ctx.strokeStyle = '#a17c52'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(x, -height * 0.45); ctx.lineTo(x + 26, -height * 0.45); ctx.stroke();
     ctx.fillStyle = '#d1b384'; ctx.fillRect(x - 2, -height * 0.45 - 1, 3, 3);
+    ctx.strokeStyle = '#5c4331'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x + 2, -4); ctx.lineTo(x + 2, -height + 5); ctx.stroke();
     ctx.strokeStyle = '#755839'; ctx.lineWidth = 5;
   }
   const trace = (c) => {
@@ -102,6 +106,7 @@ function drawDropTower(ctx) {
   ctx.fillStyle = '#474744'; ctx.fillRect(-22, -205, 44, 205);
   ctx.fillStyle = '#665e55'; ctx.fillRect(-16, -205, 32, 205);
   ctx.fillStyle = '#a69b88'; ctx.fillRect(-17, -205, 3, 205); ctx.fillRect(14, -205, 3, 205);
+  ctx.fillStyle = '#cabaa0'; ctx.fillRect(-11, -201, 2, 194); ctx.fillRect(9, -201, 2, 194);
   ctx.strokeStyle = '#b7a089'; ctx.lineWidth = 2;
   for (let y = -192; y < -20; y += 24) {
     ctx.beginPath(); ctx.moveTo(-16, y); ctx.lineTo(16, y + 24);
@@ -113,14 +118,15 @@ function drawDropTower(ctx) {
   for (let x = -42; x <= 34; x += 19) {
     ctx.fillStyle = '#d8bd8b'; ctx.fillRect(x, -112, 11, 13);
     ctx.fillStyle = '#39434a'; ctx.fillRect(x, -98, 11, 9);
+    ctx.fillStyle = '#b7a789'; ctx.fillRect(x, -110, 2, 10); ctx.fillRect(x + 9, -110, 2, 10);
   }
   ctx.fillStyle = '#ad8060'; ctx.fillRect(-27, -215, 54, 12);
   ctx.fillStyle = '#dac394'; ctx.fillRect(-23, -214, 46, 3);
   for (const x of [-18, 0, 18]) { ctx.fillStyle = '#f1dba3'; ctx.fillRect(x - 2, -209, 4, 4); }
 }
 
-export function drawParkRide(ctx, type) {
-  if (type === 'loopCoaster') drawLoopCoaster(ctx);
+export function drawParkRide(ctx, type, variant = 0) {
+  if (type === 'loopCoaster') drawLoopCoaster(ctx, variant);
   else if (type === 'woodCoaster') drawWoodCoaster(ctx);
   else if (type === 'dropTower') drawDropTower(ctx);
   else throw new Error(`Unknown park ride: ${type}`);

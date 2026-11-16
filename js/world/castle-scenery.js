@@ -97,6 +97,18 @@ export function createCastleFlagGeometry() {
   return geometry;
 }
 
+export function drawCastleFlag(ctx, x, y, color = CASTLE_PALETTE.royalBlue, scale = 1) {
+  const px = (value) => x + value * scale, py = (value) => y + value * scale;
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.moveTo(px(0), py(0)); ctx.lineTo(px(21), py(1));
+  ctx.lineTo(px(17), py(6)); ctx.lineTo(px(21), py(11));
+  ctx.lineTo(px(0), py(12)); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = CASTLE_PALETTE.heraldryGold;
+  ctx.fillRect(px(2), py(1), scale, 10 * scale);
+  ctx.fillRect(px(9), py(3), scale, 7 * scale);
+  ctx.fillRect(px(6), py(6), 7 * scale, scale);
+}
+
 export function drawCastleSupply(ctx, kind, variant = 0) {
   const { wood, light, edge, metal } = castleSupplyStyle(kind, variant);
   if (kind === 'barrel') {
@@ -167,13 +179,7 @@ export function drawCastle(ctx) {
     const flagTop = top - (hasBanner ? 53 : 39);
     ctx.strokeStyle = '#6f5c45'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(flagX, top - 16); ctx.lineTo(flagX, flagTop - 2); ctx.stroke();
-    ctx.fillStyle = royalBlue;
-    ctx.beginPath(); ctx.moveTo(flagX, flagTop); ctx.lineTo(flagX + 21, flagTop + 1);
-    ctx.lineTo(flagX + 17, flagTop + 6); ctx.lineTo(flagX + 21, flagTop + 11);
-    ctx.lineTo(flagX, flagTop + 12); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = heraldryGold;
-    ctx.fillRect(flagX + 2, flagTop + 1, 1, 10); ctx.fillRect(flagX + 9, flagTop + 3, 1, 7);
-    ctx.fillRect(flagX + 6, flagTop + 6, 7, 1);
+    drawCastleFlag(ctx, flagX, flagTop);
   }
   for (const side of [-1, 1]) drawTower(side * 103, -72, 175, false);
   ctx.fillStyle = roof;

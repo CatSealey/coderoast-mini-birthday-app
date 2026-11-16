@@ -92,6 +92,12 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     if (!boxGeometries.has(key)) boxGeometries.set(key, new THREE.BoxGeometry(width, height, depth));
     return mesh(boxGeometries.get(key), color, parent, x, y, z);
   }
+  function addFlagHeraldry(parent, x, y, z) {
+    const color = CASTLE_PALETTE.heraldryGold;
+    box(parent, 2, 16, 1, color, x + 2.5, y + 9, z + 1);
+    box(parent, 2, 11, 1, color, x + 12.5, y + 9, z + 1);
+    box(parent, 9, 2, 1, color, x + 12.5, y + 9, z + 1);
+  }
   function groupAt(x, z) {
     const group = new THREE.Group();
     group.position.set(x, 0, z);
@@ -394,9 +400,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       box(g, 5, 45, 5, '#695a43', flagPosition.x, height + 40, flagPosition.z);
       const flag = mesh(flagGeometry, royalBlue, g, flagPosition.x + 2.5, height + 40, flagPosition.z + 2);
       flag.material = flagMaterial;
-      box(g, 2, 16, 1, heraldryGold, flagPosition.x + 5, height + 49, flagPosition.z + 3);
-      box(g, 2, 11, 1, heraldryGold, flagPosition.x + 15, height + 49, flagPosition.z + 3);
-      box(g, 9, 2, 1, heraldryGold, flagPosition.x + 15, height + 49, flagPosition.z + 3);
+      addFlagHeraldry(g, flagPosition.x + 2.5, height + 40, flagPosition.z + 2);
     }
     mesh(createCastleArchGeometry(70, 52, 83), trim, g, 0, 8, 65.5);
     mesh(createCastleArchGeometry(52, 49, 73), gate, g, 0, 8, 66);
@@ -638,18 +642,31 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     for (const px of [-25, 0, 25]) {
       box(g, 22, 27, 1, trim, px, 19, 20.5);
       box(g, 19, 24, 1, wood, px, 19, 21.1);
+      box(g, 15, 2, 1, '#c2a277', px, 26, 21.8);
+      box(g, 15, 2, 1, '#5e4937', px, 12, 21.8);
       for (const py of [10, 28]) box(g, 2, 2, 1, '#c9ae79', px - 8, py, 22);
     }
     box(g, 82, 5, 45, trim, 0, 40, 0);
-    for (const side of [-34, 34]) box(g, 5, 60, 5, wood, side, 67, -16);
-    box(g, 84, 6, 55, color, 0, 99, 0);
+    box(g, 74, 2, 3, '#d6bc8d', 0, 43, 21);
+    for (const side of [-34, 34]) {
+      box(g, 5, 60, 5, wood, side, 67, -16);
+      box(g, 7, 3, 7, trim, side, 88, -16);
+    }
+    const awning = new THREE.Group(); awning.position.y = 99; awning.rotation.x = -0.12; g.add(awning);
+    box(awning, 84, 6, 55, color, 0, 0, 0);
     for (let stripeIndex = 0, stripePosition = -3; stripePosition <= 3; stripePosition += 2, stripeIndex += 1) {
-      box(g, 10, 7, 55, stripeIndex % 2 ? trim : stripe, stripePosition * 10, 100, 0);
+      box(awning, 10, 7, 55, stripeIndex % 2 ? trim : stripe, stripePosition * 10, 1, 0);
+    }
+    box(awning, 84, 3, 3, '#e1c99b', 0, -3, 27);
+    for (let x = -36; x <= 36; x += 12) {
+      box(awning, 10, 6, 2, x % 24 === 0 ? color : stripe, x, -7, 27);
+      box(awning, 8, 1, 2.5, '#d4ba89', x, -10, 27.5);
     }
     for (const [i, side] of [-20, 0, 20].entries()) {
       box(g, 12, 3, 12, '#5d4a36', side, 44, 0);
       mesh(new THREE.CylinderGeometry(4, 3.5, 12, 8), [PARK_PALETTE.cream, PARK_PALETTE.red, PARK_PALETTE.teal][i], g, side, 51, 0);
       mesh(new THREE.CylinderGeometry(4.5, 4.5, 2, 8), trim, g, side, 58, 0);
+      box(g, 4, 4, 1, '#eeddb5', side, 51, 4.3);
     }
   }
   function cafeTable(x, z) {
@@ -674,8 +691,18 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     for (const side of [-65, 65]) {
       box(g, 12, 105, 14, '#635140', side, 53, 0);
       box(g, 18, 8, 20, '#a78a63', side, 108, 0);
+      if (label === 'THIRTEEN') {
+        box(g, 18, 5, 20, '#8e7455', side, 3, 0);
+        box(g, 3, 84, 1, '#a48c6a', side - 3, 54, 7.5);
+        for (const y of [16, 97]) box(g, 3, 3, 1, '#d5bb86', side + 3, y, 7.5);
+      }
     }
     box(g, 145, 22, 12, color, 0, 87, 0);
+    if (label === 'THIRTEEN') {
+      box(g, 145, 3, 14, '#c2a276', 0, 99, 0);
+      box(g, 145, 3, 14, '#4e3e37', 0, 75, 0);
+      for (const x of [-55, -28, 0, 28, 55]) box(g, 3, 3, 2, '#e1c58d', x, 101, 7);
+    }
     let sign;
     if (label === 'THIRTEEN') {
       const texture = createVenueSignTexture(label, 'ride'); textures.add(texture);
@@ -737,9 +764,12 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     const banner = groupAt(x, y); banner.scale.setScalar(size);
     box(banner, 10, 5, 10, '#4b4035', 0, 2.5, 0);
     box(banner, 5, 82, 5, '#6f5842', 0, 41, 0);
+    box(banner, 2, 77, 1, '#ad8d68', -1, 42, 3);
+    box(banner, 8, 3, 8, '#b4976d', 0, 7, 0);
     mesh(new THREE.SphereGeometry(3, 6, 4), PARK_PALETTE.brass, banner, 0, 84, 0);
     const flag = mesh(parkFlagGeometry, PARK_FLAG_COLORS[variant], banner, 3, 60, 0);
     flag.material = materials.get(`park-flag:${variant}`);
+    addFlagHeraldry(banner, 3, 60, 0);
   });
   const coasterTrains = [];
   const parkRivetGeometry = new THREE.SphereGeometry(1.7, 6, 4);
@@ -812,12 +842,18 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       box(car, 20, 12, 18, '#73423a', 0, 10, 0);
       box(car, 20, 3, 18, '#4d302c', 0, 5, 0);
       box(car, 17, 2, 1, '#c49c71', 0, 10, 9.5);
+      box(car, 17, 2, 1, '#c49c71', 0, 10, -9.5);
       box(car, 18, 3, 19, PARK_PALETTE.brass, 0, 14, 0);
       box(car, 14, 8, 12, '#52382e', 0, 19, -2);
       box(car, 10, 5, 10, '#d0aa72', 0, 21, 1);
       box(car, 13, 2, 2, '#e3ca9c', 0, 23, 7);
+      for (const x of [-6, 6]) {
+        box(car, 4, 8, 5, '#684b3c', x, 20, -3);
+        box(car, 2, 5, 2, '#ead4a6', x, 21, 7);
+      }
       for (const cx of [-8, 8]) for (const cz of [-9, 9]) {
         mesh(new THREE.SphereGeometry(3, 6, 4), '#2f302e', car, cx, 5, cz);
+        mesh(parkRivetGeometry, '#c8b38e', car, cx, 5, cz * 1.25);
       }
     }
     coasterTrains.push({ curve, cars: train.children, offset: random(x, z) });
@@ -831,18 +867,22 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   box(tower, 34, 215, 34, '#77736b', 0, 108, 0);
   for (const side of [-1, 1]) {
     box(tower, 5, 215, 5, '#aaa18f', side * 16, 108, 19);
+    box(tower, 2, 202, 2, '#c6b89a', side * 11, 108, 21.5);
     for (let y = 16; y < 190; y += 34) {
       parkBeam(tower, new THREE.Vector3(side * 14, y, 18), new THREE.Vector3(-side * 14, y + 34, 18), 2.5, '#c4b598');
     }
   }
   box(tower, 46, 10, 46, '#514f49', 0, 5, 0);
   box(tower, 48, 8, 48, PARK_PALETTE.brass, 0, 216, 0);
+  box(tower, 42, 4, 42, '#675e50', 0, 222, 0);
+  for (const x of [-16, 0, 16]) mesh(parkRivetGeometry, '#f2d89b', tower, x, 219, 24);
   const towerSeats = new THREE.Group(); towerSeats.position.y = 115; tower.add(towerSeats);
   box(towerSeats, 95, 16, 40, '#aa6650', 0, 0, 0);
   for (const x of [-36, -18, 0, 18, 36]) {
     box(towerSeats, 14, 23, 8, '#5e4540', x, 12, 12);
     box(towerSeats, 11, 4, 12, '#d1b88a', x, 5, 18);
     box(towerSeats, 12, 3, 3, '#d7c79e', x, 13, 23);
+    for (const side of [-1, 1]) box(towerSeats, 2, 12, 3, '#b5a789', x + side * 5, 18, 19);
   }
   const wheel = groupAt(PARK_WHEEL.x, PARK_WHEEL.y);
   for (const side of [-1, 1]) {
@@ -875,11 +915,14 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     box(gondola, 20, 2, 17, '#e1cba1', 0, -6, 0);
     box(gondola, 2, 9, 2, '#4e4a42', -9, -12, 7);
     box(gondola, 2, 9, 2, '#4e4a42', 9, -12, 7);
+    box(gondola, 14, 2, 1, '#f0d7a7', 0, -8, 8.5);
+    for (const x of [-5, 5]) box(gondola, 2, 2, 1, '#d9c397', x, -17, 8.5);
     gondolas.push(gondola);
   }
   const carousel = groupAt(park.x - 310, park.y - 210);
   mesh(new THREE.CylinderGeometry(68, 68, 14, 12), '#997151', carousel, 0, 7, 0);
   mesh(new THREE.CylinderGeometry(68, 68, 3, 12), PARK_PALETTE.brass, carousel, 0, 15, 0);
+  mesh(new THREE.CylinderGeometry(64, 64, 2, 12), '#c3a276', carousel, 0, 17, 0);
   mesh(new THREE.CylinderGeometry(9, 9, 68, 12), '#8b6550', carousel, 0, 47, 0);
   for (let i = 0; i < 6; i += 1) {
     const angle = i * Math.PI / 3;
@@ -889,8 +932,16 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     horse.rotation.y = -angle; carousel.add(horse);
     box(horse, 23, 10, 9, i % 2 ? '#d4c3a0' : '#b6c1af', 0, 0, 0);
     box(horse, 7, 14, 8, i % 2 ? '#d4c3a0' : '#b6c1af', 9, 8, 0);
+    box(horse, 7, 5, 7, i % 2 ? '#e5d7b8' : '#cdd5bd', 13, 11, 0);
+    for (const side of [-1, 1]) {
+      box(horse, 2, 5, 2, '#d5c9ab', 9, 18, side * 2.5);
+      box(horse, 1, 1, 1, '#514a3e', 12, 14, side * 4.2);
+    }
+    box(horse, 4, 11, 6, '#917c61', 5, 9, -1);
+    box(horse, 3, 10, 5, '#917c61', -13, -2, 0);
     for (const hx of [-8, 8]) box(horse, 3, 13, 3, '#b49b7c', hx, -9, 0);
     box(horse, 10, 4, 10, i % 2 ? PARK_PALETTE.red : PARK_PALETTE.teal, 0, 6, 0);
+    box(horse, 4, 2, 11, PARK_PALETTE.brass, 0, 8, 0);
   }
   const roofPositions = [], roofColors = [];
   for (let i = 0; i < 12; i += 1) {

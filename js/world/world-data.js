@@ -51,11 +51,12 @@ export const CASTLE_EXTERIOR_SUPPLIES = Object.freeze([
 ]);
 export const INTERACTION_RANGE = 74;
 const TOWN_X = 1120, TOWN_Y = 985;
+const FOREST_X = 1540, FOREST_Y = 1020;
 export const WORLD_ROUTES = Object.freeze([
   Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [760, 570], [650, 500], [470, 450]]),
   Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [920, 720], [1080, 850], [TOWN_X, TOWN_Y]]),
   Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [1100, 530], [1270, 400], [1510, 330]]),
-  Object.freeze([[1510, 330], [1610, 500], [1650, 690], [1540, 900]]),
+  Object.freeze([[1510, 330], [1610, 500], [1650, 690], [FOREST_X, FOREST_Y]]),
   Object.freeze([[2500 / WORLD_SCALE, 2000 / WORLD_SCALE], [760, 780], [570, 850], [390, 900]])
 ]);
 
@@ -94,9 +95,9 @@ export const QUEST_LOCATIONS = Object.freeze([
     name: 'GoApe After Dark',
     region: 'THE NIGHT CANOPY · SALCEY FOREST',
     icon: '🌙',
-    x: 1540 * WORLD_SCALE,
-    y: 900 * WORLD_SCALE,
-    entrance: Object.freeze({ x: 1540 * WORLD_SCALE - 35, y: 900 * WORLD_SCALE - 120, name: 'GoApe entrance' }),
+    x: FOREST_X * WORLD_SCALE,
+    y: FOREST_Y * WORLD_SCALE,
+    entrance: Object.freeze({ x: FOREST_X * WORLD_SCALE - 35, y: FOREST_Y * WORLD_SCALE - 120, name: 'GoApe entrance' }),
     guide: 'Ash the Tree Guide',
     introduction: 'Follow the lanterns across platforms, nets and ropes. Find four forest treasures before taking the zip-wire.'
   }),

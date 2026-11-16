@@ -177,18 +177,42 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
       && args[0] === -125 && args[1] === -247), 'rear towers remain visible when the castle base is below the viewport');
 
     const flagColors = [];
+    const flagDetails = [];
     let flagPath = false;
     const flagContext = new Proxy({
       beginPath: () => { flagPath = false; },
       moveTo: (x, y) => { flagPath = x === 3 && y === -80; },
       lineTo: () => {},
       fill: () => { if (flagPath) flagColors.push(flagContext.fillStyle); },
+      fillRect: (...args) => {
+        if (flagPath && flagContext.fillStyle === CASTLE_PALETTE.heraldryGold) flagDetails.push(args);
+      },
       createLinearGradient: () => ({ addColorStop: () => {} }),
       createRadialGradient: () => ({ addColorStop: () => {} })
     }, { get: (target, key) => target[key] || (() => {}) });
     art.draw(flagContext, cameraFor(QUEST_LOCATIONS[2], 1000, 800, 0.6), 0.6, 1000, 800, []);
     assert.ok(flagColors.length >= 6);
     assert.deepEqual(new Set(flagColors), new Set(PARK_FLAG_COLORS));
+    for (let i = 0; i < flagColors.length; i += 1) {
+      assert.deepEqual(flagDetails.slice(i * 3, i * 3 + 3), [
+        [6, -78.5, 1.5, 15], [16.5, -75.5, 1.5, 10.5], [12, -71, 10.5, 1.5]
+      ]);
+    }
+    assert.equal(flagDetails.length, flagColors.length * 3);
+
+    const forest = QUEST_LOCATIONS[3];
+    const forestTranslations = [];
+    const forestContext = new Proxy({
+      translate: (...args) => forestTranslations.push(args),
+      createLinearGradient: () => ({ addColorStop: () => {} }),
+      createRadialGradient: () => ({ addColorStop: () => {} })
+    }, { get: (target, key) => target[key] || (() => {}) });
+    const canopyPosition = { x: forest.x - 35, y: forest.y - 520 - 190 };
+    art.draw(forestContext, cameraFor(canopyPosition, 1000, 800, 0.6), 0.6, 1000, 800, []);
+    assert.ok(forestTranslations.some(([x, y]) => x === canopyPosition.x && y === canopyPosition.y * 0.68),
+      'the illustrated canopy follows the moved forest');
+    assert.ok(!forestTranslations.some(([x, y]) => x === canopyPosition.x && y === (canopyPosition.y - 360) * 0.68),
+      'the illustrated canopy no longer appears at its old position');
   } finally {
     if (previousDocument === undefined) delete globalThis.document;
     else globalThis.document = previousDocument;

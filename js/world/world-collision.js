@@ -54,8 +54,14 @@ export function worldTrees() {
       || (Math.abs(x - CASTLE_LAYOUT.x) < CASTLE_LAYOUT.width / 2 + 70
         && Math.abs(z - CASTLE_LAYOUT.y - CASTLE_LAYOUT.centerOffset) < CASTLE_LAYOUT.depth / 2 + 70)
       || Math.hypot(x - WORLD_SPAWN.x, z - WORLD_SPAWN.y) < 300) continue;
-    const region = regionBlendAt({ x, y: z }).region.id;
-    if (region === 'park' || region === 'harvest') continue;
+    let region = regionBlendAt({ x, y: z }).region.id;
+    const forestEdge = region === 'park' && Math.abs(x - forest.x) < 620
+      && z > forest.y + CANOPY_OFFSET.z - 680 && z < forest.y + CANOPY_OFFSET.z - 500;
+    if (region === 'harvest' || (region === 'park' && !forestEdge)) continue;
+    if (forestEdge) {
+      if (roadDistance({ x, y: z }) < 120 || trees.some((tree) => Math.hypot(tree.x - x, tree.z - z) < 85)) continue;
+      region = 'forest';
+    }
     trees.push({ x, z, region, size: 0.65 + random(i, 22) * 0.9, variant: i % 3, angle: random(i, 33) * Math.PI * 2 });
   }
   return spaceDeadTrees(trees, [ESCAPE_DECORATIVE_TREE]);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCollision, findCharacterApproach, findWorldPath, MAZE_REGION_CLEARANCE, worldCornWalls, worldObstacles, worldTrees } from '../js/world/world-collision.js';
-import { CASTLE_BARREL_COLLISION_RADIUS, CASTLE_CRATE_COLLISION_SIZE, CASTLE_ENTRANCE, CASTLE_EXTERIOR_SUPPLIES, CASTLE_LAYOUT, CASTLE_TOWERS, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from '../js/world/world-data.js';
+import { CASTLE_BARREL_COLLISION_RADIUS, CASTLE_CRATE_COLLISION_SIZE, CASTLE_ENTRANCE, CASTLE_EXTERIOR_SUPPLIES, CASTLE_LAYOUT, CASTLE_TOWERS, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_ROUTES, WORLD_SCALE, WORLD_SIZE, WORLD_SPAWN } from '../js/world/world-data.js';
 import { WORLD_NPCS } from '../js/world/world-npcs.js';
 import { CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, harvestPumpkins, placeQuestDecorations } from '../js/world/world-scenery-data.js';
 import { regionBlendAt } from '../js/world/world-regions.js';
@@ -94,6 +94,23 @@ test('the relocated park wheel keeps its collision and clears existing scenery',
   const park = QUEST_LOCATIONS[2];
   assert.ok(!obstacles.some((item) => item.x === park.x + 320 && item.y === park.y - 260
     && item.width === 10 && item.depth === 12));
+});
+
+test('the drop tower moves left with its collision and stays clear of scenery and roads', () => {
+  const park = QUEST_LOCATIONS[2], tower = PARK_RIDES.find((ride) => ride.type === 'dropTower');
+  assert.ok(tower);
+  assert.equal(tower.x, park.x - 650);
+  assert.equal(tower.y, park.y + 500);
+  assert.equal(regionBlendAt(tower).region.id, 'park');
+  assert.ok(roadDistance(tower) > 75);
+  const obstacles = worldObstacles();
+  const footprint = obstacles.find((item) => item.x === tower.x && item.y === tower.y
+    && item.width === 34 && item.depth === 34);
+  assert.ok(footprint);
+  assert.ok(createCollision(obstacles).blocked(tower));
+  assert.ok(!createCollision(obstacles.filter((item) => item !== footprint), 45).blocked(tower));
+  assert.ok(!obstacles.some((item) => item.x === park.x - 450 && item.y === park.y + 500
+    && item.width === 34 && item.depth === 34));
 });
 
 test('park banners leave the paths and solid scenery clear', () => {
@@ -411,6 +428,41 @@ test('GoApe canopy stays behind the entrance and its platform trees have clearan
     assert.ok(y + sceneryRadius < forest.entrance.y, 'Canopy must stay behind the entrance');
     assert.ok(trees.every((tree) => Math.hypot(tree.x - x, tree.z - y) >= 75),
       'Generated trees must not overlap a canopy platform');
+  }
+});
+
+test('a tree-lined transition separates the moved GoApe canopy from Thirteen', () => {
+  const forest = QUEST_LOCATIONS[3], obstacles = worldObstacles(), trees = worldTrees();
+  assert.equal(forest.y, 3060);
+  assert.deepEqual(WORLD_ROUTES[3].at(-1).map((coordinate) => coordinate * WORLD_SCALE), [forest.x, forest.y]);
+  const edgeTrees = trees.filter((tree) => tree.region === 'forest'
+    && regionBlendAt({ x: tree.x, y: tree.z }).region.id === 'park');
+  assert.ok(edgeTrees.length >= 6);
+  assert.ok(edgeTrees.some((tree) => tree.x < forest.x - 100));
+  assert.ok(edgeTrees.some((tree) => tree.x > forest.x + 100));
+  for (const tree of edgeTrees) {
+    assert.ok(roadDistance({ x: tree.x, y: tree.z }) >= 120);
+    assert.ok(obstacles.some((item) => item.x === tree.x && item.y === tree.z && item.radius === 10 * tree.size));
+  }
+  const cameraLength = Math.hypot(650, 970);
+  const depthFactor = 650 / cameraLength, heightFactor = 970 / cameraLength;
+  const canopyTop = Math.min(...CANOPY_PLATFORMS.map((platform) =>
+    (forest.y + CANOPY_OFFSET.z + platform.z) * depthFactor
+      - (platform.height + 33 + 177 * 0.6 * 1.08) * heightFactor));
+  const rides = [
+    { ...PARK_MAIN_COASTER, trackType: 'thirteen', rotation: 0 },
+    ...PARK_RIDES.filter((ride) => ride.trackType)
+  ];
+  for (const ride of rides) {
+    const curve = new CatmullRomCurve3(COASTER_TRACKS[ride.trackType].map((point) => new Vector3(...point)),
+      true, 'centripetal');
+    let bottom = -Infinity;
+    for (let i = 0; i < 500; i += 1) {
+      const point = curve.getPointAt(i / 500);
+      const z = ride.y + ride.size * (-point.x * Math.sin(ride.rotation) + point.z * Math.cos(ride.rotation));
+      bottom = Math.max(bottom, z * depthFactor - point.y * ride.size * heightFactor);
+    }
+    assert.ok(canopyTop - bottom >= 180, `${ride.trackType} remains visually clear of the canopy`);
   }
 });
 

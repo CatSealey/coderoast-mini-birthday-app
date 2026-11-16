@@ -11,7 +11,7 @@ import { rockVariant } from './rock-style.js';
 import { COBBLESTONE_SPACING, drawCobblestone } from './cobblestones.js';
 import { drawGamesSign } from './games-sign.js';
 import { drawVenueSign, ESCAPE_SIGN } from './venue-sign.js';
-import { drawCastle, drawCastleSupply } from './castle-scenery.js';
+import { drawCastle, drawCastleFlag, drawCastleSupply } from './castle-scenery.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
 import { drawRoofTiles } from './town-textures.js';
 import { drawFrightMarqueeSign, FRIGHT_MARQUEE } from './fright-marquee.js';
@@ -209,7 +209,7 @@ function addProps() {
   add('stall', park.x - 380, park.y + 260, 1, 1);
   add('stall', PARK_RELOCATED_STALL.x, PARK_RELOCATED_STALL.y, 1);
   add('parkGate', park.x - 475, park.y + 350, 0.8);
-  PARK_RIDES.forEach((ride) => add(ride.type, ride.x, ride.y, ride.size));
+  PARK_RIDES.forEach((ride) => add(ride.type, ride.x, ride.y, ride.size, Number(ride.trackType === 'twistingCoaster')));
   add('queue', park.x - 155, park.y + 195, 1);
   add('queue', park.x + 260, park.y + 155, 0.8);
   add('bench', park.x - 290, park.y + 110, 0.9);
@@ -362,6 +362,8 @@ function drawCoaster(ctx) {
     ctx.fillStyle = '#d3b998'; ctx.fillRect(x - 4, -3, 2, 2); ctx.fillRect(x + 2, -3, 2, 2);
     ctx.strokeStyle = '#ae9a7f'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(x + 2, -3); ctx.lineTo(x + 2, top + 3); ctx.stroke();
+    ctx.strokeStyle = '#8d7a63'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x - 3, top * 0.48); ctx.lineTo(x + 3, top * 0.48); ctx.stroke();
     ctx.strokeStyle = '#615646'; ctx.lineWidth = 7;
   }
   ctx.strokeStyle = '#43342f'; ctx.lineWidth = 11;
@@ -375,11 +377,18 @@ function drawCoaster(ctx) {
   ctx.strokeStyle = 'rgba(255, 224, 177, .55)'; ctx.lineWidth = 1.2;
   ctx.beginPath(); ctx.moveTo(-165, -35); ctx.lineTo(45, -175);
   ctx.quadraticCurveTo(65, -183, 76, -155); ctx.lineTo(112, -61); ctx.quadraticCurveTo(130, -26, 169, -44); ctx.stroke();
+  ctx.strokeStyle = '#d4b28d'; ctx.lineWidth = 1.5;
+  for (let i = 1; i < 13; i += 1) {
+    const x = -165 + i * 15, y = -35 - i * 10;
+    ctx.beginPath(); ctx.moveTo(x - 3, y - 4); ctx.lineTo(x + 3, y + 4); ctx.stroke();
+  }
   for (const x of [25, 43]) {
     ctx.fillStyle = '#40302b'; ctx.fillRect(x - 1, -190, 18, 15);
     ctx.fillStyle = '#834a3e'; ctx.fillRect(x, -188, 16, 11);
     ctx.fillStyle = '#d4ba87'; ctx.fillRect(x + 3, -185, 10, 4);
+    ctx.fillStyle = '#b77b5d'; ctx.fillRect(x + 2, -180, 12, 2);
     ctx.fillStyle = '#2c2d2b'; ctx.fillRect(x + 2, -176, 4, 4); ctx.fillRect(x + 11, -176, 4, 4);
+    ctx.fillStyle = '#d4ba87'; ctx.fillRect(x + 3, -175, 2, 2); ctx.fillRect(x + 12, -175, 2, 2);
   }
 }
 
@@ -422,6 +431,8 @@ function drawWheel(ctx) {
   ellipse(ctx, 0, 3, 92, 18, 'rgba(30, 25, 27, .3)');
   ctx.strokeStyle = '#6f5347'; ctx.lineWidth = 7;
   ctx.beginPath(); ctx.moveTo(-60, 0); ctx.lineTo(0, -104); ctx.lineTo(60, 0); ctx.stroke();
+  ctx.strokeStyle = '#ad9170'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-37, -40); ctx.lineTo(37, -40); ctx.stroke();
   ctx.strokeStyle = '#e0b574'; ctx.lineWidth = 5;
   ctx.beginPath(); ctx.arc(0, -115, 86, 0, Math.PI * 2); ctx.stroke();
   ctx.strokeStyle = '#9b7856'; ctx.lineWidth = 1.5;
@@ -438,6 +449,7 @@ function drawWheel(ctx) {
     ctx.fillStyle = i % 2 ? '#ad6250' : '#6a8191'; ctx.fillRect(x - 9, y + 6, 18, 10);
     ctx.fillStyle = '#dfc99e'; ctx.fillRect(x - 7, y + 8, 14, 2); ctx.fillRect(x - 10, y + 17, 20, 2);
     ctx.fillRect(x - 11, y + 4, 22, 2);
+    ctx.fillStyle = '#f3dfb2'; ctx.fillRect(x - 7, y + 12, 2, 2); ctx.fillRect(x + 5, y + 12, 2, 2);
     drawLight(ctx, x, y, '#f2d694');
   }
   ellipse(ctx, 0, -115, 7, 7, '#c9895e');
@@ -447,12 +459,18 @@ function drawCarousel(ctx) {
   ellipse(ctx, 0, 1, 84, 19, 'rgba(25, 25, 23, .3)');
   ctx.fillStyle = '#8f6048'; ctx.fillRect(-68, -14, 136, 14);
   ctx.fillStyle = '#d0ae7d'; ctx.fillRect(-68, -15, 136, 3); ctx.fillRect(-65, -3, 130, 3);
+  ctx.fillStyle = '#ba946b';
+  for (let x = -57; x <= 57; x += 19) ctx.fillRect(x, -10, 2, 6);
   [-52, -18, 18, 52].forEach((x) => {
     ctx.fillStyle = '#e4c990'; ctx.fillRect(x, -78, 4, 66);
     ctx.fillStyle = '#b7c4a9'; ctx.fillRect(x - 10, -40, 20, 11); ctx.fillRect(x + 6, -49, 7, 13);
+    ctx.fillStyle = '#d9d4b6'; ctx.fillRect(x + 10, -47, 6, 4); ctx.fillRect(x + 7, -53, 2, 5);
+    ctx.fillStyle = '#675744'; ctx.fillRect(x + 4, -48, 3, 8); ctx.fillRect(x - 13, -38, 3, 9);
+    ctx.fillStyle = '#4f493e'; ctx.fillRect(x + 12, -47, 1, 1);
     ctx.fillStyle = '#e1d3b1'; ctx.fillRect(x - 8, -39, 15, 2);
     ctx.fillStyle = '#806a53'; ctx.fillRect(x - 7, -29, 3, 9); ctx.fillRect(x + 5, -29, 3, 9);
     ctx.fillStyle = x < 0 ? PARK_PALETTE.red : PARK_PALETTE.teal; ctx.fillRect(x - 4, -42, 8, 4);
+    ctx.fillStyle = PARK_PALETTE.brass; ctx.fillRect(x - 1, -42, 2, 4);
   });
   ctx.fillStyle = '#a35549'; ctx.beginPath(); ctx.moveTo(-78, -74); ctx.lineTo(0, -128);
   ctx.lineTo(78, -74); ctx.closePath(); ctx.fill();
@@ -619,7 +637,7 @@ function drawProp(ctx, prop) {
     }
     ellipse(ctx, 0, -21, 4, 3, '#d6c6a5');
   } else if (prop.type === 'coaster') drawCoaster(ctx);
-  else if (prop.type === 'loopCoaster' || prop.type === 'woodCoaster' || prop.type === 'dropTower') drawParkRide(ctx, prop.type);
+  else if (prop.type === 'loopCoaster' || prop.type === 'woodCoaster' || prop.type === 'dropTower') drawParkRide(ctx, prop.type, prop.variant);
   else if (prop.type === 'queue') {
     ctx.strokeStyle = '#705542'; ctx.lineWidth = 4;
     for (let x = -65; x <= 65; x += 26) {
@@ -677,6 +695,11 @@ function drawProp(ctx, prop) {
     ctx.fillStyle = '#59504a'; ctx.fillRect(-52, -90, 12, 90); ctx.fillRect(40, -90, 12, 90);
     ctx.fillStyle = '#a78a63'; ctx.fillRect(-55, -5, 18, 5); ctx.fillRect(37, -5, 18, 5);
     ctx.fillRect(-55, -93, 18, 5); ctx.fillRect(37, -93, 18, 5);
+    ctx.fillStyle = '#c9ae80';
+    for (const x of [-49, 43]) {
+      ctx.fillRect(x, -86, 2, 77);
+      for (const y of [-81, -16]) ctx.fillRect(x + 5, y, 2, 2);
+    }
     ctx.strokeStyle = paletteColor(['#784a43', '#855340', '#765346', '#925947'], prop.x, prop.y, 61);
     ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(0, -78, 46, Math.PI, 0); ctx.stroke();
     ctx.save(); ctx.translate(-49, -93); ctx.scale(98 / 512, 18 / 80);
@@ -684,9 +707,8 @@ function drawProp(ctx, prop) {
   } else if (prop.type === 'banner') {
     ctx.fillStyle = '#4b4035'; ctx.fillRect(-5, -5, 10, 5);
     ctx.fillStyle = '#6f5842'; ctx.fillRect(-3, -82, 6, 82);
-    ctx.fillStyle = PARK_FLAG_COLORS[prop.variant]; ctx.beginPath(); ctx.moveTo(3, -80); ctx.lineTo(35, -72); ctx.lineTo(3, -58); ctx.fill();
-    ctx.strokeStyle = 'rgba(247, 221, 175, .65)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(5, -77); ctx.lineTo(29, -72); ctx.lineTo(5, -62); ctx.stroke();
+    ctx.fillStyle = '#a48a68'; ctx.fillRect(-2, -78, 1, 70);
+    drawCastleFlag(ctx, 3, -80, PARK_FLAG_COLORS[prop.variant], 1.5);
     ellipse(ctx, 0, -83, 3, 3, '#d7bc82');
   } else if (prop.type === 'pumpkin') {
     const pumpkinColors = ['#b65c2d', '#c8732e', '#d58a32', '#b88739', '#955c35'];
@@ -772,7 +794,10 @@ function drawProp(ctx, prop) {
     ctx.fillRect(-27, -20, 54, 14);
     ctx.fillStyle = '#b9976b'; ctx.fillRect(-27, -20, 54, 2); ctx.fillRect(-27, -7, 54, 2);
     ctx.strokeStyle = 'rgba(63, 43, 30, .5)'; ctx.lineWidth = 1;
-    for (const x of [-18, 0, 18]) { ctx.beginPath(); ctx.moveTo(x, -18); ctx.lineTo(x, -7); ctx.stroke(); }
+    for (const x of [-18, 0, 18]) {
+      ctx.beginPath(); ctx.moveTo(x, -18); ctx.lineTo(x, -7); ctx.stroke();
+      ctx.fillStyle = '#cfb183'; ctx.fillRect(x + 4, -16, 1.5, 1.5);
+    }
     ctx.fillStyle = paletteColor(
       prop.variant ? ['#a77151', '#ae7651', '#98674e', '#b78356', '#a36e48'] : ['#c1a477', '#b69a69', '#c9ae7b', '#b99b6d', '#c2a06b'],
       prop.x, prop.y, 83
@@ -782,10 +807,16 @@ function drawProp(ctx, prop) {
     ctx.lineWidth = 3; ctx.stroke();
     ctx.strokeStyle = 'rgba(238, 219, 180, .6)'; ctx.lineWidth = 3;
     for (const x of [-15, 0, 15]) { ctx.beginPath(); ctx.moveTo(x * 0.75, -44); ctx.lineTo(x, -31); ctx.stroke(); }
+    for (let x = -25; x <= 25; x += 10) {
+      ctx.fillStyle = x % 20 === 0 ? '#dfcba0' : '#aa7054';
+      ctx.fillRect(x - 4, -30, 8, 4);
+      ctx.fillStyle = '#e9d2a4'; ctx.fillRect(x - 4, -27, 8, 1);
+    }
     for (const [i, x] of [-14, 0, 14].entries()) {
       ctx.fillStyle = [PARK_PALETTE.cream, PARK_PALETTE.red, PARK_PALETTE.teal][i];
       ctx.fillRect(x - 3, -28, 6, 7);
       ctx.fillStyle = '#d7bc82'; ctx.fillRect(x - 4, -29, 8, 2);
+      ctx.fillStyle = '#f0dcb0'; ctx.fillRect(x - 1, -26, 2, 3);
     }
   } else if (prop.type === 'field') {
     ctx.fillStyle = '#6f6b3f'; ctx.fillRect(-90, -35, 180, 35);
