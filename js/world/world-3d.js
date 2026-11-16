@@ -19,7 +19,7 @@ import { createRockGeometry, createRockTexture } from './rock-geometry.js';
 import { rockVariant } from './rock-style.js';
 import { cornStalks, createCornGeometry, createCornTexture } from './corn-scenery.js';
 import { createPumpkinGeometry, pumpkinHasFace } from './pumpkin-scenery.js';
-import { createTownTexture } from './town-textures.js';
+import { createRoofTileGeometry, createTownTexture } from './town-textures.js';
 import { createGamesSignTexture } from './games-sign.js';
 import { createVenueSignTexture } from './venue-sign.js';
 import { CASTLE_GATE_PLANKS, CASTLE_PALETTE, CASTLE_TOWER_WINDOWS, castleFlagPosition, castleSupplyStyle, createCastleArchGeometry, createCastleBannerGeometry, createCastleFlagGeometry } from './castle-scenery.js';
@@ -219,14 +219,8 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     for (const side of [-1, 1]) {
       const eave = box(parent, Math.hypot(width / 2, height) + 4, 4, depth + 6, color,
         side * width / 4, y + height / 2, 0);
-      textured(eave, 'roof', color);
       eave.rotation.z = -side * slope;
-      for (let row = 1; row <= 4; row += 1) {
-        const fraction = row / 5;
-        const trim = box(parent, 2, 2, depth + 8, '#8e6e5a',
-          side * width / 2 * fraction, y + height * (1 - fraction) + 2, 0);
-        trim.rotation.z = -side * slope;
-      }
+      textured(mesh(createRoofTileGeometry(width, depth, height, side), color, parent, 0, y, 0), 'roof', color);
     }
     return item;
   }

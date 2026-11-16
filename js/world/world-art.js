@@ -13,6 +13,7 @@ import { drawGamesSign } from './games-sign.js';
 import { drawVenueSign } from './venue-sign.js';
 import { drawCastle, drawCastleSupply } from './castle-scenery.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
+import { drawRoofTiles } from './town-textures.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -325,15 +326,10 @@ function building(ctx, variant, stone = null) {
     ctx.fillStyle = stone ? CHURCH_WOOD : '#896a50';
     ctx.beginPath(); ctx.moveTo(0, -h - 45); ctx.lineTo(30, -h - 60);
     ctx.lineTo(w / 2 + 42, -h - 16); ctx.lineTo(w / 2 + 9, -h); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = 'rgba(225, 194, 143, .25)'; ctx.lineWidth = 2;
-    for (let i = 0; i < 4; i += 1) {
-      ctx.beginPath(); ctx.moveTo(-w / 2 + i * 18, -h - 2); ctx.lineTo(i * 5, -h - 40); ctx.stroke();
-    }
-    ctx.strokeStyle = 'rgba(58, 42, 34, .3)'; ctx.lineWidth = 0.8;
-    for (let row = 1; row < 4; row += 1) {
-      const y = -h - row * 9;
-      ctx.beginPath(); ctx.moveTo(-w / 2 + row * 11, y); ctx.lineTo(w / 2 - row * 11, y); ctx.stroke();
-    }
+    drawRoofTiles(ctx, [
+      { x: 0, y: -h - 45 }, { x: 30, y: -h - 60 },
+      { x: w / 2 + 42, y: -h - 16 }, { x: w / 2 + 9, y: -h }
+    ]);
     ctx.strokeStyle = '#795a43'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(-49, -h); ctx.lineTo(0, -h - 38); ctx.lineTo(49, -h);
     ctx.moveTo(0, -h - 38); ctx.lineTo(0, -h - 4); ctx.moveTo(-40, -h - 5); ctx.lineTo(40, -h - 5); ctx.stroke();
@@ -506,11 +502,10 @@ function drawProp(ctx, prop) {
     ctx.fillStyle = CHURCH_STONE.base; ctx.fillRect(-56, -151, 51, 8);
     ctx.fillStyle = CHURCH_WOOD;
     ctx.beginPath(); ctx.moveTo(-60, -151); ctx.lineTo(-30, -192); ctx.lineTo(0, -151); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = 'rgba(230, 197, 161, .35)'; ctx.lineWidth = 1;
-    for (let row = 1; row <= 3; row += 1) {
-      ctx.beginPath(); ctx.moveTo(-60 + row * 7, -151 - row * 9);
-      ctx.lineTo(-row * 7, -151 - row * 9); ctx.stroke();
-    }
+    drawRoofTiles(ctx, [
+      { x: -30, y: -192 }, { x: -30, y: -192 },
+      { x: 0, y: -151 }, { x: -60, y: -151 }
+    ], 5, 4);
     ctx.fillStyle = '#e5d7b4'; ctx.fillRect(-32, -207, 4, 17); ctx.fillRect(-37, -202, 14, 4);
     ctx.fillStyle = '#506c78'; ctx.fillRect(-41, -129, 20, 33);
     ctx.fillStyle = CHURCH_STONE.trim; ctx.fillRect(-32, -129, 2, 33); ctx.fillRect(-41, -114, 20, 2);
