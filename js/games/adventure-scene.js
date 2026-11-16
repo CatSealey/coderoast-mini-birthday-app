@@ -5,6 +5,9 @@ import { drawCoasterItem } from './coaster-art.js';
 import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
 import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
 import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
+import { createFirCanopy, createNeedleTexture, createPlatformFirTrunk } from '../world/fir-tree.js';
+import { createTreeBarkTexture } from '../world/tree-geometry.js';
+import { CANOPY_EDGE_TREES, CANOPY_FOREST_TREES } from './canopy-scenery.js';
 
 const BARTENDER_OUTFIT = '#536c67';
 const BARTENDER_STYLE = Object.freeze({ trousers: '#332f2b', belt: '#1e201e', hairLength: 'short' });
@@ -24,7 +27,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
   const coneGeometry = new THREE.ConeGeometry(0.5, 1, 8);
   const triangleGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 3);
-  const materials = new Map(), textures = [], interactive = [], platformMeshes = [];
+  const materials = new Map(), textures = [], sceneryGeometries = [], interactive = [], platformMeshes = [];
   const collectibles = new Map(), beacons = new Map(), rideTreats = new Map(), rideItemImages = new Map();
   let state, player, train, ball, lightMarker, platformAmor, width = 1, height = 1, scale = 1, ballAnimation = 0, lastBallLost = false;
   let platformCarriage, pubLove, joinedHands, pubExitMarker, dropTrack;
@@ -398,8 +401,45 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       train = carriage(true);
     } else {
       box(1160, -100, 350, 2320, 10, 700, '#142d24');
-      for (let x = 25; x < 2320; x += 80) for (let z = 35; z < 700; z += 90) {
-        round(coneGeometry, x, -48, z, 80, 105, 80, (x + z) % 3 ? '#203f30' : '#294c36');
+      const barkTexture = createTreeBarkTexture(), needleTexture = createNeedleTexture();
+      for (const texture of [barkTexture, needleTexture]) {
+        texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+        textures.push(texture);
+      }
+      const bark = new THREE.MeshStandardMaterial({ map: barkTexture, vertexColors: true, roughness: 1 });
+      const needles = new THREE.MeshStandardMaterial({ map: needleTexture, vertexColors: true, roughness: 1 });
+      const distantNeedles = new THREE.MeshStandardMaterial({ map: needleTexture, color: '#b2c5b2', vertexColors: true, roughness: 1 });
+      materials.set('canopy-tree-bark', bark); materials.set('canopy-tree-needles', needles);
+      materials.set('canopy-distant-needles', distantNeedles);
+      function firInstances(trees, geometry, treeMaterial, place) {
+        const mesh = new THREE.InstancedMesh(geometry, treeMaterial, trees.length);
+        const object = new THREE.Object3D();
+        trees.forEach((tree, i) => {
+          place(object, tree);
+          object.rotation.y = tree.angle;
+          object.updateMatrix();
+          mesh.setMatrixAt(i, object.matrix);
+        });
+        scene.add(mesh);
+      }
+      for (let variant = 0; variant < 3; variant += 1) {
+        const canopyGeometry = createFirCanopy(variant), trunkGeometry = createPlatformFirTrunk(variant);
+        sceneryGeometries.push(canopyGeometry, trunkGeometry);
+        const background = CANOPY_FOREST_TREES.filter((tree) => tree.variant === variant);
+        const edge = CANOPY_EDGE_TREES.filter((tree) => tree.variant === variant);
+        const variantHeight = variant === 1 ? 1.08 : 1;
+        firInstances(background, canopyGeometry, distantNeedles, (o, t) => {
+          o.position.set(t.x, -100 - 41 * 0.75, t.z);
+          o.scale.set(0.87, 0.75 / variantHeight, 0.87);
+        });
+        firInstances(edge, canopyGeometry, needles, (o, t) => {
+          o.position.set(t.x, 35, t.z);
+          o.scale.set(1.5, 1.15 / variantHeight, 1.5);
+        });
+        firInstances(edge, trunkGeometry, bark, (o, t) => {
+          o.position.set(t.x, -100, t.z);
+          o.scale.set(1, 260 / (165 * (1 + (variant - 1) * 0.025)), 1);
+        });
       }
       box(CANOPY_ZIPLINE.end.x, -8, CANOPY_ZIPLINE.end.y, 150, 16, 110, '#806443');
       for (const p of CANOPY_PLATFORMS) {
@@ -415,10 +455,6 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         for (let x = p.left + 25; x < p.right; x += 50) for (const z of [p.top + 8, p.bottom - 8]) {
           box(x, p.height + 22, z, 3, 44, 3, '#d1b680');
         }
-      }
-      for (const x of [100, 270, 460, 660, 850, 1050, 1250, 1450, 1650, 1820]) for (const z of [70, 620]) {
-        round(cylinderGeometry, x, 30, z, 34, 260, 34, '#59402f');
-        for (let i = 0; i < 3; i += 1) round(coneGeometry, x, 130 + i * 32, z, 140 - i * 25, 95, 140 - i * 25, i % 2 ? '#365c42' : '#294e38');
       }
       for (const p of CANOPY_PLATFORMS) {
         const x = (p.left + p.right) / 2, z = p.top + 16;
@@ -765,6 +801,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   }
   return { draw, resize, objectPosition, dispose() {
     canvas.removeEventListener('click', click); boxGeometry.dispose(); torsoGeometry.dispose(); sphereGeometry.dispose(); cylinderGeometry.dispose(); coneGeometry.dispose(); triangleGeometry.dispose(); materials.forEach((m) => m.dispose());
+    sceneryGeometries.forEach((geometry) => geometry.dispose());
     textures.forEach((t) => t.dispose()); renderer?.dispose();
   } };
 }

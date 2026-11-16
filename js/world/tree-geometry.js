@@ -16,6 +16,35 @@ const DEAD_LIMBS = [
   [[-4, 0, -19, 2], [-3, 5, -11, 5], [0, 23, -2, 6]]
 ];
 
+export function createTreeBarkTexture() {
+  const image = document.createElement('canvas');
+  image.width = 256; image.height = 512;
+  const ctx = image.getContext('2d');
+  if (!ctx) throw new Error('Could not create the tree bark texture.');
+  const random = (index, salt) => {
+    const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
+    return value - Math.floor(value);
+  };
+  ctx.fillStyle = '#ede4d6'; ctx.fillRect(0, 0, 256, 512);
+  for (let i = 0; i < 120; i += 1) {
+    const x = random(i, 91) * 256;
+    const phase = random(i, 92) * Math.PI * 2;
+    ctx.strokeStyle = i % 4 === 0 ? 'rgba(255, 250, 235, .38)' : 'rgba(67, 45, 32, .25)';
+    ctx.lineWidth = 0.6 + random(i, 93) * 2.5;
+    ctx.beginPath();
+    for (let y = 0; y <= 512; y += 16) {
+      const offset = Math.sin(y / 512 * Math.PI * 2 + phase) * (2 + random(i, 94) * 4);
+      if (y === 0) ctx.moveTo(x + offset, y);
+      else ctx.lineTo(x + offset, y);
+    }
+    ctx.stroke();
+  }
+  const texture = new THREE.CanvasTexture(image);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+}
+
 export function createDeadTreeGeometry(variant) {
   return createTreeBranchGeometry(DEAD_LIMBS, variant);
 }

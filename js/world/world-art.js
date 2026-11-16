@@ -229,6 +229,28 @@ function addProps() {
   return props;
 }
 
+function drawFirFoliage(ctx, variant) {
+  const palette = variant === 1 ? ['#344f3c', '#526d49'] : variant === 2 ? ['#244b40', '#416c51'] : ['#2c503b', '#496e4a'];
+  const width = variant === 1 ? 0.8 : 1;
+  for (let tier = 0; tier < 8; tier += 1) {
+    const y = -38 - tier * 13;
+    const radius = (37 - tier * 4) * width;
+    for (const side of [-1, 1]) {
+      const tip = side * radius * (0.92 + random(tier, variant + side + 5) * 0.16);
+      ctx.fillStyle = palette[(tier + (side === 1 ? 1 : 0)) % 2];
+      ctx.beginPath(); ctx.moveTo(0, y - 10); ctx.lineTo(tip * 0.4, y - 8);
+      ctx.lineTo(tip, y + 3); ctx.lineTo(tip * 0.78, y + 1);
+      ctx.lineTo(tip * 0.86, y + 6); ctx.lineTo(tip * 0.53, y + 2);
+      ctx.lineTo(tip * 0.58, y + 7); ctx.lineTo(tip * 0.25, y + 3);
+      ctx.lineTo(0, y + 5); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(201, 220, 168, .23)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(side * 3, y - 5); ctx.lineTo(tip * 0.8, y + 1);
+      ctx.moveTo(tip * 0.32, y - 3); ctx.lineTo(tip * 0.42, y + 1);
+      ctx.moveTo(tip * 0.55, y - 1); ctx.lineTo(tip * 0.65, y + 3); ctx.stroke();
+    }
+  }
+}
+
 function tree(ctx, pine, variant) {
   ellipse(ctx, 10, 4, 37, 12, 'rgba(11, 24, 17, .32)');
   ctx.fillStyle = '#463728';
@@ -237,14 +259,7 @@ function tree(ctx, pine, variant) {
   ctx.strokeStyle = '#8d7852'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(-2, -4); ctx.lineTo(-1, -60); ctx.stroke();
   if (pine) {
-    ['#244d35', '#315d3b', '#496e42'].forEach((color, i) => {
-      ctx.fillStyle = color; ctx.beginPath();
-      ctx.moveTo(-36 + i * 4, -35 - i * 24); ctx.lineTo(0, -112 - i * 12);
-      ctx.lineTo(36 - i * 4, -35 - i * 24); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = 'rgba(177, 197, 128, .12)';
-      ctx.beginPath(); ctx.moveTo(-36 + i * 4, -35 - i * 24);
-      ctx.lineTo(0, -112 - i * 12); ctx.lineTo(-2, -35 - i * 24); ctx.closePath(); ctx.fill();
-    });
+    drawFirFoliage(ctx, variant);
   } else {
     ctx.fillStyle = '#594735';
     ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-7, -13); ctx.lineTo(-5, -58);
@@ -349,12 +364,14 @@ function drawCoaster(ctx) {
 
 function drawCanopy(ctx) {
   ellipse(ctx, 0, 2, 175, 22, 'rgba(12, 24, 17, .35)');
-  [-140, 140].forEach((x) => {
+  [-140, 140].forEach((x, index) => {
     ctx.fillStyle = '#49382b'; ctx.fillRect(x - 9, -185, 18, 185);
-    ctx.fillStyle = '#5d7748';
-    ctx.beginPath(); ctx.moveTo(x - 53, -135); ctx.lineTo(x, -245); ctx.lineTo(x + 53, -135); ctx.fill();
-    ctx.fillStyle = '#365b3c';
-    ctx.beginPath(); ctx.moveTo(x - 57, -105); ctx.lineTo(x, -206); ctx.lineTo(x + 57, -105); ctx.fill();
+    ctx.strokeStyle = '#8d7852'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - 3, -4); ctx.lineTo(x - 3, -180);
+    ctx.moveTo(x + 4, -10); ctx.lineTo(x + 5, -175); ctx.stroke();
+    ctx.save(); ctx.translate(x, -67); ctx.scale(1.35, 1.15);
+    drawFirFoliage(ctx, index === 0 ? 0 : 2);
+    ctx.restore();
     ctx.fillStyle = '#a18152'; ctx.fillRect(x - 49, -105, 98, 11);
     ctx.strokeStyle = '#dfc795'; ctx.lineWidth = 2; ctx.strokeRect(x - 49, -105, 98, 11);
   });
