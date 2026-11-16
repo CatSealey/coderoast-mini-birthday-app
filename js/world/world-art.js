@@ -432,18 +432,37 @@ function drawCarousel(ctx) {
   for (let x = -65; x <= 65; x += 26) drawLight(ctx, x, -72, '#ffe1a0');
 }
 
-function drawCornWall(ctx, vertical) {
+function drawCornWall(ctx, vertical, wallX, wallY) {
+  const leafColors = ['#71843e', '#899347', '#a19c4d', '#b4a053', '#b58a4a'];
   ellipse(ctx, 0, 2, vertical ? 12 : 69, vertical ? 49 : 12, 'rgba(43, 35, 19, .28)');
   for (let i = 0; i < 16; i += 1) {
     const x = vertical ? 0 : -67.5 + i * 9;
     const y = vertical ? -46 + i * 6.1 : 0;
-    const height = 38 + random(i, 32) * 20;
-    ctx.strokeStyle = i % 2 ? '#c1a34b' : '#dfbf5e';
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 2, y - height);
-    ctx.moveTo(x, y - 10); ctx.lineTo(x - 8, y - 30);
-    ctx.moveTo(x, y - 15); ctx.lineTo(x + 8, y - 35); ctx.stroke();
-    ctx.fillStyle = '#dbc16c'; ctx.fillRect(x - 3, y - height, 5, 9);
+    const height = 38 + random(i + wallX, wallY + 32) * 20;
+    const lean = (random(i + wallX, wallY + 33) - 0.5) * 4;
+    const stalkTone = random(i + wallX, wallY + 34);
+    ctx.strokeStyle = stalkTone < 0.5 ? '#817947' : '#aa9450';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + lean, y - height * 0.5, x + lean, y - height); ctx.stroke();
+    for (let j = 0; j < 6; j += 1) {
+      const side = (i + j) % 2 ? 1 : -1;
+      const base = y - height * (0.14 + j * 0.12);
+      const shade = Math.floor(random(i + wallX, wallY + 35 + j) * leafColors.length);
+      ctx.fillStyle = leafColors[shade];
+      ctx.beginPath(); ctx.moveTo(x + lean * 0.5, base);
+      ctx.quadraticCurveTo(x + side * 4, base - 15, x + side * (9 + j % 2), base - 11);
+      ctx.quadraticCurveTo(x + side * 5, base - 3, x + lean * 0.5, base); ctx.fill();
+      ctx.strokeStyle = shade === 4 ? 'rgba(241, 199, 123, .65)' : 'rgba(218, 204, 129, .5)';
+      ctx.lineWidth = 0.7;
+      ctx.beginPath(); ctx.moveTo(x + lean * 0.5, base);
+      ctx.quadraticCurveTo(x + side * 4, base - 9, x + side * (9 + j % 2), base - 11); ctx.stroke();
+    }
+    ctx.fillStyle = '#c9b874';
+    ctx.beginPath(); ctx.ellipse(x + 3, y - height * 0.48, 2.3, 5.5, 0.25, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#dbc991'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x + lean, y - height + 3); ctx.lineTo(x + lean, y - height - 6);
+    ctx.moveTo(x + lean, y - height); ctx.lineTo(x + lean - 4, y - height - 5);
+    ctx.moveTo(x + lean, y - height); ctx.lineTo(x + lean + 4, y - height - 5); ctx.stroke();
   }
 }
 
@@ -547,7 +566,7 @@ function drawProp(ctx, prop) {
   else if (prop.type === 'canopy') drawCanopy(ctx);
   else if (prop.type === 'wheel') drawWheel(ctx);
   else if (prop.type === 'carousel') drawCarousel(ctx);
-  else if (prop.type === 'cornWall') drawCornWall(ctx, prop.variant === 1);
+  else if (prop.type === 'cornWall') drawCornWall(ctx, prop.variant === 1, prop.x, prop.y);
   else if (prop.type === 'fairyLight') {
     const colors = ['#f9b775', '#d795df', '#8dd8cb', '#e8d585'];
     ctx.strokeStyle = '#4c4a38'; ctx.lineWidth = 3;

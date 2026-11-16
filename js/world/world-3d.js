@@ -17,6 +17,7 @@ import { createFoliageTexture, createLeafyBranches, createLeafyCanopy } from './
 import { createFirCanopy, createFirTrunk, createNeedleTexture, createPlatformFirTrunk, platformFirLayout } from './fir-tree.js';
 import { createRockGeometry, createRockTexture } from './rock-geometry.js';
 import { rockVariant } from './rock-style.js';
+import { cornStalks, createCornGeometry, createCornTexture } from './corn-scenery.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -632,14 +633,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
         ['#f9bb70', '#e899cb', '#8dd8cb'][(i + from) % 3], 2.5);
     }
   });
-  const corn = [];
-  worldCornWalls().forEach((wall) => {
-    const x = wall.x, z = wall.y;
-    for (let i = 0; i < 11; i += 1) {
-      const offset = -62 + i * 12.4;
-      corn.push({ x: x + (wall.vertical ? 0 : offset), z: z + (wall.vertical ? offset : 0), size: 0.8 + random(i + x, z) * 0.35 });
-    }
-  });
+  const corn = cornStalks(worldCornWalls());
   harvestPumpkins().forEach(({ x, y, variant, scale, rotation }) => {
     const pumpkin = groupAt(x, y);
     pumpkin.rotation.y = rotation;
@@ -666,17 +660,17 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     });
     scene.add(instanced);
   }
-  instances(corn, new THREE.CylinderGeometry(3, 6, 70, 5), '#a28c47', (o, stalk) => {
-    o.position.set(stalk.x, 35 * stalk.size, stalk.z); o.scale.setScalar(stalk.size);
-  });
-  instances(corn, new THREE.ConeGeometry(9, 30, 5), '#d2b45d', (o, stalk) => {
-    o.position.set(stalk.x, 75 * stalk.size, stalk.z); o.scale.setScalar(stalk.size);
-  });
-  for (const side of [-1, 1]) {
-    instances(corn, new THREE.ConeGeometry(7, 35, 4), '#b7a052', (o, stalk) => {
-      o.position.set(stalk.x + side * 8, 38 * stalk.size, stalk.z);
-      o.rotation.z = -side * 0.65; o.scale.setScalar(stalk.size);
-    });
+  const cornTexture = createCornTexture();
+  cornTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+  textures.add(cornTexture);
+  const cornMaterial = new THREE.MeshStandardMaterial({ map: cornTexture, vertexColors: true, roughness: 1, side: THREE.DoubleSide });
+  materials.set('corn-stalks', cornMaterial);
+  for (let variant = 0; variant < 5; variant += 1) {
+    instances(corn.filter((stalk) => stalk.variant === variant), createCornGeometry(variant), null, (o, stalk) => {
+      o.position.set(stalk.x, 0, stalk.z);
+      o.rotation.y = stalk.angle;
+      o.scale.setScalar(stalk.size);
+    }, cornMaterial);
   }
   const barkTexture = createTreeBarkTexture();
   barkTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
