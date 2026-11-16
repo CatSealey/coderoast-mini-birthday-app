@@ -15,6 +15,8 @@ import { SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
 import { createDeadTreeGeometry, createTreeBarkTexture } from './tree-geometry.js';
 import { createFoliageTexture, createLeafyBranches, createLeafyCanopy } from './leafy-tree.js';
 import { createFirCanopy, createFirTrunk, createNeedleTexture, createPlatformFirTrunk, platformFirLayout } from './fir-tree.js';
+import { createRockGeometry, createRockTexture } from './rock-geometry.js';
+import { rockVariant } from './rock-style.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -735,11 +737,17 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     }, treeBarkMaterial);
   }
   const rocks = treeData.filter((t) => t.variant === 0);
-  instances(rocks, new THREE.IcosahedronGeometry(13, 0), '#888b78', (o, t) => {
-    o.position.set(t.x + 48, 6, t.z + 18);
-    o.scale.set(1.3, 0.6, 1);
-    o.rotation.y = t.size;
-  });
+  const rockTexture = createRockTexture();
+  rockTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+  textures.add(rockTexture);
+  const rockMaterial = new THREE.MeshStandardMaterial({ map: rockTexture, vertexColors: true, roughness: 1 });
+  materials.set('natural-rock', rockMaterial);
+  for (let variant = 0; variant < 3; variant += 1) {
+    instances(rocks.filter((tree) => rockVariant(tree.x, tree.z) === variant), createRockGeometry(variant), null, (o, t) => {
+      o.position.set(t.x + 48, 6, t.z + 18);
+      o.rotation.y = t.size;
+    }, rockMaterial);
+  }
   const shadowImage = document.createElement('canvas');
   shadowImage.width = 64; shadowImage.height = 64;
   const shadowContext = shadowImage.getContext('2d');

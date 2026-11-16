@@ -7,9 +7,16 @@ import { CANOPY_OFFSET, harvestPumpkins, placeQuestDecorations } from './world-s
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_PLAZA, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { createSurroundingTerrain, SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
 import { ESCAPE_DECORATIVE_TREE } from './tree-spacing.js';
+import { rockVariant } from './rock-style.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
+const ROCK_PALETTES = [
+  ['#767d70', '#989e89', '#aeb09a'],
+  ['#6b7976', '#89978f', '#a4aea0'],
+  ['#7e7b6d', '#a09c88', '#b5b19a']
+];
+const ROCK_GRAIN = [[-9, -15], [-3, -21], [8, -17], [-15, -9], [9, -9], [15, -12]];
 
 export function projectWorld(position, camera, zoom) {
   return { x: (position.x - camera.x) * zoom, y: (position.y - camera.y) * zoom * TILT };
@@ -224,7 +231,7 @@ function addProps() {
   }
   [...worldTrees(), ...surroundingTrees()].forEach(({ x, z, size, variant, region }) => {
     add(region === 'forest' ? 'pine' : region === 'escape' ? 'deadTree' : 'tree', x, z, size, variant);
-    if (variant === 0) add('rock', x + 48, z + 18, 1);
+    if (variant === 0) add('rock', x + 48, z + 18, 1, rockVariant(x, z));
   });
   return props;
 }
@@ -584,8 +591,21 @@ function drawProp(ctx, prop) {
   }
   else if (prop.type === 'rock') {
     ellipse(ctx, 4, 3, 26, 10, 'rgba(12, 25, 17, .3)');
-    ctx.fillStyle = '#777c69'; ctx.beginPath(); ctx.moveTo(-20, 0); ctx.lineTo(-14, -20); ctx.lineTo(2, -27); ctx.lineTo(20, -16); ctx.lineTo(24, 0); ctx.fill();
-    ctx.fillStyle = '#a5a58b'; ctx.beginPath(); ctx.moveTo(-14, -20); ctx.lineTo(2, -27); ctx.lineTo(12, -20); ctx.lineTo(-3, -17); ctx.fill();
+    const [dark, middle, light] = ROCK_PALETTES[prop.variant];
+    ctx.fillStyle = dark; ctx.beginPath(); ctx.moveTo(-21, -1); ctx.lineTo(-19, -10);
+    ctx.lineTo(-13, -21); ctx.lineTo(-3, -25 - prop.variant); ctx.lineTo(8, -24);
+    ctx.lineTo(19, -17); ctx.lineTo(23, -8); ctx.lineTo(22, 0); ctx.lineTo(8, 2);
+    ctx.lineTo(-8, 1); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = middle; ctx.beginPath(); ctx.moveTo(-19, -10); ctx.lineTo(-13, -21);
+    ctx.lineTo(-3, -25 - prop.variant); ctx.lineTo(8, -24); ctx.lineTo(19, -17);
+    ctx.lineTo(13, -10); ctx.lineTo(2, -8); ctx.lineTo(-8, -11); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = light; ctx.beginPath(); ctx.moveTo(-13, -21); ctx.lineTo(-3, -25 - prop.variant);
+    ctx.lineTo(8, -24); ctx.lineTo(12, -19); ctx.lineTo(0, -17); ctx.lineTo(-8, -18); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(48, 58, 52, .35)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(5, -14); ctx.lineTo(2, -10); ctx.lineTo(4, -7);
+    ctx.moveTo(-14, -7); ctx.lineTo(-11, -5); ctx.moveTo(12, -5); ctx.lineTo(15, -4); ctx.stroke();
+    ctx.fillStyle = 'rgba(228, 230, 209, .35)';
+    ROCK_GRAIN.forEach(([x, y]) => ctx.fillRect(x, y, 1.5, 1));
   } else if (prop.type === 'lamp' || prop.type === 'sign') {
     ctx.fillStyle = '#55442e'; ctx.fillRect(-3, -44, 6, 44);
     ctx.fillStyle = prop.type === 'lamp' ? '#e5c16e' : '#b59a68'; ctx.fillRect(-9, -53, 18, 13);
