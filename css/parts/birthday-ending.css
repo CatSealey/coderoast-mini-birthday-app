@@ -5,6 +5,13 @@
   bottom: 108px;
   min-height: 44px;
   padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+}
+
+.trophy-room__continue:focus-visible {
+  outline-width: 2px;
+  outline-offset: 1px;
 }
 
 .trophy-room__continue[hidden],
@@ -20,6 +27,8 @@
   right: 12px;
   min-height: 44px;
   padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.7rem;
 }
 
 .trophy-room__ticket {

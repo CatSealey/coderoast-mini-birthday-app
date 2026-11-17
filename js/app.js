@@ -5,7 +5,7 @@ import { restoreAdventureState } from './games/adventure-logic.js';
 import { mountFrightWorld } from './games/fright-world.js';
 import { restoreFrightState } from './games/fright-logic.js';
 import { mountTrophyRoom } from './games/trophy-room.js';
-import { presentAvailable, restoreDisplays, restoreTrophyQuest } from './games/trophy-logic.js';
+import { presentAvailable, restoreBirthdayGuests, restoreDisplays, restoreTrophyQuest } from './games/trophy-logic.js';
 import { restoreHouseState } from './games/abigail-house.js';
 import { questItems } from './quest-items.js';
 import { mountOverworld } from './world/overworld.js';
@@ -108,7 +108,8 @@ export function startGame(characterName) {
         const trophyDisplays = restoreDisplays(saved.trophyDisplays, state.completed);
         const trophyQuest = restoreTrophyQuest(saved.trophyQuest, trophyDisplays);
         if (!presentAvailable(trophyDisplays, state.completed)) trophyQuest.completed = false;
-        return { ...state, gameSaves, trophyDisplays, trophyQuest, sideQuestCompleted: restoreSideQuestProgress(saved.sideQuestCompleted) };
+        const birthdayGuestsPresent = restoreBirthdayGuests(saved.birthdayGuestsPresent, trophyQuest, trophyDisplays, state.completed);
+        return { ...state, gameSaves, trophyDisplays, trophyQuest, birthdayGuestsPresent, sideQuestCompleted: restoreSideQuestProgress(saved.sideQuestCompleted) };
       }
     } catch (error) {
       console.error('Could not restore birthday quest progress.', error);
@@ -122,6 +123,7 @@ export function startGame(characterName) {
   let gameSaves = progress.gameSaves;
   let trophyDisplays = progress.trophyDisplays;
   let trophyQuest = progress.trophyQuest;
+  let birthdayGuestsPresent = progress.birthdayGuestsPresent;
   let sideQuestCompleted = progress.sideQuestCompleted;
   let inTrophyRoom = false;
   let suppressGameSaves = false;
@@ -191,7 +193,7 @@ export function startGame(characterName) {
 
   function saveProgress(progressToSave = { completed, accepted, gameSaves, trophyDisplays, trophyQuest }) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sideQuestCompleted, ...progressToSave }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sideQuestCompleted, birthdayGuestsPresent, ...progressToSave }));
       document.querySelector('#saveNotice').hidden = true;
       return true;
     } catch (error) {
@@ -572,7 +574,7 @@ export function startGame(characterName) {
     setStageStatus('Trophy room', '');
     world.setPaused(true);
     disposeGame = mountTrophyRoom(abigailRoot, {
-      characterName, memories, images: keepsakeImages, completed, displays: trophyDisplays,
+      characterName, memories, images: keepsakeImages, completed, displays: trophyDisplays, guestsPresent: birthdayGuestsPresent,
       onDisplays: (displays) => { trophyDisplays = displays; saveProgress(); renderTrophySteps(); },
       onPresent: () => {
         if (!presentAvailable(trophyDisplays, completed)) return false;
@@ -595,7 +597,11 @@ export function startGame(characterName) {
         return true;
       },
       onCakeArrives: () => audio.startBirthdayCelebration(),
-      onBirthdayFinished: () => audio.finishBirthdayCelebration(),
+      onBirthdayFinished: () => {
+        birthdayGuestsPresent = true;
+        saveProgress();
+        audio.finishBirthdayCelebration();
+      },
       onBirthdayEnd: () => audio.stopBirthdayCelebration(),
       onLeave: leaveTrophyRoom,
       onMessage: (message) => { dialogue.textContent = message; document.querySelector('#worldMessage').textContent = message; }
@@ -690,14 +696,14 @@ export function startGame(characterName) {
     if (removingTrophyQuest) {
       const updated = {
         completed, accepted, gameSaves, trophyDisplays: Array(memories.length).fill(false),
-        trophyQuest: { accepted: false, completed: false }
+        trophyQuest: { accepted: false, completed: false }, birthdayGuestsPresent: false
       };
       if (!saveProgress(updated)) {
         document.querySelector('#removeQuestDescription').textContent = 'The quest could not be removed because your browser could not save progress. Please try again.';
         return;
       }
       closeRemoveQuestDialog(); leaveTrophyRoom();
-      trophyDisplays = updated.trophyDisplays; trophyQuest = updated.trophyQuest;
+      trophyDisplays = updated.trophyDisplays; trophyQuest = updated.trophyQuest; birthdayGuestsPresent = false;
       document.querySelector('#trophyQuestEntry .quest-steps').open = false;
       renderInventory();
       renderChapterNavigation();
@@ -709,7 +715,7 @@ export function startGame(characterName) {
     }
     const index = questToRemove;
     if (index === null || (!accepted[index] && !completed[index])) return;
-    const updated = { ...removeQuestProgress({ completed, accepted }, index), gameSaves: [...gameSaves], trophyDisplays: [...trophyDisplays], trophyQuest: { ...trophyQuest, completed: false } };
+    const updated = { ...removeQuestProgress({ completed, accepted }, index), gameSaves: [...gameSaves], trophyDisplays: [...trophyDisplays], trophyQuest: { ...trophyQuest, completed: false }, birthdayGuestsPresent: false };
     updated.gameSaves[index] = null;
     updated.trophyDisplays[index] = false;
     if (!saveProgress(updated)) {
@@ -729,6 +735,7 @@ export function startGame(characterName) {
     gameSaves = updated.gameSaves;
     trophyDisplays = updated.trophyDisplays;
     trophyQuest = updated.trophyQuest;
+    birthdayGuestsPresent = false;
     document.querySelector(`#qentry-${index + 1} .quest-steps`).open = false;
     world.clearQuestSelection(index);
     if (wasActive && worldQuestIndex === null) {
@@ -778,7 +785,7 @@ export function startGame(characterName) {
     }
     suppressGameSaves = true;
     completed = fresh.completed; accepted = fresh.accepted; gameSaves = fresh.gameSaves;
-    trophyDisplays = fresh.trophyDisplays; trophyQuest = fresh.trophyQuest; sideQuestCompleted = fresh.sideQuestCompleted;
+    trophyDisplays = fresh.trophyDisplays; trophyQuest = fresh.trophyQuest; birthdayGuestsPresent = false; sideQuestCompleted = fresh.sideQuestCompleted;
     settingsDialog.close();
     leaveWorldQuest(); leaveTrophyRoom();
     if (questDialog.open) closeQuestDialog();

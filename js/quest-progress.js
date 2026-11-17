@@ -12,6 +12,7 @@ export function freshGameProgress(count) {
     gameSaves: Array(count).fill(null),
     trophyDisplays: Array(count).fill(false),
     trophyQuest: { accepted: false, completed: false },
+    birthdayGuestsPresent: false,
     sideQuestCompleted: restoreSideQuestProgress(null)
   };
 }

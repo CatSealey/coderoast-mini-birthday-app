@@ -1,5 +1,15 @@
 export const TROPHY_COUNT = 5;
-export const TROPHY_EXIT = Object.freeze({ x: 210, z: 575, range: 75 });
+export const HALL_WIDTH = 1040;
+export const HALL_CENTER = HALL_WIDTH / 2;
+export const TROPHY_EXIT = Object.freeze({ x: HALL_CENTER, z: 575, range: 75 });
+export const HALL_EXIT_MAT = Object.freeze({ x: HALL_CENTER, z: 558.5, width: 150, depth: 75 });
+
+export function isOnHallExitMat(x, z) {
+  const { x: center, z: midpoint, width, depth } = HALL_EXIT_MAT;
+  const edge = midpoint + depth / 2;
+  const dx = (x - center) / (width / 2), dz = (z - edge) / depth;
+  return dz >= -1 && dz <= 0 && dx * dx + dz * dz <= 1;
+}
 
 export function nearTrophyExit(player) {
   return Math.hypot(player.x - TROPHY_EXIT.x, player.z - TROPHY_EXIT.z) <= TROPHY_EXIT.range;
@@ -8,6 +18,11 @@ export function nearTrophyExit(player) {
 export function restoreTrophyQuest(saved, displays) {
   const completed = saved?.completed === true;
   return { accepted: saved?.accepted === true || completed || displays.some(Boolean), completed };
+}
+
+export function restoreBirthdayGuests(saved, trophyQuest, displays, completed) {
+  return trophyQuest.completed && presentAvailable(displays, completed)
+    && (saved === undefined || saved === true);
 }
 
 export function restoreDisplays(saved, completed) {

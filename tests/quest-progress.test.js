@@ -10,6 +10,7 @@ test('a fresh game has no quest progress, items, displays or finale', () => {
     gameSaves: [null, null, null, null, null],
     trophyDisplays: [false, false, false, false, false],
     trophyQuest: { accepted: false, completed: false },
+    birthdayGuestsPresent: false,
     sideQuestCompleted: [false, false, false, false, false]
   });
   fresh.completed[0] = true;
