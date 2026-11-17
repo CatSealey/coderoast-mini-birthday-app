@@ -18,6 +18,7 @@ const images = {
 };
 const adventureImages = {
   drinks: new URL('../assets/items/drinks.svg', import.meta.url).href,
+  cue: new URL('../assets/items/pool-cue.svg', import.meta.url).href,
   cues: new URL('../assets/items/pool-cues.svg', import.meta.url).href,
   balls: new URL('../assets/items/pool-balls.svg', import.meta.url).href,
   eight: new URL('../assets/items/eight-ball.svg', import.meta.url).href,
@@ -57,7 +58,10 @@ export function questItems(saves) {
   const pub = saves[1];
   if (pub?.version === 3) {
     if (pub.drinks) items.push({ name: 'Drinks', image: adventureImages.drinks, quest: 'Lucky Chucks' });
-    if (pub.cues) items.push({ name: 'Pool cues', image: adventureImages.cues, quest: 'Lucky Chucks' });
+    if (pub.cues) {
+      const single = pub.cuesPlaced || pub.catCueGiven;
+      items.push({ name: single ? 'Pool cue' : 'Pool cues', image: single ? adventureImages.cue : adventureImages.cues, quest: 'Lucky Chucks' });
+    }
     if (pub.balls) items.push({ name: 'Pool balls', image: adventureImages.balls, quest: 'Lucky Chucks' });
     if (pub.hook) items.push({ name: 'Retrieval hook', image: adventureImages.hook, quest: 'Lucky Chucks' });
     if (pub.ballFound) items.push({ name: 'Eight-ball', image: adventureImages.eight, quest: 'Lucky Chucks' });

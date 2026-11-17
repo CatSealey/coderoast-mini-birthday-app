@@ -50,19 +50,33 @@ test('Abigail journal records independent clues, runes and unlocked door', () =>
 });
 
 test('Lucky Chucks keeps used items checked after placement and completion', () => {
-  const state = { ...newAdventureState(1), drinksPlaced: true, cuesPlaced: true, ballsPlaced: true,
+  const state = { ...newAdventureState(1), drinksPlaced: true, cuesPlaced: true, catCueGiven: true, ballsPlaced: true,
     caseUnlocked: true, ballLost: true, ballFound: true };
   let steps = questJournalSteps(1, state);
   for (const phrase of ['Collect drinks', 'pool cues', 'collect the balls', 'retrieval hook', 'Retrieve the eight-ball']) {
     assert.equal(done(steps, phrase), true);
   }
   assert.equal(done(steps, 'Give the eight-ball'), false);
+  assert.equal(done(steps, 'Give the longer cue'), true);
   steps = questJournalSteps(1, { ...state, ballFound: false, pubEnding: 'ready' });
   assert.equal(done(steps, 'Retrieve the eight-ball'), true);
   assert.equal(done(steps, 'Give the eight-ball'), true);
   assert.equal(done(steps, 'Leave Lucky Chucks'), false);
   steps = questJournalSteps(1, { ...state, ballFound: false, complete: true });
   assert.ok(steps.every((entry) => entry.done));
+});
+
+test('Lucky Chucks journal tracks each cue separately and supports older saves', () => {
+  const initial = newAdventureState(1);
+  let steps = questJournalSteps(1, { ...initial, cues: true, cuesPlaced: true });
+  assert.equal(done(steps, 'Lean your shorter cue'), true);
+  assert.equal(done(steps, 'Give the longer cue'), false);
+  steps = questJournalSteps(1, { ...initial, cues: true, catCueGiven: true });
+  assert.equal(done(steps, 'Lean your shorter cue'), false);
+  assert.equal(done(steps, 'Give the longer cue'), true);
+  const { catCueGiven, ...old } = { ...initial, cuesPlaced: true };
+  void catCueGiven;
+  assert.equal(done(questJournalSteps(1, old), 'Give the longer cue'), true);
 });
 
 test('Thirteen journal tracks treats, retries, and later phases', () => {

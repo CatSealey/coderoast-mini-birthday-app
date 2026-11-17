@@ -10,6 +10,7 @@ import { createTreeBarkTexture } from '../world/tree-geometry.js';
 import { CANOPY_EDGE_TREES, CANOPY_FOREST_TREES } from './canopy-scenery.js';
 import { createCanopyDeckTexture, drawCanopyDeck } from '../world/canopy-platform.js';
 import { createParkGroundCanvas, createParkGroundTexture, drawParkCar, PARK_PALETTE } from '../world/park-style.js';
+import { PUB_CAMERA_OFFSET, PUB_FURNITURE_PALETTE, PUB_POOL_LIGHTS, PUB_RACK_CUES, PUB_RUG, PUB_SHORT_CUE_SCALE, addPubCue, addPubFurnitureDetails, addPubStoolDetails, addPubWallDetails, drawPubHeldCue, drawPubInterior, drawPubObject, paintPubFloor, paintPubRug, positionPubCatCue, pubCameraFraming, pubCatHoldsCue, pubCuesTaken } from './pub-interior-art.js';
 
 const BARTENDER_OUTFIT = '#536c67';
 const BARTENDER_STYLE = Object.freeze({ trousers: '#332f2b', belt: '#1e201e', hairLength: 'short' });
@@ -22,6 +23,15 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   const ctx = renderer ? null : canvas.getContext('2d');
   if (!renderer && !ctx) throw new Error('Could not initialize the quest scene.');
   const parkGround = !renderer && index === 2 ? createParkGroundCanvas() : null;
+  function pubCanvas(width, height, paint) {
+    const image = document.createElement('canvas'); image.width = width; image.height = height;
+    const context = image.getContext('2d');
+    if (!context) throw new Error('Could not create the pub artwork.');
+    paint(context);
+    return image;
+  }
+  const pubFloor = index === 1 ? pubCanvas(1000, 700, paintPubFloor) : null;
+  const pubRug = index === 1 ? pubCanvas(340, 195, paintPubRug) : null;
   const scene = new THREE.Scene(), camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 4000);
   const raycaster = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -34,7 +44,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   const collectibles = new Map(), beacons = new Map(), rideTreats = new Map(), rideItemImages = new Map();
   let state, player, train, ball, platformAmor, width = 1, height = 1, scale = 1, ballAnimation = 0, lastBallLost = false;
   let platformCarriage, pubLove, joinedHands, pubExitMarker, dropTrack;
-  let cueGuide, poolBalls, placedCues, placedDrinks, previousPlayer, walkPhase = 0, facing = 0;
+  let cueGuide, poolBalls, placedCue, catCue, rackTakenCues, placedDrinks, previousPlayer, walkPhase = 0, facing = 0;
   const theme = index === 1 ? '#342f28' : index === 2 ? '#20272f' : '#152b29';
   scene.background = new THREE.Color(theme);
 
@@ -63,19 +73,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     return mesh;
   }
   function woodFloor() {
-    const image = document.createElement('canvas'); image.width = 512; image.height = 512;
-    const c = image.getContext('2d');
-    if (!c) throw new Error('Could not create the pub floor texture.');
-    c.fillStyle = '#826044'; c.fillRect(0, 0, 512, 512);
-    for (let y = 0; y < 512; y += 32) {
-      c.fillStyle = y % 64 ? '#79583e' : '#896849'; c.fillRect(0, y, 512, 30);
-      c.strokeStyle = '#5d4431'; c.lineWidth = 2; c.beginPath(); c.moveTo(0, y); c.lineTo(512, y); c.stroke();
-      for (let x = (y % 64 ? -64 : 0); x < 512; x += 128) {
-        c.fillStyle = '#604531'; c.fillRect(x, y, 2, 30);
-        c.fillStyle = '#a0805c'; c.fillRect(x + 12, y + 9, 80, 1); c.fillRect(x + 28, y + 23, 64, 1);
-      }
-    }
-    const texture = new THREE.CanvasTexture(image); texture.colorSpace = THREE.SRGBColorSpace;
+    const texture = new THREE.CanvasTexture(pubFloor); texture.colorSpace = THREE.SRGBColorSpace;
     textures.push(texture);
     const floor = box(500, -8, 350, 1000, 16, 700, '#ffffff');
     const floorMaterial = new THREE.MeshStandardMaterial({ map: texture, roughness: 1 });
@@ -188,7 +186,13 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         mesh.userData.label.position.y = 153;
       }
       if (object.id === 'amor') platformAmor = mesh;
-      if (index === 1 && object.id === 'love') pubLove = mesh;
+      if (index === 1 && object.id === 'love') {
+        pubLove = mesh;
+        catCue = new THREE.Group();
+        positionPubCatCue(catCue);
+        pubLove.userData.arms[0].add(catCue);
+        addPubCue({ box, round, cylinder: cylinderGeometry, parent: catCue }, 0, 26, 0);
+      }
     } else {
       if (kind === 'carriage') {
         mesh = carriage();
@@ -203,14 +207,13 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           round(cylinderGeometry, x + offset, 116, z, 6, 6, 6, '#d4c184');
         }
       } else if (kind === 'pool') {
-        mesh = box(x, 37, z, POOL_TABLE_FOOTPRINT.width, 55, 125, '#65482f');
+        mesh = box(x, 46.5, z, POOL_TABLE_FOOTPRINT.width, 35, 125, '#65482f');
         box(x, 68, z, 205, 8, 110, '#397852');
         for (const dz of [-61, 61]) box(x, 75, z + dz, 220, 14, 9, '#b48a51');
         for (const dx of [-108, 108]) box(x + dx, 75, z, 9, 14, 115, '#b48a51');
         for (const dx of [-80, 80]) for (const dz of [-40, 40]) {
           box(x + dx, 19, z + dz, 15, 38, 15, '#483527');
         }
-        for (const dx of [-94, 0, 94]) for (const dz of [-47, 47]) box(x + dx, 73, z + dz, 13, 3, 13, '#141d19');
         poolBalls = new THREE.Group(); scene.add(poolBalls);
         for (let row = 0; row < 4; row += 1) for (let col = 0; col <= row; col += 1) {
           const piece = round(sphereGeometry, x + 24 + row * 9, 78, z + (col - row / 2) * 10, 10, 10, 10,
@@ -221,8 +224,10 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         const cueBall = round(sphereGeometry, x - 65, 78, z, 10, 10, 10, '#f2ead8', poolBalls);
         cueBall.userData.start = cueBall.position.clone(); cueBall.userData.scatter = { x: 45, z: -16 };
         ball = round(sphereGeometry, x + 12, 77, z, 12, 12, 12, '#141a1c');
-        placedCues = new THREE.Group(); scene.add(placedCues);
-        for (const dz of [-68, -74]) box(x - 15, 83, z + dz, 145, 3, 3, '#dfc18d', placedCues);
+        placedCue = new THREE.Group(); placedCue.position.set(x - 117.5, 45 * PUB_SHORT_CUE_SCALE, z);
+        placedCue.scale.y = PUB_SHORT_CUE_SCALE;
+        placedCue.rotation.z = -0.17; scene.add(placedCue);
+        addPubCue({ box, round, cylinder: cylinderGeometry, parent: placedCue }, 0, 0, 0);
         cueGuide = box(x - 5, 80, z, 120, 2, 2, '#fff3be', scene, true);
       } else if (kind === 'table') {
         mesh = box(x, 60, z, 100, 8, 70, '#9a7046');
@@ -234,12 +239,15 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         }
       } else if (kind === 'rack') {
         mesh = box(x, 45, z, 80, 90, 15, '#60422e');
-        for (const dx of [-25, -5, 15, 30]) box(x + dx, 51, z + 10, 4, 90, 4, '#d4b77a');
+        rackTakenCues = new THREE.Group(); scene.add(rackTakenCues);
+        for (const { offset, taken, short } of PUB_RACK_CUES) {
+          const cue = new THREE.Group(); cue.position.set(x + offset, 3, z + 9);
+          if (short) cue.scale.y = PUB_SHORT_CUE_SCALE;
+          (taken ? rackTakenCues : scene).add(cue);
+          addPubCue({ box, round, cylinder: cylinderGeometry, parent: cue }, 0, 45, 0);
+        }
       } else if (kind === 'tools') {
-        mesh = box(x, 45, z, 75, 90, 38, '#674833');
-        box(x, 48, z + 20, 66, 75, 3, '#936a48');
-        for (const dx of [-18, 18]) box(x + dx, 48, z + 22, 3, 65, 3, '#d0b988');
-        box(x + 27, 45, z + 23, 5, 5, 3, '#d6b66e');
+        mesh = box(x, 45, z, 75, 90, 38, PUB_FURNITURE_PALETTE.tools.body);
       } else if (kind === 'locker') {
         mesh = new THREE.Group();
         mesh.position.set(x, h, z);
@@ -254,9 +262,8 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         }
         box(0, 103, 0, 62, 3, depth + 2, '#9ba6a2', mesh);
       } else if (kind === 'note') {
-        mesh = box(x, 36, z, 62, 70, 32, '#70503b');
-        box(x, 75, z, 40, 3, 25, '#e1d2aa');
-        for (const dz of [-6, 0, 6]) box(x, 77, z + dz, 28, 1, 1, '#8e765a');
+        mesh = box(x, 77, z, 54, 4, 27, '#704b33');
+        mesh.rotation.x = 0.32;
       } else if (kind === 'net' || kind === 'rope') {
         const crossing = CANOPY_CROSSINGS[object.id];
         const [endX, , endHeight] = crossing.end;
@@ -289,10 +296,12 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         round(cylinderGeometry, x, h + 9, z, 30, 18, 30, '#644c35');
         round(cylinderGeometry, x, h + 20, z, 36, 4, 36, '#b79a5f');
       } else {
-        const color = kind === 'collectible' ? '#e5d18a' : '#805c40';
+        const color = kind === 'collectible' ? '#e5d18a' : PUB_FURNITURE_PALETTE[kind]?.body || '#805c40';
         mesh = box(x, h + 28, z, kind === 'collectible' ? 20 : 60, kind === 'collectible' ? 20 : 56,
-          kind === 'collectible' ? 20 : 45, color, scene, kind === 'collectible');
-        if (kind === 'cabinet') box(x, h + 30, z + 24, 48, 42, 4, '#a78c67');
+          kind === 'collectible' ? 20 : kind === 'box' ? 42 : 45, color, scene, kind === 'collectible');
+      }
+      if (index === 1 && object.footprint) {
+        addPubFurnitureDetails(object, { box, round, cylinder: cylinderGeometry, sphere: sphereGeometry, parent: scene });
       }
       if (kind === 'collectible') collectibles.set(object.id, mesh);
       if (index === 2 && kind === 'carriage') {
@@ -309,16 +318,15 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     const sun = new THREE.DirectionalLight('#f0d7a2', 2); sun.position.set(-300, 900, 600); scene.add(sun);
     if (index === 1) {
       woodFloor();
-      box(500, 78, 0, 1000, 156, 20, '#967f68');
-      box(0, 78, 350, 20, 156, 700, '#967f68');
+      box(500, 78, 0, 1000, 156, 20, '#a49a87');
       box(500, 26, 12, 1000, 52, 5, '#553c2e');
-      box(12, 26, 350, 5, 52, 700, '#553c2e');
       for (const x of [40, 320, 610, 960]) box(x, 82, 16, 12, 164, 12, '#604734');
       box(185, 102, 14, 275, 10, 35, '#5b3e2e');
       box(185, 140, 14, 275, 10, 35, '#5b3e2e');
       for (let x = 65; x <= 305; x += 25) for (const y of [115, 153]) {
         round(cylinderGeometry, x, y, 22, 8, 22, 8, ['#577b60', '#aa8554', '#826349'][(x / 25 | 0) % 3]);
         round(cylinderGeometry, x, y + 13, 22, 4, 5, 4, '#d2bb7d');
+        box(x, y, 26.1, 7, 7, 1, ['#dfc99e', '#e4d7b6', '#d2a775'][(x / 25 | 0) % 3]);
       }
       for (const x of [405, 700, 880]) {
         box(x, 105, 13, 105, 80, 5, '#4d392f');
@@ -327,17 +335,19 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         box(x, 105, 22, 88, 63, 2, '#35564e');
         box(x, 105, 24, 4, 63, 2, '#c3a97b'); box(x, 105, 24, 88, 4, 2, '#c3a97b');
       }
-      box(530, 2, 385, 340, 3, 195, '#573e36');
-      box(530, 4, 385, 325, 2, 180, '#80584b');
+      const rugTexture = new THREE.CanvasTexture(pubRug); rugTexture.colorSpace = THREE.SRGBColorSpace; textures.push(rugTexture);
+      materials.set('pub-rug', new THREE.MeshStandardMaterial({ map: rugTexture, roughness: 1 }));
+      box(PUB_RUG.x, 2, PUB_RUG.y, PUB_RUG.width, 3, PUB_RUG.depth, '#ffffff').material = materials.get('pub-rug');
       for (const { x, y: z, radius } of PUB_STOOLS) {
         if (radius === 17.5) {
           round(cylinderGeometry, x, 20, z, 8, 40, 8, '#5a3d2c');
           round(cylinderGeometry, x, 42, z, radius * 2, 7, radius * 2, '#9a714c');
           round(cylinderGeometry, x, 2, z, 24, 4, 24, '#4f392e');
         } else {
-          round(cylinderGeometry, x, 35, z, 10, 70, 10, '#523c2c');
-          round(cylinderGeometry, x, 71, z, radius * 2, 8, radius * 2, '#956d48');
-          round(cylinderGeometry, x, 77, z, 37, 5, 37, '#68473d');
+          for (const dx of [-7, 7]) for (const dz of [-7, 7]) {
+            box(x + dx, 17, z + dz, 4, 34, 4, '#523c2c');
+          }
+          round(cylinderGeometry, x, 36, z, radius * 2, 7, radius * 2, '#956d48');
         }
       }
       for (const x of [360, 660, 920]) {
@@ -345,6 +355,28 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         round(cylinderGeometry, x, 126, 100, 34, 10, 34, '#d9bc79');
         round(sphereGeometry, x, 119, 100, 15, 12, 15, '#f3d996', scene, true);
       }
+      const pubArt = { box, round, cylinder: cylinderGeometry, sphere: sphereGeometry, parent: scene };
+      addPubWallDetails(pubArt);
+      addPubStoolDetails(pubArt);
+      for (const { x, y, z } of PUB_POOL_LIGHTS) {
+        const light = new THREE.PointLight('#ffd18a', 2600, 230, 2);
+        light.position.set(x, y, z); scene.add(light);
+      }
+      box(535, 108, 23, 150, 62, 7, '#4d3429');
+      box(535, 108, 27, 142, 54, 2, '#c6a674');
+      const sign = pubCanvas(568, 216, (c) => {
+        c.fillStyle = '#2c483b'; c.fillRect(0, 0, 568, 216);
+        c.strokeStyle = '#d6b77d'; c.lineWidth = 5; c.strokeRect(12, 12, 544, 192);
+        c.textAlign = 'center'; c.fillStyle = '#f2d89d'; c.font = 'bold 53px Georgia, serif';
+        c.fillText('LUCKY CHUCKS', 284, 94);
+        c.font = '24px Georgia, serif'; c.fillText('POOL  ·  DRINKS  ·  GOOD TIMES', 284, 146);
+        c.fillStyle = '#d3b678'; c.fillRect(150, 166, 268, 3);
+      });
+      const signTexture = new THREE.CanvasTexture(sign); signTexture.colorSpace = THREE.SRGBColorSpace; textures.push(signTexture);
+      const signMaterial = new THREE.MeshBasicMaterial({ map: signTexture });
+      materials.set('pub-sign', signMaterial);
+      const signGeometry = new THREE.PlaneGeometry(136, 49); sceneryGeometries.push(signGeometry);
+      const signMesh = new THREE.Mesh(signGeometry, signMaterial); signMesh.position.set(535, 108, 28.1); scene.add(signMesh);
       pubExitMarker = new THREE.Group(); scene.add(pubExitMarker);
       box(PUB_EXIT.x, 3, PUB_EXIT.y, 100, 5, 65, '#567b62', pubExitMarker);
       box(PUB_EXIT.x, 7, PUB_EXIT.y, 65, 3, 5, '#d7c58c', pubExitMarker);
@@ -524,9 +556,11 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     scale = Math.min(width / (index === 3 && width < 520 ? 580 : 1050), height / 750);
     if (renderer) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(width, height, false);
-      const viewHeight = width < 520 ? 820 : 850;
-      camera.left = -viewHeight * width / height / 2; camera.right = -camera.left;
-      camera.top = viewHeight / 2; camera.bottom = -camera.top; camera.updateProjectionMatrix();
+      const framing = index === 1 ? pubCameraFraming(width, height) : { height: width < 520 ? 820 : 850, centerX: 0, centerY: 0 };
+      const halfWidth = framing.height * width / height / 2;
+      camera.left = framing.centerX - halfWidth; camera.right = framing.centerX + halfWidth;
+      camera.top = framing.centerY + framing.height / 2; camera.bottom = framing.centerY - framing.height / 2;
+      camera.updateProjectionMatrix();
     } else {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = width * dpr; canvas.height = height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -596,7 +630,8 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         pubExitMarker.visible = state.pubEnding === 'ready';
       }
       player.userData.label.position.set(state.player.x, state.player.height + (state.pubTogether ? 145 : 105), state.player.y);
-      camera.position.set(targetX + 500, 1100, targetY + 950);
+      if (index === 1) camera.position.set(targetX + PUB_CAMERA_OFFSET.x, PUB_CAMERA_OFFSET.y, targetY + PUB_CAMERA_OFFSET.z);
+      else camera.position.set(targetX + 500, 1100, targetY + 950);
       camera.lookAt(targetX, 0, targetY); camera.updateMatrixWorld();
       if (ball) {
         const t = state.ballFound || state.pubEnding ? 1 : ballAnimation;
@@ -614,7 +649,9 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
             piece.userData.start.z + piece.userData.scatter.z * t);
         });
       }
-      if (placedCues) placedCues.visible = state.cuesPlaced;
+      if (placedCue) placedCue.visible = state.cuesPlaced;
+      if (catCue) catCue.visible = pubCatHoldsCue(state);
+      if (rackTakenCues) rackTakenCues.visible = !pubCuesTaken(state);
       if (placedDrinks) placedDrinks.visible = state.drinksPlaced;
       if (cueGuide) {
         cueGuide.visible = state.shot;
@@ -655,7 +692,10 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     ctx.fillStyle = theme; ctx.fillRect(0, 0, width, height);
     const sx = (x) => width / 2 + (x - targetX) * scale, sy = (y) => height / 2 + (y - targetY) * scale;
     const partnerScreen = { x: sx(state.player.x) + PUB_PARTNER_OFFSET * scale, y: sy(state.player.y) };
-    if (index !== 3) { ctx.fillStyle = index === 1 ? '#71583f' : '#414d3d'; ctx.fillRect(sx(0), sy(0), 1000 * scale, 700 * scale); }
+    if (index === 1) {
+      ctx.save(); ctx.translate(sx(0), sy(0)); ctx.scale(scale, scale);
+      drawPubInterior(ctx, pubFloor, pubRug); ctx.restore();
+    } else if (index === 2) { ctx.fillStyle = '#414d3d'; ctx.fillRect(sx(0), sy(0), 1000 * scale, 700 * scale); }
     else for (const [i, p] of CANOPY_PLATFORMS.entries()) {
       drawCanopyDeck(ctx, sx(p.left), sy(p.top), (p.right - p.left) * scale, (p.bottom - p.top) * scale,
         { variant: i, tone: i <= state.checkpoint + 1 ? 'warm' : 'locked' });
@@ -740,10 +780,6 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         ctx.fillStyle = '#567b62';
         ctx.fillRect(sx(PUB_EXIT.x - 50), sy(PUB_EXIT.y - 32.5), 100 * scale, 65 * scale);
       }
-      ctx.fillStyle = '#956d48';
-      for (const stool of PUB_STOOLS) {
-        ctx.beginPath(); ctx.arc(sx(stool.x), sy(stool.y), stool.radius * scale, 0, Math.PI * 2); ctx.fill();
-      }
     }
     OBJECTS[index].forEach((object) => {
       if (['amor', 'carriage'].includes(object.id) && ['riding', 'dropping', 'returning'].includes(state.phase)) return;
@@ -775,14 +811,6 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         }
         return;
       }
-      if (index === 1 && object.kind === 'pool') {
-        ctx.fillStyle = '#65482f';
-        ctx.fillRect(sx(object.x - POOL_TABLE_FOOTPRINT.width / 2), sy(object.y - POOL_TABLE_FOOTPRINT.depth / 2),
-          POOL_TABLE_FOOTPRINT.width * scale, POOL_TABLE_FOOTPRINT.depth * scale);
-        ctx.fillStyle = '#397852';
-        ctx.fillRect(sx(object.x - 100), sy(object.y - 52), 200 * scale, 104 * scale);
-        return;
-      }
       if (index === 1 && object.footprint) {
         const objectX = object.id === 'love' && state.pubTogether ? partner.x : object.x;
         const objectY = object.id === 'love' && state.pubTogether ? partner.y : object.y;
@@ -791,6 +819,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           const together = object.id === 'love' && state.pubTogether;
           const x = together ? partnerScreen.x : sx(objectX);
           const y = together ? partnerScreen.y : sy(objectY);
+          if (object.id === 'love' && pubCatHoldsCue(state)) drawPubHeldCue(ctx, x, y);
           drawCharacterMarker(ctx, x, y, bartender ? BARTENDER_OUTFIT : CAT_OUTFIT,
             bartender ? BARTENDER_STYLE
               : { ...CAT_STYLE, stride: together ? swing : 0, heldArm: together ? catHeldArm : -1, facing: together ? facing : 0 });
@@ -800,15 +829,8 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           }
           return;
         }
-        ctx.fillStyle = object.kind === 'npc' ? '#d29caf' : '#a9895e';
-        const { width: w, depth: d, radius } = object.footprint;
-        if (radius !== undefined) {
-          ctx.beginPath(); ctx.arc(sx(objectX), sy(objectY), radius * scale, 0, Math.PI * 2); ctx.fill();
-        } else ctx.fillRect(sx(objectX - w / 2), sy(objectY - d / 2), w * scale, d * scale);
-        if (object.kind === 'npc') {
-          ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
-          ctx.fillText(object.name, sx(objectX), sy(objectY) - 17);
-        }
+        ctx.save(); ctx.translate(sx(0), sy(0)); ctx.scale(scale, scale);
+        drawPubObject(ctx, object, state, ballAnimation); ctx.restore();
         return;
       }
       if (object.id === 'amor') {
@@ -874,6 +896,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   function targetXForClick() {
     if (!state) return 500;
     if (state.pubTogether) return state.player.x;
+    if (index === 1) return 500;
     if (index === 3 && state.zipline) return state.player.x;
     if (index === 3) return Math.max(220, Math.min(CANOPY_PLATFORMS.at(-1).left, state.player.x));
     if (!renderer && index === 2) return 500;

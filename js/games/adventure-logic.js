@@ -30,7 +30,7 @@ export const OBJECTS = {
       interactionArea: PUB_BAR
     },
     { id: 'rack-note', name: 'Scorecard', x: 285, y: 130, kind: 'note', footprint: { width: 62, depth: 32 } },
-    { id: 'drinks-table', name: 'Drinks table', x: 540, y: 440, kind: 'table', footprint: { width: 100, depth: 70 } },
+    { id: 'drinks-table', name: 'Drinks table', x: 530, y: 520, kind: 'table', footprint: { width: 100, depth: 70 } },
     { id: 'cue-rack', name: 'Cue rack', x: 835, y: 130, kind: 'rack', footprint: { width: 80, depth: 23 } },
     { id: 'ball-box', name: 'Ball case', x: 115, y: 510, kind: 'box', footprint: { width: 60, depth: 45 } },
     {
@@ -70,7 +70,7 @@ const PUB_PLAYER_RADIUS = 10;
 const PUB_INTERACTION_RANGE = 25;
 export const PUB_STOOLS = Object.freeze([
   ...[75, 135, 195].map((x) => Object.freeze({ x, y: 205, radius: 17.5 })),
-  ...[420, 640].flatMap((x) => [470, 570].map((y) => Object.freeze({ x, y, radius: 23.5 })))
+  ...[420, 640].flatMap((x) => [470, 570].map((y) => Object.freeze({ x, y, radius: 18.5 })))
 ]);
 export const PUB_OBSTACLES = Object.freeze([
   ...OBJECTS[1].map(({ id, x, y, footprint }) => ({ id, x, y, ...footprint })),
@@ -310,7 +310,7 @@ export function newAdventureState(index) {
   if (!ADVENTURE_NAMES[index]) throw new RangeError('Unknown adventure.');
   const base = { version: 3, player: { x: index === 1 ? 70 : 90, y: index === 3 ? 350 : index === 1 ? 560 : 610, height: 0 }, complete: false, message: initialMessages[index] };
   if (index === 1) return {
-    ...base, drinks: false, drinksPlaced: false, cues: false, balls: false, cuesPlaced: false,
+    ...base, drinks: false, drinksPlaced: false, cues: false, balls: false, cuesPlaced: false, catCueGiven: false,
     ballsPlaced: false, ballLost: false, ballFound: false, noteRead: false, caseUnlocked: false, puzzle: false,
     hook: false, shot: false, pubEnding: null
   };
@@ -335,7 +335,7 @@ export function restoreAdventureState(index, saved) {
   const flags = index === 1 ? ['drinks', 'drinksPlaced', 'cues', 'balls', 'cuesPlaced', 'ballsPlaced', 'ballLost', 'ballFound']
     : index === 2 ? ['bags', 'ticket'] : [];
   const valid = validPlayer && flags.every((flag) => typeof saved[flag] === 'boolean')
-    && (index !== 1 || ['noteRead', 'caseUnlocked', 'hook'].every((flag) => saved[flag] === undefined || typeof saved[flag] === 'boolean'))
+    && (index !== 1 || ['noteRead', 'caseUnlocked', 'hook', 'catCueGiven'].every((flag) => saved[flag] === undefined || typeof saved[flag] === 'boolean'))
     && (index !== 1 || saved.pubEnding === undefined || saved.pubEnding === null || ['dialogue', 'ready'].includes(saved.pubEnding))
     && (index !== 2 || saved.rideEnding === undefined || saved.rideEnding === null || ['dialogue', 'ready'].includes(saved.rideEnding))
     && typeof saved.complete === 'boolean'
@@ -371,6 +371,7 @@ export function restoreAdventureState(index, saved) {
   }
   const restored = { ...initial, ...saved, player: { ...player }, message: initialMessages[index] };
   if (index === 1) {
+    if (saved.catCueGiven === undefined) restored.catCueGiven = saved.cuesPlaced;
     restored.puzzle = false;
     restored.shot = false;
     if (saved.caseUnlocked === undefined && (saved.balls || saved.ballsPlaced)) restored.caseUnlocked = true;
@@ -625,8 +626,9 @@ export function interactAdventure(index, state, id) {
     if (id === 'drinks-table') return state.drinksPlaced ? message(state, 'The drinks are ready.')
       : state.drinks ? { ...state, drinks: false, drinksPlaced: true, message: 'You put the drinks beside the pool table.' }
         : message(state, 'Get the drinks from the bar first.');
-    if (id === 'cue-rack') return state.cuesPlaced ? message(state, 'The cues are already at the pool table.')
-      : { ...state, cues: true, message: 'You pick up the pool cues.' };
+    if (id === 'cue-rack') return state.cues || state.cuesPlaced || state.catCueGiven
+      ? message(state, 'You have already taken two cues from the rack.')
+      : { ...state, cues: true, message: 'You take two cues. Give the longer one to Cat and lean your shorter cue against the pool table.' };
     if (id === 'rack-note') return {
       ...state, noteRead: true,
       message: 'Scorecard: The case code is half the table pockets, then one cue each for you and Cat, then the eight-ball.'
@@ -637,15 +639,20 @@ export function interactAdventure(index, state, id) {
           : message(state, 'The ball case is locked. Find a clue to its code in the pub.');
     if (id === 'pool-table') {
       if (state.ballLost) return message(state, 'The eight-ball rolled away. Search around the cabinet.');
-      if (state.cuesPlaced && state.ballsPlaced) return {
+      if (state.cuesPlaced && state.catCueGiven && state.ballsPlaced) return {
         ...state, shot: true,
         message: 'Line up your break and choose a controlled power. The guide shows where the cue ball will travel.'
       };
-      if (!state.cues && !state.balls) return message(state, 'Find the cues and ball case before setting up the table.');
-      const cuesPlaced = state.cuesPlaced || state.cues, ballsPlaced = state.ballsPlaced || state.balls;
+      const placeCue = state.cues && !state.cuesPlaced, placeBalls = state.balls && !state.ballsPlaced;
+      if (!placeCue && !placeBalls) return message(state, !state.catCueGiven && state.cues
+        ? 'Give the longer cue to Cat before taking the break.'
+        : 'Find the cues and ball case before setting up the table.');
+      const cuesPlaced = state.cuesPlaced || placeCue, ballsPlaced = state.ballsPlaced || placeBalls;
       return {
-        ...state, cues: false, balls: false, cuesPlaced, ballsPlaced,
-        message: cuesPlaced && ballsPlaced ? 'The table is ready. Investigate it again to take the break.' : 'You set the equipment on the pool table. Something is still missing.'
+        ...state, cues: state.cues && !(cuesPlaced && state.catCueGiven), balls: false, cuesPlaced, ballsPlaced,
+        message: placeCue
+          ? `You lean your shorter cue against the table.${placeBalls ? ' You also set out the balls.' : ''}${!state.catCueGiven ? ' Give the longer cue to Cat.' : ''}`
+          : 'You set the balls on the pool table.'
       };
     }
     if (id === 'tool-rack') return !state.ballLost ? message(state, 'Pool brushes, a rest and a long retrieval hook hang inside.')
@@ -657,6 +664,8 @@ export function interactAdventure(index, state, id) {
         : !state.hook ? message(state, 'The eight-ball is too far under the cabinet to reach. Look for a long tool in the equipment cupboard.')
           : { ...state, hook: false, ballFound: true, message: 'You use the retrieval hook to pull the eight-ball from under the cabinet.' };
     if (id === 'love') return state.pubEnding ? message(state, 'It is time to leave together.')
+      : state.cues && !state.catCueGiven
+        ? { ...state, cues: !state.cuesPlaced, catCueGiven: true, message: 'You give the longer cue to Cat.' }
       : state.drinksPlaced && state.ballFound
         ? { ...state, ballFound: false, pubEnding: 'dialogue', message: PUB_GOODBYE }
         : message(state, 'Cat: Set out our drinks and pool equipment, then find the missing eight-ball.');

@@ -10,7 +10,10 @@ function objective(index, state) {
     if (state.pubEnding === 'dialogue') return 'Talk with Cat.';
     if (state.pubEnding === 'ready') return 'Leave Lucky Chucks together.';
     if (!state.drinksPlaced) return 'Collect drinks from the bar and put them on the drinks table.';
-    if (!state.cuesPlaced || !state.ballsPlaced) return 'Find the cues and balls and put them on the pool table.';
+    if (!state.cues && !state.cuesPlaced && !state.catCueGiven) return 'Take two cues from the cue rack.';
+    if (!state.catCueGiven) return 'Give the longer cue to Cat.';
+    if (!state.cuesPlaced) return 'Lean your shorter cue against the pool table.';
+    if (!state.ballsPlaced) return 'Find the balls and put them on the pool table.';
     if (!state.ballLost) return 'Investigate the pool table and line up your break.';
     if (!state.ballFound) return state.hook ? 'Use the retrieval hook at the cabinet.' : 'Find a way to retrieve the eight-ball from under the cabinet.';
     return 'Give the eight-ball to Cat.';

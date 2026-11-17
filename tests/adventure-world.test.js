@@ -37,6 +37,17 @@ function walkRoute(state, object) {
   return state;
 }
 
+function pubCanvasDocument(context) {
+  context.createRadialGradient ||= () => ({ addColorStop() {} });
+  for (const method of ['save', 'restore', 'translate', 'scale', 'drawImage', 'strokeRect', 'stroke', 'moveTo', 'lineTo']) {
+    context[method] ||= () => {};
+  }
+  const artwork = {
+    fillRect() {}, strokeRect() {}, beginPath() {}, closePath() {}, moveTo() {}, lineTo() {}, stroke() {}
+  };
+  return { createElement: () => ({ getContext: (type) => type === '2d' ? artwork : null }) };
+}
+
 test('Cat blocks walking at Thirteen but can be reached and joined', () => {
   const cat = OBJECTS[2].find((item) => item.id === 'amor');
   const initial = newAdventureState(2);
@@ -104,7 +115,7 @@ test('pub fallback displays character names without furniture labels', () => {
     addEventListener() { },
     removeEventListener() { }
   };
-  globalThis.document = { createElement: () => ({ getContext: () => null }) };
+  globalThis.document = pubCanvasDocument(ctx);
   globalThis.window = { devicePixelRatio: 1 };
   try {
     const scene = createAdventureScene(canvas, 1, () => { }, 'Player');
@@ -115,6 +126,38 @@ test('pub fallback displays character names without furniture labels', () => {
     assert.ok(colors.includes(PLAYER_OUTFIT));
     assert.ok(colors.includes(CAT_OUTFIT));
     assert.ok(colors.includes(CHARACTER_HAIR));
+    scene.dispose();
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
+test('pub fallback shows Cat holding a cue only after it is given to her', () => {
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const tips = [];
+  const ctx = {
+    setTransform() {}, fillRect(x, y, w, h) { if (this.fillStyle === '#597184') tips.push({ x, y, w, h }); },
+    beginPath() {}, arc() {}, ellipse() {}, fill() {}, fillText() {}
+  };
+  const canvas = { getContext: () => ctx, addEventListener() {}, removeEventListener() {} };
+  globalThis.document = pubCanvasDocument(ctx);
+  globalThis.window = { devicePixelRatio: 1 };
+  try {
+    const scene = createAdventureScene(canvas, 1, () => {}, 'Player'), initial = newAdventureState(1);
+    scene.resize(1000, 700);
+    scene.draw(initial);
+    assert.equal(tips.length, 0);
+    scene.draw({ ...initial, cuesPlaced: true });
+    assert.equal(tips.length, 1, 'only the table cue is visible');
+    tips.length = 0;
+    scene.draw({ ...initial, cuesPlaced: true, catCueGiven: true });
+    assert.equal(tips.length, 2, 'one cue leans by the table and one is held by Cat');
+    tips.length = 0;
+    scene.draw({ ...initial, cuesPlaced: true, catCueGiven: true, pubEnding: 'dialogue' });
+    assert.equal(tips.length, 1, 'Cat puts her cue away before the goodbye');
     scene.dispose();
   } finally {
     if (previousDocument === undefined) delete globalThis.document;
@@ -137,7 +180,7 @@ test('pub fallback selects the bartender separately from the counter', () => {
     removeEventListener() { },
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 1000, height: 700 })
   };
-  globalThis.document = { createElement: () => ({ getContext: () => null }) };
+  globalThis.document = pubCanvasDocument(ctx);
   globalThis.window = { devicePixelRatio: 1 };
   try {
     const scene = createAdventureScene(canvas, 1, (selection) => selections.push(selection), 'Player');
@@ -165,7 +208,7 @@ test('pub player turns when walking and keeps facing after stopping', () => {
     beginPath() { }, arc() { }, ellipse() { }, fill() { }, fillText() { }
   };
   const canvas = { getContext: () => ctx, addEventListener() { }, removeEventListener() { } };
-  globalThis.document = { createElement: () => ({ getContext: () => null }) };
+  globalThis.document = pubCanvasDocument(ctx);
   globalThis.window = { devicePixelRatio: 1 };
   try {
     const scene = createAdventureScene(canvas, 1, () => { }, 'Player');
@@ -206,7 +249,7 @@ test('fallback exit shows the pair side by side with a hand link', () => {
     moveTo(x, y) { lines.push({ x, y }); }, lineTo(x, y) { lines.push({ x, y }); }, stroke() { }
   };
   const canvas = { getContext: () => ctx, addEventListener() { }, removeEventListener() { } };
-  globalThis.document = { createElement: () => ({ getContext: () => null }) };
+  globalThis.document = pubCanvasDocument(ctx);
   globalThis.window = { devicePixelRatio: 1 };
   try {
     const scene = createAdventureScene(canvas, 1, () => { }, 'Player');
@@ -333,6 +376,51 @@ test('new and restored pub positions remain outside furniture without losing pro
   }
 });
 
+test('the drinks table is centred among the low seating and old saves inside it are relocated', () => {
+  const table = OBJECTS[1].find(({ id }) => id === 'drinks-table');
+  assert.equal(table.x, 530);
+  assert.equal(table.y, 520);
+  const saved = { ...newAdventureState(1), drinks: true, player: { x: 530, y: 520, height: 0 } };
+  const restored = restoreAdventureState(1, saved);
+  assert.ok(pubWalkable(restored.player));
+  assert.equal(restored.drinks, true);
+  assert.match(restored.message, /clear of the furniture/);
+  walkRoute(restored, table);
+});
+
+test('cues are given to Cat and placed at the table separately in either order', () => {
+  for (const [first, second] of [['love', 'pool-table'], ['pool-table', 'love']]) {
+    let state = visit(1, newAdventureState(1), 'cue-rack');
+    assert.equal(state.cues, true);
+    assert.match(state.message, /longer one to Cat.*your shorter cue/);
+    assert.deepEqual(inventory(1, state), ['Pool cues']);
+    assert.match(questItems([null, state])[0].image, /pool-cues\.svg/);
+    state = visit(1, state, first);
+    assert.match(state.message, first === 'love' ? /longer cue to Cat/ : /your shorter cue against the table/);
+    assert.equal(state.catCueGiven, first === 'love');
+    assert.equal(state.cuesPlaced, first === 'pool-table');
+    assert.equal(state.cues, true);
+    assert.deepEqual(inventory(1, state), ['Pool cue']);
+    assert.match(questItems([null, state])[0].image, /pool-cue\.svg/);
+    state = restoreAdventureState(1, state);
+    assert.equal(state.catCueGiven, first === 'love');
+    assert.equal(state.cuesPlaced, first === 'pool-table');
+    state = visit(1, state, 'cue-rack');
+    assert.equal(state.cues, true, 'the remaining rack cues cannot be picked up again');
+    state = visit(1, state, second);
+    assert.match(state.message, second === 'love' ? /longer cue to Cat/ : /your shorter cue against the table/);
+    assert.ok(state.catCueGiven && state.cuesPlaced);
+    assert.equal(state.cues, false);
+    assert.deepEqual(inventory(1, state), []);
+    state = visit(1, { ...state, balls: true }, 'pool-table');
+    assert.equal(state.ballsPlaced, true);
+    assert.equal(visit(1, state, 'pool-table').shot, true);
+  }
+  const missingCat = { ...newAdventureState(1), cues: true, cuesPlaced: true, ballsPlaced: true };
+  assert.equal(visit(1, missingCat, 'pool-table').shot, false);
+  assert.match(visit(1, missingCat, 'pool-table').message, /give.*Cat/i);
+});
+
 test('every pub quest object can be reached from multiple sides', () => {
   const starts = [{ x: 70, y: 560 }, { x: 500, y: 350 }, { x: 900, y: 600 }, { x: 700, y: 100 }];
   for (const object of OBJECTS[1]) for (const player of starts) {
@@ -380,6 +468,9 @@ test('the entire Lucky Chucks quest is playable by walking to each object', () =
   assert.equal(state.balls, true);
   approach('pool-table');
   assert.equal(state.cuesPlaced && state.ballsPlaced, true);
+  assert.equal(state.catCueGiven, false);
+  approach('love');
+  assert.equal(state.catCueGiven, true);
   approach('pool-table');
   assert.equal(state.shot, true);
   state = takePoolShot(state, 0, 65);
@@ -465,6 +556,9 @@ test('Lucky Chucks requires drinks, equipment and the recovered ball before spea
   state = visit(1, state, 'pool-table');
   assert.equal(state.cuesPlaced, true);
   assert.equal(state.ballLost, false);
+  assert.deepEqual(inventory(1, state), ['Pool cue']);
+  state = visit(1, state, 'love');
+  assert.equal(state.catCueGiven, true);
   state = visit(1, state, 'ball-box');
   assert.equal(state.puzzle, false);
   assert.deepEqual(inventory(1, state), []);
@@ -579,7 +673,7 @@ test('the player can rejoin Cat from every accessible side', () => {
 });
 
 test('opening pool controls is resumable and old in-progress saves retain their equipment', () => {
-  let state = { ...newAdventureState(1), cuesPlaced: true, ballsPlaced: true };
+  let state = { ...newAdventureState(1), cuesPlaced: true, catCueGiven: true, ballsPlaced: true };
   state = visit(1, state, 'pool-table');
   assert.equal(state.shot, true);
   state = restoreAdventureState(1, JSON.parse(JSON.stringify(state)));
@@ -590,6 +684,9 @@ test('opening pool controls is resumable and old in-progress saves retain their 
   const { hook, shot, ...old } = state;
   void hook; void shot;
   assert.equal(restoreAdventureState(1, old).ballsPlaced, true);
+  const { catCueGiven, ...oldCueSave } = state;
+  void catCueGiven;
+  assert.equal(restoreAdventureState(1, oldCueSave).catCueGiven, true, 'old placed-cue saves keep both cues placed');
 });
 
 test('existing version 3 pub saves retain progress when the case puzzle is introduced', () => {
