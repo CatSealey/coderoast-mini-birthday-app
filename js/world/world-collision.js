@@ -47,6 +47,7 @@ export function worldTrees() {
       || Math.hypot(x - TOWN_CHURCH.x, z - TOWN_CHURCH.y) < 300
       || QUEST_LOCATIONS.some((quest) => Math.hypot(x - quest.x, z - quest.y) < 310)
       || WORLD_NPCS.some((npc) => Math.hypot(x - npc.x, z - npc.y) < 105)
+      || Math.hypot(x - PARK_RELOCATED_STALL.x, z - PARK_RELOCATED_STALL.y) < 250
       || WORLD_NPCS.some((npc) => npc.sideQuest !== undefined && Math.abs(x - npc.x) < 150
         && z > npc.y - 80 && z < npc.y + 240)
       || CANOPY_PLATFORMS.some((platform) => Math.hypot(x - forest.x - CANOPY_OFFSET.x - platform.x,
@@ -55,7 +56,8 @@ export function worldTrees() {
         && Math.abs(z - CASTLE_LAYOUT.y - CASTLE_LAYOUT.centerOffset) < CASTLE_LAYOUT.depth / 2 + 70)
       || Math.hypot(x - WORLD_SPAWN.x, z - WORLD_SPAWN.y) < 300) continue;
     let region = regionBlendAt({ x, y: z }).region.id;
-    const forestEdge = region === 'park' && Math.abs(x - forest.x) < 620
+    const forestEdge = (region === 'park' || region === 'forest')
+      && x > QUEST_LOCATIONS[2].x - 300 && x < forest.x + 620
       && z > forest.y + CANOPY_OFFSET.z - 680 && z < forest.y + CANOPY_OFFSET.z - 500;
     if (region === 'harvest' || (region === 'park' && !forestEdge)) continue;
     if (forestEdge) {

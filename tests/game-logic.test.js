@@ -249,6 +249,30 @@ test('adjoining regions cover the whole world and retain their quest landmarks',
   assert.ok(transitions > 0);
 });
 
+test('forest expansion fades away from the park boundary', () => {
+  let checked = 0;
+  for (let y = 0; y <= WORLD_SIZE.height; y += 200) {
+    for (let x = 0; x <= WORLD_SIZE.width; x += 200) {
+      const warpedX = x + 110 * Math.sin(y / 350) + 60 * Math.sin((x + y) / 270);
+      const warpedY = y + 100 * Math.sin(x / 420) + 55 * Math.sin((x - y) / 310);
+      const distances = WORLD_REGIONS.map((region) => ({
+        region, distance: Math.hypot(warpedX - region.center.x, warpedY - region.center.y)
+      }));
+      const park = distances.find(({ region }) => region.id === 'park').distance;
+      const other = Math.min(...distances.filter(({ region }) => region.id !== 'park' && region.id !== 'forest')
+        .map(({ distance }) => distance));
+      if (park < other + 250) continue;
+      distances.sort((a, b) => a.distance - b.distance);
+      const actual = regionBlendAt({ x, y });
+      assert.equal(actual.region, distances[0].region);
+      assert.equal(actual.neighbor, distances[1].region);
+      assert.ok(Math.abs(actual.blend - Math.max(0, 0.5 * (1 - (distances[1].distance - distances[0].distance) / 180))) < 1e-12);
+      checked += 1;
+    }
+  }
+  assert.ok(checked > 100);
+});
+
 test('additional park rides are distributed within the park and clear of the quest guide', () => {
   const park = QUEST_LOCATIONS[2];
   assert.ok(PARK_RIDES.filter((ride) => ride.type.includes('Coaster')).length >= 3);

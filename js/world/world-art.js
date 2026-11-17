@@ -3,7 +3,7 @@ import { regionBlendAt } from './world-regions.js';
 import { drawParkRide, PARK_BANNERS, PARK_MAIN_COASTER, PARK_RELOCATED_STALL, PARK_RIDES, PARK_WHEEL } from './park-scenery.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { worldCornWalls, worldTrees } from './world-collision.js';
-import { CANOPY_OFFSET, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
+import { CANOPY_ILLUSTRATIONS, CANOPY_OFFSET, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
 import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_PLAZA, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { createSurroundingTerrain, SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
 import { ESCAPE_DECORATIVE_TREE } from './tree-spacing.js';
@@ -213,9 +213,8 @@ function addProps() {
   add('queue', park.x - 155, park.y + 195, 1);
   add('queue', park.x + 260, park.y + 155, 0.8);
   add('bench', park.x - 290, park.y + 110, 0.9);
-  [[-35, -190, 1.15], [-370, 240, 0.85], [340, 230, 0.9],
-    [-350, -440, 0.85], [340, -430, 0.8]].forEach(([dx, dy, scale]) => {
-    add('canopy', forest.x + CANOPY_OFFSET.x + dx, forest.y + CANOPY_OFFSET.z + dy, scale);
+  CANOPY_ILLUSTRATIONS.forEach(({ x, z, size }) => {
+    add('canopy', forest.x + CANOPY_OFFSET.x + x, forest.y + CANOPY_OFFSET.z + z, size);
   });
   [[-165, -20], [155, -65], [-125, 165], [180, 190], [-285, -285], [295, -290]].forEach(([dx, dy], index) => {
     add('fairyLight', forest.x + dx, forest.y + dy, 0.9, index % 4);

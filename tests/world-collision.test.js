@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createCollision, findCharacterApproach, findWorldPath, MAZE_REGION_CLEARANCE, worldCornWalls, worldObstacles, worldTrees } from '../js/world/world-collision.js';
 import { CASTLE_BARREL_COLLISION_RADIUS, CASTLE_CRATE_COLLISION_SIZE, CASTLE_ENTRANCE, CASTLE_EXTERIOR_SUPPLIES, CASTLE_LAYOUT, CASTLE_TOWERS, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_ROUTES, WORLD_SCALE, WORLD_SIZE, WORLD_SPAWN } from '../js/world/world-data.js';
 import { WORLD_NPCS } from '../js/world/world-npcs.js';
-import { CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, harvestPumpkins, placeQuestDecorations } from '../js/world/world-scenery-data.js';
+import { CANOPY_ILLUSTRATIONS, CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, harvestPumpkins, placeQuestDecorations } from '../js/world/world-scenery-data.js';
 import { regionBlendAt } from '../js/world/world-regions.js';
 import { roadDistance } from '../js/world/world-art.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_LAMPS, TOWN_TABLES, TOWN_VENUES } from '../js/world/town-scenery.js';
@@ -435,8 +435,8 @@ test('a tree-lined transition separates the moved GoApe canopy from Thirteen', (
   const forest = QUEST_LOCATIONS[3], obstacles = worldObstacles(), trees = worldTrees();
   assert.equal(forest.y, 3060);
   assert.deepEqual(WORLD_ROUTES[3].at(-1).map((coordinate) => coordinate * WORLD_SCALE), [forest.x, forest.y]);
-  const edgeTrees = trees.filter((tree) => tree.region === 'forest'
-    && regionBlendAt({ x: tree.x, y: tree.z }).region.id === 'park');
+  const edgeTrees = trees.filter((tree) => tree.region === 'forest' && Math.abs(tree.x - forest.x) < 620
+    && tree.z > forest.y + CANOPY_OFFSET.z - 680 && tree.z < forest.y + CANOPY_OFFSET.z - 500);
   assert.ok(edgeTrees.length >= 6);
   assert.ok(edgeTrees.some((tree) => tree.x < forest.x - 100));
   assert.ok(edgeTrees.some((tree) => tree.x > forest.x + 100));
@@ -464,6 +464,48 @@ test('a tree-lined transition separates the moved GoApe canopy from Thirteen', (
     }
     assert.ok(canopyTop - bottom >= 180, `${ride.trackType} remains visually clear of the canopy`);
   }
+});
+
+test('forest terrain covers GoApe platforms in both world views without swallowing park rides', () => {
+  const forest = QUEST_LOCATIONS[3];
+  for (const platform of CANOPY_PLATFORMS) {
+    for (const dx of [-platform.size / 2, 0, platform.size / 2]) {
+      for (const dz of [-platform.size / 2, 0, platform.size / 2]) {
+        const x = forest.x + CANOPY_OFFSET.x + platform.x + dx;
+        const y = forest.y + CANOPY_OFFSET.z + platform.z + dz;
+        assert.equal(regionBlendAt({ x, y }).region.id, 'forest');
+        assert.equal(regionBlendAt({ x, y: y - (platform.height + 44) * 970 / 650 }).region.id, 'forest',
+          'raised decks and lanterns project over forest terrain');
+      }
+    }
+  }
+  for (const group of CANOPY_ILLUSTRATIONS) {
+    for (const dx of [-189, 0, 189]) for (const height of [0, 105, 145]) {
+      const x = forest.x + CANOPY_OFFSET.x + group.x + dx * group.size;
+      const y = forest.y + CANOPY_OFFSET.z + group.z - height * group.size / 0.68;
+      assert.equal(regionBlendAt({ x, y }).region.id, 'forest', 'illustrated platforms project over forest terrain');
+    }
+  }
+  for (const ride of PARK_RIDES) assert.equal(regionBlendAt(ride).region.id, 'park');
+  assert.equal(regionBlendAt(PARK_RELOCATED_STALL).region.id, 'park');
+  assert.ok(worldTrees().every((tree) =>
+    Math.hypot(tree.x - PARK_RELOCATED_STALL.x, tree.z - PARK_RELOCATED_STALL.y) >= 250),
+  'new forest trees leave the park stall visible');
+});
+
+test('forest reaches the canopy while receding from the park drop tower', () => {
+  const forest = QUEST_LOCATIONS[3], tower = PARK_RIDES.find((ride) => ride.type === 'dropTower');
+  assert.ok(tower);
+  assert.equal(regionBlendAt({ x: forest.x - 85, y: forest.y + CANOPY_OFFSET.z - 880 }).region.id, 'forest',
+    'forest extends north of the canopy');
+  for (const dx of [-100, 0, 100]) for (const dy of [100, 180, 240]) {
+    assert.equal(regionBlendAt({ x: tower.x + dx, y: tower.y + dy }).region.id, 'park',
+      'the area immediately behind the drop tower remains park terrain');
+  }
+  assert.ok(worldTrees().every((tree) => tree.region !== 'forest'
+    || Math.abs(tree.x - tower.x) >= 200
+    || tree.z <= tower.y || tree.z >= tower.y + 340),
+  'forest trees do not crowd the drop tower');
 });
 
 test('GoApe guide, entrance and ranger remain reachable from one another', () => {
