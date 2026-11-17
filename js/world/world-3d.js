@@ -11,7 +11,7 @@ import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms }
 import { createCharacterLegs, createPlayerLegs } from '../games/character-legs.js';
 import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { sideQuestPosition } from '../side-quests.js';
-import { SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
+import { SURROUNDINGS_BOUNDS, surroundingTrees, treeType } from './world-surroundings.js';
 import { createDeadTreeGeometry, createTreeBarkTexture } from './tree-geometry.js';
 import { createFoliageTexture, createLeafyBranches, createLeafyCanopy } from './leafy-tree.js';
 import { createFirCanopy, createFirTrunk, createNeedleTexture, createPlatformFirTrunk, platformFirLayout } from './fir-tree.js';
@@ -30,6 +30,7 @@ import { WORLD_LAMPS } from './world-lamps.js';
 import { ENTRANCE_MARKER_RADIUS, entranceMarkerHit } from './entrance-marker.js';
 import { createCanopyDeckTexture } from './canopy-platform.js';
 import { PARK_FLAG_COLORS, PARK_PALETTE } from './park-style.js';
+import { createParkBushLeavesGeometry, PARK_BUSH_SHAPES, parkBushes } from './park-bushes.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -1087,6 +1088,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   });
 
   const treeData = [...worldTrees(), ...surroundingTrees()];
+  const bushData = parkBushes();
   function instances(data, geometry, color, transform, instanceMaterial = material(color)) {
     geometries.add(geometry);
     const instanced = new THREE.InstancedMesh(geometry, instanceMaterial, data.length);
@@ -1123,7 +1125,9 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   textures.add(foliageTexture);
   const foliageMaterial = new THREE.MeshStandardMaterial({ map: foliageTexture, vertexColors: true, roughness: 1 });
   materials.set('tree-foliage', foliageMaterial);
-  const leafTrees = treeData.filter((t) => t.region !== 'escape' && t.region !== 'forest');
+  const bushLeavesMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide });
+  materials.set('bush-leaves', bushLeavesMaterial);
+  const leafTrees = treeData.filter((t) => treeType(t) === 'tree');
   for (let variant = 0; variant < 3; variant += 1) {
     const trees = leafTrees.filter((tree) => tree.variant === variant);
     const placeTree = (o, t) => {
@@ -1133,8 +1137,30 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     };
     instances(trees, createLeafyBranches(variant), null, placeTree, treeBarkMaterial);
     instances(trees, createLeafyCanopy(variant), null, placeTree, foliageMaterial);
+    const bushes = bushData.filter((bush) => bush.variant === variant)
+      .flatMap((bush) => PARK_BUSH_SHAPES[bush.shape].map((lobe) => ({ bush, lobe })));
+    const bushGeometry = createLeafyCanopy(variant);
+    bushGeometry.translate(0, -110, 0);
+    instances(bushes, bushGeometry, null, (o, { bush, lobe }) => {
+      const cos = Math.cos(bush.rotation), sin = Math.sin(bush.rotation);
+      o.position.set(bush.x + (lobe.x * cos + lobe.z * sin) * bush.scale, lobe.y * bush.scale,
+        bush.y + (-lobe.x * sin + lobe.z * cos) * bush.scale);
+      o.rotation.y = bush.rotation;
+      o.scale.set(lobe.width * bush.scale, lobe.height * bush.scale, lobe.width * bush.scale);
+    }, foliageMaterial);
+    for (let shape = 0; shape < PARK_BUSH_SHAPES.length; shape += 1) {
+      for (const flowering of [false, true]) {
+        const group = bushData.filter((bush) => bush.variant === variant && bush.shape === shape && bush.flowering === flowering);
+        if (!group.length) continue;
+        instances(group, createParkBushLeavesGeometry(variant, shape, flowering), null, (o, bush) => {
+          o.position.set(bush.x, 0, bush.y);
+          o.rotation.y = bush.rotation;
+          o.scale.setScalar(bush.scale);
+        }, bushLeavesMaterial);
+      }
+    }
   }
-  const pines = treeData.filter((t) => t.region === 'forest');
+  const pines = treeData.filter((t) => treeType(t) === 'pine');
   const needleTexture = createNeedleTexture();
   needleTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   textures.add(needleTexture);
@@ -1163,7 +1189,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       o.scale.set(t.canopyWidth, t.canopyHeight, t.canopyWidth);
     }, needleMaterial);
   }
-  const deadTrees = treeData.filter((t) => t.region === 'escape');
+  const deadTrees = treeData.filter((t) => treeType(t) === 'deadTree');
   for (let variant = 0; variant < 3; variant += 1) {
     instances(deadTrees.filter((tree) => tree.variant === variant), createDeadTreeGeometry(variant), null, (o, t) => {
       o.position.set(t.x, 0, t.z);
@@ -1198,6 +1224,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   geometries.add(shadowGeometry);
   const shadowEntries = [
     ...treeData.map((t) => ({ x: t.x + 12, z: t.z + 16, width: 110 * t.size, depth: 75 * t.size })),
+    ...bushData.map((bush) => ({ x: bush.x + 4, z: bush.y + 4, width: 62 * bush.scale, depth: 36 * bush.scale })),
     { x: CASTLE_LAYOUT.x + 20, z: CASTLE_LAYOUT.y + CASTLE_LAYOUT.centerOffset + 25,
       width: CASTLE_LAYOUT.width + 110, depth: CASTLE_LAYOUT.depth + 85 },
     { x: escape.x - 65, z: escape.y - 160, width: 230, depth: 170 },

@@ -5,7 +5,7 @@ import { configureWorldCamera, groundPointAt } from '../js/world/world-3d.js';
 import { WORLD_SIZE } from '../js/world/world-data.js';
 import { constrainToWorld } from '../js/world/world-logic.js';
 import { regionBlendAt } from '../js/world/world-regions.js';
-import { createSurroundingTerrain, SURROUNDINGS_BOUNDS, SURROUNDINGS_MARGIN, surroundingTrees } from '../js/world/world-surroundings.js';
+import { createSurroundingTerrain, SURROUNDINGS_BOUNDS, SURROUNDINGS_MARGIN, surroundingTrees, treeType } from '../js/world/world-surroundings.js';
 
 test('decorative trees surround the world without entering the playable area', () => {
   const trees = surroundingTrees();
@@ -24,6 +24,30 @@ test('decorative trees surround the world without entering the playable area', (
   assert.ok(trees.some((tree) => tree.z > WORLD_SIZE.height));
   assert.deepEqual(constrainToWorld({ x: -SURROUNDINGS_MARGIN, y: WORLD_SIZE.height + SURROUNDINGS_MARGIN }),
     { x: 12, y: WORLD_SIZE.height - 12 });
+});
+
+test('the non-playable edge mixes pine and leafy trees while retaining escape dead trees', () => {
+  const trees = surroundingTrees();
+  for (const edge of [
+    (t) => t.x < -100 && t.x > -900 && t.z >= 0 && t.z <= WORLD_SIZE.height,
+    (t) => t.x > WORLD_SIZE.width + 100 && t.x < WORLD_SIZE.width + 900 && t.z >= 0 && t.z <= WORLD_SIZE.height,
+    (t) => t.z < -100 && t.z > -900 && t.x >= 0 && t.x <= WORLD_SIZE.width,
+    (t) => t.z > WORLD_SIZE.height + 100 && t.z < WORLD_SIZE.height + 900 && t.x >= 0 && t.x <= WORLD_SIZE.width
+  ]) {
+    const types = new Set(trees.filter(edge).map(treeType));
+    assert.ok(types.has('pine') && types.has('tree'));
+  }
+  const escape = trees.filter((tree) => tree.region === 'escape');
+  assert.deepEqual(new Set(escape.map(treeType)), new Set(['deadTree', 'pine', 'tree']));
+  for (let i = 0; i < trees.length; i += 1) {
+    for (let j = 0; j < i; j += 1) {
+      assert.ok(Math.hypot(trees[i].x - trees[j].x, trees[i].z - trees[j].z)
+        >= 45 * (trees[i].size + trees[j].size), 'surrounding tree crowns should not overlap');
+    }
+  }
+  assert.equal(treeType({ region: 'forest' }), 'pine');
+  assert.equal(treeType({ region: 'escape' }), 'deadTree');
+  assert.equal(treeType({ region: 'park' }), 'tree');
 });
 
 test('surrounding terrain follows the existing region colors on both sides of each world edge', () => {

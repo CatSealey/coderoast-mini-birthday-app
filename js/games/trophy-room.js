@@ -3,7 +3,8 @@ import { nearTrophyExit, placeKeepsake, presentAvailable, TROPHY_EXIT } from './
 import { createTrophyModel } from './trophy-models.js';
 import { createCollision, findWorldPath } from '../world/world-collision.js';
 import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
-import { BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, birthdayArrivalPath, birthdayFamilyPaths, birthdayGuestObstacles, birthdayGuestPlayerCollision, createBirthdayEnding } from './birthday-ending.js';
+import { BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, birthdayArrivalPath, birthdayDogFacing, birthdayFamilyPaths, birthdayGuestObstacles, birthdayGuestPlayerCollision, createBirthdayEnding } from './birthday-ending.js';
+import { createBirthdayDogModel, drawBirthdayDog } from './birthday-dog.js';
 import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker } from '../character-appearance.js';
 import { addJapaneseSleeve, createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 
@@ -350,6 +351,12 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   for (const x of [-10, 10]) for (const y of [-5, 0, 5]) box(x, y, 2, 2, 2, 1, '#9b6739', ticket);
   ticket.position.set(0, 34, 20);
   const family = BIRTHDAY_FAMILY.map((member) => {
+    if (member.kind === 'dog') {
+      const { model, legs, tail } = createBirthdayDogModel(box, round, orb);
+      scene.add(model); model.scale.setScalar(member.size); addShadow(model, 0, 2, 55, 55);
+      return { member, model, arms: null, legs, tail, position: { ...BIRTHDAY_ENTRANCE },
+        route: [], visible: false, facing: 0, walk: 0 };
+    }
     const model = new THREE.Group(); scene.add(model); model.scale.setScalar(member.size);
     addShadow(model, 0, 2, 65, 45);
     round(torsoGeometry, 0, 37, 0, 24, 36, 17, member.outfit, model);
@@ -470,6 +477,10 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
       }
       family.forEach((guest) => {
         if (!guest.model.visible) return;
+        if (guest.member.kind === 'dog') {
+          drawBirthdayDog(ctx, guest.position.x, guest.position.y, guest.facing, guest.legs[0].rotation.x, guest.member.size);
+          return;
+        }
         drawCharacterMarker(ctx, guest.position.x, guest.position.y, guest.member.outfit,
           { scale: guest.member.size, hair: guest.member.hair, hairLength: ['gran', 'mum', 'sister'].includes(guest.member.id) ? 'long' : 'short',
             stride: guest.member.id === 'gran' ? 0 : guest.legs[0].rotation.x, facing: guest.facing });
@@ -635,7 +646,8 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     if (!['idle', 'positioning'].includes(endingPhase) && !modalOpen) {
       familyElapsed += dt;
       family.forEach((guest, index) => {
-        if (familyElapsed < (index + 1) * 0.65) return;
+        const delay = guest.member.kind === 'dog' ? 1.3 : (index + 1 + (index > 0 ? 1 : 0)) * 0.65;
+        if (familyElapsed < delay) return;
         const playerCollision = endingPhase === 'finished' ? birthdayGuestPlayerCollision(player, guest.member) : null;
         if (!guest.visible && playerCollision?.blocked(guest.position)) return;
         if (!guest.visible && guest.member.id === 'gran') onCakeArrives?.();
@@ -653,10 +665,15 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
           }
           if (Math.hypot(waypoint.x - guest.position.x, waypoint.y - guest.position.y) < 0.001) guest.route.shift();
         }
-        if (!guest.route.length) guest.facing = Math.atan2(player.x - guest.position.x, player.z - guest.position.y);
-        guest.legs[0].rotation.x = guest.route.length ? Math.sin(guest.walk) * 0.4 : 0;
-        guest.legs[1].rotation.x = -guest.legs[0].rotation.x;
-        if (guest.arms) swingCharacterArms(guest.arms, guest.legs[0].rotation.x);
+        if (!guest.route.length) guest.facing = guest.member.kind === 'dog'
+          ? birthdayDogFacing(guest.position, lovePosition)
+          : Math.atan2(player.x - guest.position.x, player.z - guest.position.y);
+        const stride = guest.route.length ? Math.sin(guest.walk) * 0.4 : 0;
+        guest.legs.forEach((leg, legIndex) => {
+          leg.rotation.x = stride * (guest.member.kind === 'dog' && legIndex >= 2 ? -1 : 1) * (legIndex % 2 ? -1 : 1);
+        });
+        if (guest.tail) guest.tail.rotation.y = Math.sin(familyElapsed * 7) * 0.35;
+        if (guest.arms) swingCharacterArms(guest.arms, stride);
       });
     }
     loveLegs[0].rotation.x = endingPhase === 'arriving' ? Math.sin(loveWalk) * 0.4 : 0;

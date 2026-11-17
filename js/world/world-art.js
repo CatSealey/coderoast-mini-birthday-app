@@ -5,7 +5,7 @@ import { WORLD_NPCS } from './world-npcs.js';
 import { worldCornWalls, worldTrees } from './world-collision.js';
 import { CANOPY_ILLUSTRATIONS, CANOPY_OFFSET, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
 import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_PLAZA, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
-import { createSurroundingTerrain, SURROUNDINGS_BOUNDS, surroundingTrees } from './world-surroundings.js';
+import { createSurroundingTerrain, SURROUNDINGS_BOUNDS, surroundingTrees, treeType } from './world-surroundings.js';
 import { ESCAPE_DECORATIVE_TREE } from './tree-spacing.js';
 import { rockVariant } from './rock-style.js';
 import { COBBLESTONE_SPACING, drawCobblestone } from './cobblestones.js';
@@ -19,6 +19,7 @@ import { drawGravestoneFace, gravestoneLean, gravestoneStyle, GRAVESTONE_HEIGHT,
 import { WORLD_LAMPS } from './world-lamps.js';
 import { drawCanopyPlatformFace } from './canopy-platform.js';
 import { PARK_FLAG_COLORS, PARK_PALETTE } from './park-style.js';
+import { drawParkBush, parkBushes } from './park-bushes.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -213,6 +214,8 @@ function addProps() {
   add('queue', park.x - 155, park.y + 195, 1);
   add('queue', park.x + 260, park.y + 155, 0.8);
   add('bench', park.x - 290, park.y + 110, 0.9);
+  parkBushes().forEach(({ x, y, scale, variant, shape, flowering }) =>
+    props.push({ type: 'bush', x, y, size: scale, variant, shape, flowering }));
   CANOPY_ILLUSTRATIONS.forEach(({ x, z, size }) => {
     add('canopy', forest.x + CANOPY_OFFSET.x + x, forest.y + CANOPY_OFFSET.z + z, size);
   });
@@ -222,6 +225,17 @@ function addProps() {
   add('mazeGate', harvest.entrance.x, harvest.entrance.y, 1);
   worldCornWalls().forEach((wall) => add('cornWall', wall.x, wall.y, 1, Number(wall.vertical)));
   harvestPumpkins().forEach(({ x, y, scale, variant }) => add('pumpkin', x, y, scale, variant));
+  scatteredParkBanners().forEach(({ x, y, variant }) => add('banner', x, y, 0.7, variant));
+  [...worldTrees(), ...surroundingTrees()].forEach((item) => {
+    const { x, z, size, variant } = item;
+    add(treeType(item), x, z, size, variant);
+    if (variant === 0) add('rock', x + 48, z + 18, 1, rockVariant(x, z));
+  });
+  return props;
+}
+
+export function scatteredParkBanners() {
+  const banners = [];
   for (let i = 0; i < 950; i += 1) {
     const x = 70 + random(i, 20) * (WORLD_SIZE.width - 140);
     const y = 70 + random(i, 21) * (WORLD_SIZE.height - 140);
@@ -231,15 +245,11 @@ function addProps() {
     const region = regionBlendAt({ x, y }).region.id;
     if (region === 'park') {
       if (i % 4 === 0 && Math.hypot(x - PARK_WHEEL.x, y - PARK_WHEEL.y) > 160) {
-        add('banner', x, y, 0.7, Math.floor(i / 4) % 2);
+        banners.push({ x, y, variant: Math.floor(i / 4) % 2 });
       }
     }
   }
-  [...worldTrees(), ...surroundingTrees()].forEach(({ x, z, size, variant, region }) => {
-    add(region === 'forest' ? 'pine' : region === 'escape' ? 'deadTree' : 'tree', x, z, size, variant);
-    if (variant === 0) add('rock', x + 48, z + 18, 1, rockVariant(x, z));
-  });
-  return props;
+  return banners;
 }
 
 function drawFirFoliage(ctx, variant) {
@@ -520,6 +530,7 @@ function drawProp(ctx, prop) {
   ctx.save();
   ctx.scale(prop.size, prop.size);
   if (prop.type === 'tree' || prop.type === 'pine') tree(ctx, prop.type === 'pine', prop.variant);
+  else if (prop.type === 'bush') drawParkBush(ctx, prop.variant, prop.shape, prop.flowering);
   else if (prop.type === 'house') building(ctx, prop.variant);
   else if (prop.type === 'castle') drawCastle(ctx);
   else if (prop.type === 'church') {

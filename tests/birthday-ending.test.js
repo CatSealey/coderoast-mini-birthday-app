@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BIRTHDAY_DIALOGUE, BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, birthdayArrivalPath, birthdayFamilyPaths, birthdayGuestObstacles, birthdayGuestPlayerCollision, createBirthdayEnding } from '../js/games/birthday-ending.js';
+import { BIRTHDAY_DIALOGUE, BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, birthdayArrivalPath, birthdayDogFacing, birthdayFamilyPaths, birthdayGuestObstacles, birthdayGuestPlayerCollision, createBirthdayEnding } from '../js/games/birthday-ending.js';
 import { createCollision, findWorldPath } from '../js/world/world-collision.js';
 
 test('visible birthday guests block walking only after the scripted celebration', () => {
@@ -12,7 +12,7 @@ test('visible birthday guests block walking only after the scripted celebration'
     assert.deepEqual(birthdayGuestObstacles(phase, love, family), []);
   }
   const obstacles = birthdayGuestObstacles('finished', love, family);
-  assert.equal(obstacles.length, 7);
+  assert.equal(obstacles.length, 8);
   assert.equal(obstacles[4].radius, 16 * BIRTHDAY_FAMILY[4].size);
   const collision = createCollision(obstacles, 10);
   for (const guest of obstacles) {
@@ -66,7 +66,7 @@ test('the birthday conversation starts after arrival and advances on demand', ()
 
 test('every side of the present has a safe route to the same spacious celebration', () => {
   assert.deepEqual(BIRTHDAY_FAMILY.map((member) => member.id),
-    ['gran', 'grandad', 'mum', 'sister', 'nephew-1', 'nephew-2', 'cousin']);
+    ['gran', 'grandad', 'mum', 'sister', 'nephew-1', 'nephew-2', 'cousin', 'dog']);
   const collision = createCollision([
     ...[110, 255, 400, 545, 690].map((x) => ({ x, y: 120, width: 108, depth: 87 })),
     ...[[85, 330, 76, 50], [715, 330, 76, 50], [72, 510, 58, 58], [728, 510, 58, 58],
@@ -99,9 +99,14 @@ test('every side of the present has a safe route to the same spacious celebratio
     }
     assert.ok(Math.abs(Math.hypot(previous.x - target.x, previous.y - target.y) - 48) < 0.01);
     const guests = birthdayFamilyPaths(BIRTHDAY_PLAYER_POSITION, previous, collision);
-    assert.equal(guests?.length, 7, `seven guests can enter at angle ${angle}`);
+    assert.equal(guests?.length, 8, `family and dog can enter at angle ${angle}`);
     const gran = guests[0].path.at(-1);
     assert.ok(gran.x > target.x, 'Gran stands beside the celebration while facing the player');
+    const dog = guests.find((guest) => guest.member.kind === 'dog').path.at(-1);
+    assert.ok(Math.hypot(dog.x - target.x, dog.y - target.y) <= 70, 'the dog stands next to the player');
+    const facing = birthdayDogFacing(dog, previous);
+    assert.ok(Math.abs(Math.sin(facing) - (previous.x - dog.x) / Math.hypot(previous.x - dog.x, previous.y - dog.y)) < 1e-10);
+    assert.ok(Math.abs(Math.cos(facing) - (previous.y - dog.y) / Math.hypot(previous.x - dog.x, previous.y - dog.y)) < 1e-10);
     const positions = [target, previous];
     for (const guest of guests) {
       let start = BIRTHDAY_ENTRANCE;
@@ -109,7 +114,8 @@ test('every side of the present has a safe route to the same spacious celebratio
         assert.ok(collision.clearSegment(start, point), `${guest.member.id} avoids furniture and the present`);
         start = point;
       }
-      assert.ok(positions.every((point) => Math.hypot(point.x - start.x, point.y - start.y) >= 60),
+      assert.ok(positions.every((point, index) => Math.hypot(point.x - start.x, point.y - start.y)
+        >= (guest.member.kind === 'dog' && index === 0 ? 42 : 60)),
         `${guest.member.id} has a separate spot`);
       positions.push(start);
     }

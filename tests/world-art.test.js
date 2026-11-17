@@ -8,6 +8,7 @@ import { SURROUNDINGS_BOUNDS } from '../js/world/world-surroundings.js';
 import { WORLD_SUPPLIES } from '../js/world/world-supplies.js';
 import { WORLD_LAMPS } from '../js/world/world-lamps.js';
 import { PARK_FLAG_COLORS } from '../js/world/park-style.js';
+import { PARK_BUSH_SHAPES, parkBushes } from '../js/world/park-bushes.js';
 
 test('minimap preserves unpaved town terrain while retaining the rest of the world ground', () => {
   const previousDocument = globalThis.document;
@@ -199,6 +200,29 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
       ]);
     }
     assert.equal(flagDetails.length, flagColors.length * 3);
+
+    const bush = parkBushes().find((item) => item.shape !== 0 && item.flowering);
+    const bushTranslations = [], bushEllipses = [];
+    assert.ok(bush, 'a flowering bush with a non-default silhouette is available');
+    let depth = 0, bushDepth = null;
+    const bushContext = new Proxy({
+      save: () => { depth += 1; },
+      restore: () => { if (depth === bushDepth) bushDepth = null; depth -= 1; },
+      translate: (...args) => {
+        bushTranslations.push(args);
+        if (args[0] === bush.x && args[1] === bush.y * 0.68) bushDepth = depth;
+      },
+      ellipse: (...args) => { if (bushDepth !== null) bushEllipses.push(args); },
+      createLinearGradient: () => ({ addColorStop: () => {} }),
+      createRadialGradient: () => ({ addColorStop: () => {} })
+    }, { get: (target, key) => target[key] || (() => {}) });
+    art.draw(bushContext, cameraFor(bush, 800, 600, 1), 1, 800, 600, []);
+    assert.ok(bushTranslations.some(([x, y]) => x === bush.x && y === bush.y * 0.68),
+      'the illustrated view draws the shared park bush positions');
+    assert.equal(bushEllipses.length, 1 + PARK_BUSH_SHAPES[bush.shape].length + (bush.flowering ? 20 : 0),
+      'the illustrated view preserves the flowering style');
+    assert.equal(bushEllipses[1][0], PARK_BUSH_SHAPES[bush.shape][0].x,
+      'the illustrated view preserves the selected silhouette');
 
     const forest = QUEST_LOCATIONS[3];
     const forestTranslations = [];

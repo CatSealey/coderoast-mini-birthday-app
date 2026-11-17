@@ -35,7 +35,8 @@ export const BIRTHDAY_FAMILY = Object.freeze([
   Object.freeze({ id: 'sister', outfit: '#8a79a9', hair: '#5d4034', size: 0.96 }),
   Object.freeze({ id: 'nephew-1', outfit: '#6885a1', hair: '#654a38', size: 0.68 }),
   Object.freeze({ id: 'nephew-2', outfit: '#a18956', hair: '#513c32', size: 0.68 }),
-  Object.freeze({ id: 'cousin', outfit: '#657a64', hair: '#47372e', size: 1 })
+  Object.freeze({ id: 'cousin', outfit: '#657a64', hair: '#47372e', size: 1 }),
+  Object.freeze({ id: 'dog', kind: 'dog', size: 1 })
 ]);
 
 export function birthdayGuestObstacles(phase, lovePosition, family) {
@@ -52,17 +53,24 @@ export function birthdayGuestPlayerCollision(player, member) {
   return createCollision([{ x: player.x, y: player.z, radius: 10 }], 16 * member.size);
 }
 
+export function birthdayDogFacing(position, catPosition) {
+  return Math.atan2(catPosition.x - position.x, catPosition.y - position.y);
+}
+
 export function birthdayFamilyPaths(player, loveDestination, collision) {
   const positions = [{ x: player.x, y: player.z }, loveDestination];
   const paths = [];
-  for (const member of BIRTHDAY_FAMILY) {
+  const members = [...BIRTHDAY_FAMILY].sort((a, b) => Number(b.kind === 'dog') - Number(a.kind === 'dog'));
+  for (const member of members) {
     let path = null;
-    const angle = member.id === 'gran' ? 0 : Math.PI / 2;
-    for (const radius of [125, 180, 235]) {
+    const angle = member.id === 'gran' ? 0 : member.kind === 'dog' ? Math.PI / 4 : Math.PI / 2;
+    const radii = member.kind === 'dog' ? [55, 70, 90, 125, 180, 235] : [125, 180, 235];
+    for (const radius of radii) {
       for (let i = 0; i < 24 && !path; i += 1) {
         const direction = angle + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * Math.PI / 12;
         const destination = { x: player.x + Math.cos(direction) * radius, y: player.z + Math.sin(direction) * radius };
-        if (collision.blocked(destination) || positions.some((point) => Math.hypot(point.x - destination.x, point.y - destination.y) < 60)) continue;
+        if (collision.blocked(destination) || positions.some((point, index) =>
+          Math.hypot(point.x - destination.x, point.y - destination.y) < (member.kind === 'dog' && index === 0 ? 42 : 60))) continue;
         const route = findWorldPath(BIRTHDAY_ENTRANCE, destination, collision);
         const end = route?.at(-1);
         if (end && Math.hypot(end.x - destination.x, end.y - destination.y) < 1) path = route;
@@ -73,7 +81,7 @@ export function birthdayFamilyPaths(player, loveDestination, collision) {
     positions.push(path.at(-1));
     paths.push({ member, path });
   }
-  return paths;
+  return BIRTHDAY_FAMILY.map((member) => paths.find((guest) => guest.member === member));
 }
 
 export const BIRTHDAY_DIALOGUE = Object.freeze([

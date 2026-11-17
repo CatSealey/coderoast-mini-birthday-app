@@ -5,6 +5,8 @@ import { spaceDeadTrees } from './tree-spacing.js';
 export const SURROUNDINGS_MARGIN = 3000;
 // Playable trees start 70 units inside the edge; leave room for their largest crowns.
 const DEAD_TREE_EDGE_CLEARANCE = 140;
+const SURROUNDING_TREE_SPACING = 45;
+const TREE_GRID_SIZE = 140;
 export const SURROUNDINGS_BOUNDS = Object.freeze({
   left: -SURROUNDINGS_MARGIN,
   top: -SURROUNDINGS_MARGIN,
@@ -15,6 +17,28 @@ export const SURROUNDINGS_BOUNDS = Object.freeze({
 function random(index, salt) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
   return value - Math.floor(value);
+}
+
+export function treeType(tree) {
+  return tree.type ?? (tree.region === 'escape' ? 'deadTree' : tree.region === 'forest' ? 'pine' : 'tree');
+}
+
+function spaceSurroundingTrees(trees) {
+  const cells = new Map();
+  return trees.filter((tree) => {
+    const column = Math.floor(tree.x / TREE_GRID_SIZE), row = Math.floor(tree.z / TREE_GRID_SIZE);
+    for (let x = column - 1; x <= column + 1; x += 1) {
+      for (let z = row - 1; z <= row + 1; z += 1) {
+        const nearby = cells.get(`${x},${z}`) ?? [];
+        if (nearby.some((other) => Math.hypot(tree.x - other.x, tree.z - other.z)
+          < SURROUNDING_TREE_SPACING * (tree.size + other.size))) return false;
+      }
+    }
+    const key = `${column},${row}`;
+    if (!cells.has(key)) cells.set(key, []);
+    cells.get(key).push(tree);
+    return true;
+  });
 }
 
 export function surroundingTrees() {
@@ -28,15 +52,19 @@ export function surroundingTrees() {
     const region = regionBlendAt({ x, y: z }).region.id;
     if (region === 'escape' && x >= -DEAD_TREE_EDGE_CLEARANCE && x <= WORLD_SIZE.width + DEAD_TREE_EDGE_CLEARANCE
       && z >= -DEAD_TREE_EDGE_CLEARANCE && z <= WORLD_SIZE.height + DEAD_TREE_EDGE_CLEARANCE) continue;
+    const mix = random(i, 108);
+    const type = region === 'escape' && mix < 0.6 ? 'deadTree'
+      : region === 'forest' ? (mix < 0.65 ? 'pine' : 'tree')
+        : mix < (region === 'escape' ? 0.8 : 0.35) ? 'pine' : 'tree';
     trees.push({
       x, z,
-      region,
+      region, type,
       size: 0.65 + random(i, 103) * 0.9,
       variant: i % 3,
       angle: random(i, 104) * Math.PI * 2
     });
   }
-  return spaceDeadTrees(trees);
+  return spaceSurroundingTrees(spaceDeadTrees(trees));
 }
 
 export function createSurroundingTerrain() {
