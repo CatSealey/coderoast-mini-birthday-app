@@ -262,6 +262,14 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     roomGroup = null;
   }
 
+  function lanternFlame(w, h, d, x, y, z) {
+    const flame = box(roomGroup, w, h, d, '#f2cb78', x, y, z);
+    const flameMaterial = new THREE.MeshStandardMaterial({ color: '#f2cb78', emissive: '#b6531c', emissiveIntensity: 0.7 });
+    materials.set(`flame:${lanternFlames.length}`, flameMaterial);
+    flame.material = flameMaterial;
+    lanternFlames.push(flame);
+  }
+
   function buildRoom() {
     clearRoom();
     roomGroup = new THREE.Group();
@@ -372,10 +380,6 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     for (const x of [-365, 0, 365]) {
       texturedBox(roomGroup, 170, 2, 105, x === 0 ? '#c9bad0' : '#ffffff', rug, x, 1, 370).userData.ground = true;
     }
-    for (const x of [-480, -250, -90, 90, 255, 480]) {
-      box(roomGroup, 24, 34, 5, '#49392e', x, 54, 247);
-      box(roomGroup, 15, 23, 6, '#e8c77d', x, 54, 250);
-    }
     for (const x of [-490, -80, 110, 480]) {
       box(roomGroup, 34, 50, 5, '#46382d', x, 66, -237);
       box(roomGroup, 25, 40, 4, '#394858', x, 66, -233);
@@ -386,12 +390,12 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     for (const x of [-375, -160, 205, 400]) {
       box(roomGroup, 7, 23, 8, '#49372a', x, 57, -226);
       box(roomGroup, 18, 20, 14, '#79572e', x, 75, -224);
-      const flame = box(roomGroup, 11, 13, 15, '#f2cb78', x, 75, -222);
-      const flameMaterial = new THREE.MeshStandardMaterial({ color: '#f2cb78', emissive: '#b6531c', emissiveIntensity: 0.7 });
-      materials.set(`flame:${x}`, flameMaterial);
-      flame.material = flameMaterial;
-      lanternFlames.push(flame);
+      lanternFlame(11, 13, 15, x, 75, -222);
       box(roomGroup, 20, 4, 17, '#654b31', x, 86, -224);
+    }
+    for (const x of [-480, -250, -90, 255, 480]) {
+      box(roomGroup, 24, 34, 5, '#49392e', x, 54, 247);
+      lanternFlame(15, 23, 6, x, 54, 250);
     }
     for (const x of [-320, 290]) {
       box(roomGroup, 54, 8, 8, '#53402e', x, 82, -229);
@@ -442,9 +446,9 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
   function draw(next) {
     state = next;
     facing = facingForMovement(previousPosition, state.player, facing);
-    const moving = previousPosition && Math.hypot(state.player.x - previousPosition.x, state.player.y - previousPosition.y) > 0.01;
-    if (moving) walkingPhase += 0.35;
-    const stride = moving ? Math.sin(walkingPhase) * 0.4 : 0;
+    const distance = previousPosition ? Math.hypot(state.player.x - previousPosition.x, state.player.y - previousPosition.y) : 0;
+    walkingPhase += distance * 0.04;
+    const stride = distance > 0.01 ? Math.sin(walkingPhase) * 0.4 : 0;
     if (renderer) {
       if (!roomGroup) buildRoom();
       player.rotation.y = facing;
