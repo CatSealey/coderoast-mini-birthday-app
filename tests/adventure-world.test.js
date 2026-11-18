@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CANOPY_CROSSINGS, CANOPY_OBSTACLES, CANOPY_PLATFORMS, CANOPY_ZIPLINE, COASTER_EXIT, COASTER_GOODBYE, COASTER_JOIN_POINT, COUPLE_GOODBYE_SECONDS, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_GOODBYE, PUB_JOIN_POINT, PUB_OBSTACLES, PUB_PARTNER_OFFSET, advanceCanopy, adventureObjectInRange, canopyMeter, canopyTarget, canopyZipPosition, coasterCouplePath, coasterPath, coasterWalkable, controlCoaster, couplePartnerPosition, createCanopyTarget, finishCoasterExit, finishCoasterGoodbye, finishPubExit, finishPubGoodbye, interactAdventure, jumpCanopy, newAdventureState, pubCouplePath, pubPath, pubWalkable, restoreAdventureState, takePoolShot, tickCanopy, tickCoaster, unlockBallCase, walkAdventure, walkCoasterCouple, walkPubCouple } from '../js/games/adventure-logic.js';
+import { CANOPY_CROSSINGS, CANOPY_OBSTACLES, CANOPY_PLATFORMS, CANOPY_ZIPLINE, COASTER_EXIT, COASTER_GOODBYE, COASTER_JOIN_POINT, COASTER_OTHER_EXIT, COASTER_OTHER_JOIN_POINT, COUPLE_GOODBYE_SECONDS, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_GOODBYE, PUB_JOIN_POINT, PUB_OBSTACLES, PUB_PARTNER_OFFSET, advanceCanopy, adventureObjectInRange, canopyMeter, canopyTarget, canopyZipPosition, coasterCouplePath, coasterExitFacing, coasterExitPlan, coasterPath, coasterWalkable, controlCoaster, couplePartnerPosition, createCanopyTarget, finishCoasterExit, finishCoasterGoodbye, finishPubExit, finishPubGoodbye, interactAdventure, jumpCanopy, newAdventureState, pubCouplePath, pubPath, pubWalkable, restoreAdventureState, takePoolShot, tickCanopy, tickCoaster, unlockBallCase, walkAdventure, walkCoasterCouple, walkPubCouple } from '../js/games/adventure-logic.js';
 import { COASTER_DROP_SECONDS, COASTER_GOAL, COASTER_PLATFORM, COASTER_REJOIN_PROGRESS, COASTER_RETURN_SECONDS, COASTER_RIDE_SECONDS, COASTER_TREATS, coasterDirection, coasterHeading, coasterLanePosition, coasterPosition, coasterRailPosition } from '../js/games/coaster-course.js';
+import { COASTER_ITEM_SCALE } from '../js/games/coaster-art.js';
 import { createCollision } from '../js/world/world-collision.js';
 import { createAdventureScene } from '../js/games/adventure-scene.js';
 import { questItems } from '../js/quest-items.js';
@@ -99,6 +100,48 @@ test('both exits take one straight route from Cat without repositioning her', ()
     const cat = OBJECTS[index].find((item) => item.id === catId);
     assert.ok(Math.hypot(partner.x - cat.x, partner.y - cat.y) < 1e-10);
     assert.equal(path({ x: start.x + 10, y: start.y }), null);
+  }
+});
+
+test('Thirteen joins Cat on the nearer reachable side and walks out without moving her', () => {
+  const cat = OBJECTS[2].find(({ id }) => id === 'amor');
+  for (const [start, side, join, exit, facing, offset] of [
+    [{ x: cat.x - 70, y: cat.y }, 1, COASTER_OTHER_JOIN_POINT, COASTER_OTHER_EXIT, 0, -PUB_PARTNER_OFFSET],
+    [{ x: cat.x + 70, y: cat.y }, -1, COASTER_JOIN_POINT, COASTER_EXIT, Math.atan2(500, 950), PUB_PARTNER_OFFSET]
+  ]) {
+    const plan = coasterExitPlan(start);
+    assert.equal(plan.side, side);
+    assert.equal(coasterExitFacing(side), facing);
+    assert.deepEqual(plan.joining.at(-1), join);
+    assert.deepEqual(plan.leaving, [exit]);
+    let state = { ...newAdventureState(2), phase: 'platform', rideEnding: 'ready',
+      coasterExitSide: side, player: { ...start, height: 0 } };
+    for (const point of plan.joining) {
+      let attempts = 200;
+      while (Math.hypot(point.x - state.player.x, point.y - state.player.y) > 0.01 && attempts-- > 0) {
+        const next = walkAdventure(2, state, point.x - state.player.x, point.y - state.player.y, 0.05);
+        assert.notStrictEqual(next, state);
+        state = next;
+      }
+      assert.ok(attempts > 0);
+    }
+    const partner = couplePartnerPosition(state.player, facing, offset);
+    assert.ok(Math.hypot(partner.x - cat.x, partner.y - cat.y) < 1e-8);
+    state = { ...state, coasterTogether: true };
+    state = walkCoasterCouple(state, exit, 0.15);
+    for (const point of [state.player, couplePartnerPosition(state.player, facing, offset)]) {
+      assert.ok(point.x >= COASTER_PLATFORM.left + 10 && point.x <= COASTER_PLATFORM.right - 10);
+      assert.ok(point.y >= COASTER_PLATFORM.top + 10 && point.y <= COASTER_PLATFORM.bottom - 10);
+    }
+    const resumed = restoreAdventureState(2, JSON.parse(JSON.stringify(state)));
+    assert.equal(resumed.coasterExitSide, side);
+    assert.equal(resumed.coasterTogether, true);
+    assert.deepEqual(coasterCouplePath(resumed.player, side), [exit]);
+    state = walkCoasterCouple(resumed, exit, 5);
+    const restoredAtExit = restoreAdventureState(2, JSON.parse(JSON.stringify(state)));
+    assert.equal(restoredAtExit.coasterTogether, true);
+    assert.deepEqual(coasterCouplePath(restoredAtExit.player, side), [exit]);
+    assert.equal(finishCoasterExit(state).complete, true);
   }
 });
 
@@ -303,13 +346,52 @@ test('Thirteen fallback keeps the locker visible without its floating label', ()
   }
 });
 
+test('Thirteen fallback keeps Cat on the selected side while holding hands', () => {
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const characters = [], links = [];
+  let path = [];
+  const ctx = {
+    setTransform() {}, fillRect() {}, beginPath() { path = []; },
+    moveTo(x, y) { path.push({ x, y }); }, lineTo(x, y) { path.push({ x, y }); },
+    stroke() { if (this.strokeStyle === '#dfb38c') links.push(path); },
+    arc() {}, ellipse(x, y, rx, ry) { if (rx === 8 && (ry === 10 || ry === 12)) characters.push({ x, y, ry }); },
+    fill() {}, save() {}, translate() {}, rotate() {}, restore() {}, drawImage() {}, fillText() {}
+  };
+  const iconCtx = {
+    clearRect() {}, beginPath() {}, arc() {}, ellipse() {}, fill() {}, stroke() {}, moveTo() {},
+    lineTo() {}, closePath() {}, fillRect() {}, strokeRect() {}, fillText() {}, quadraticCurveTo() {}
+  };
+  const canvas = { getContext: () => ctx, addEventListener() {}, removeEventListener() {} };
+  globalThis.document = { createElement: () => ({ getContext: (type) => type === '2d' ? iconCtx : null }) };
+  globalThis.window = { devicePixelRatio: 1 };
+  try {
+    const scene = createAdventureScene(canvas, 2, () => {}, 'Player');
+    scene.resize(1000, 700);
+    for (const [side, join] of [[1, COASTER_OTHER_JOIN_POINT], [-1, COASTER_JOIN_POINT]]) {
+      characters.length = 0;
+      links.length = 0;
+      scene.draw({ ...newAdventureState(2), phase: 'platform', pubTogether: true, coupleFacing: coasterExitFacing(side),
+        coasterExitSide: side, player: { ...join, height: 0 } });
+      const cat = characters.find(({ ry }) => ry === 10), player = characters.find(({ ry }) => ry === 12);
+      assert.ok(side === 1 ? cat.x > player.x : cat.x < player.x);
+      assert.deepEqual(links.at(-1), [{ x: cat.x, y: cat.y + 5 }, { x: player.x, y: player.y + 5 }]);
+    }
+    scene.dispose();
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
 test('Thirteen fallback keeps missed items visible through each ride phase', () => {
   const previousDocument = globalThis.document, previousWindow = globalThis.window;
-  const drawn = [];
+  const drawn = [], sizes = [];
   const ctx = {
     setTransform() { }, fillRect() { }, beginPath() { }, moveTo() { }, lineTo() { }, stroke() { },
     arc() { }, ellipse() { }, fill() { }, save() { }, translate() { }, rotate() { }, restore() { }, fillText() { },
-    drawImage(image) { drawn.push(image); }
+    drawImage(image, x, y, width, height) { drawn.push(image); sizes.push({ x, y, width, height }); }
   };
   const iconCtx = {
     clearRect() { }, beginPath() { }, arc() { }, ellipse() { }, fill() { }, stroke() { }, moveTo() { },
@@ -324,11 +406,15 @@ test('Thirteen fallback keeps missed items visible through each ride phase', () 
     const state = newAdventureState(2);
     scene.draw(state);
     const ground = drawn.shift();
+    const sign = drawn.shift();
     const icons = drawn.splice(0);
     assert.equal(icons.length, COASTER_TREATS.length);
+    assert.ok(sizes.slice(2).every(({ width, height }) => width === 30 * COASTER_ITEM_SCALE
+      && height === 30 * COASTER_ITEM_SCALE && width < 30));
     for (const phase of ['riding', 'dropping', 'returning', 'platform']) {
       scene.draw({ ...state, phase, progress: 0.9, treats: [COASTER_TREATS[1].id] });
       assert.equal(drawn.shift(), ground, `${phase}: ground image is reused`);
+      assert.equal(drawn.shift(), sign, `${phase}: station sign image is reused`);
       assert.deepEqual(drawn.splice(0), icons.filter((_, i) => i !== 1), `${phase}: missed items stay visible`);
     }
     scene.dispose();
@@ -750,11 +836,55 @@ test('Thirteen station is beside the carriage and boarding and hand-in remain re
   assert.equal(finishCoasterExit(state).complete, true);
 });
 
+test('Thirteen walking and click routes stay on the platform in both station phases', () => {
+  for (const phase of ['boarding', 'platform']) {
+    for (const [direction, edge] of [
+      [[-2000, 0], { x: 40, y: 630 }],
+      [[2000, 0], { x: 960, y: 630 }],
+      [[0, -2000], { x: 500, y: COASTER_PLATFORM.top + 10 }],
+      [[0, 2000], { x: 500, y: 660 }]
+    ]) {
+      const state = { ...newAdventureState(2), phase, player: { x: 500, y: 630, height: 0 } };
+      const moved = walkAdventure(2, state, ...direction, 20);
+      assert.deepEqual({ x: moved.player.x, y: moved.player.y }, edge);
+      const route = coasterPath(state.player, {
+        x: state.player.x + direction[0], y: state.player.y + direction[1]
+      });
+      assert.deepEqual(route?.at(-1), edge);
+      assert.ok(route.every((point) => point.y >= COASTER_PLATFORM.top + 10 && point.y <= COASTER_PLATFORM.bottom - 10
+        && point.x >= COASTER_PLATFORM.left + 10 && point.x <= COASTER_PLATFORM.right - 10));
+    }
+  }
+  const carriage = OBJECTS[2].find(({ id }) => id === 'carriage');
+  const initial = newAdventureState(2);
+  const route = coasterPath(initial.player, carriage, carriage);
+  assert.ok(route?.length);
+  assert.ok(adventureObjectInRange(2, { ...route.at(-1), height: 0 }, carriage));
+});
+
+test('Thirteen restores old off-platform saves safely without losing progress', () => {
+  const treats = COASTER_TREATS.map(({ id }) => id);
+  for (const phase of ['boarding', 'platform']) {
+    const saved = { ...newAdventureState(2), phase, bags: true, treats,
+      player: { x: 500, y: 200, height: 0 } };
+    const restored = restoreAdventureState(2, saved);
+    assert.deepEqual(restored.player, { x: 500, y: COASTER_PLATFORM.top + 10, height: 0 });
+    assert.equal(restored.phase, phase);
+    assert.equal(restored.bags, true);
+    assert.deepEqual(restored.treats, treats);
+  }
+  const savedBehindLocker = { ...newAdventureState(2), player: { x: 260, y: 200, height: 0 } };
+  const restored = restoreAdventureState(2, savedBehindLocker);
+  assert.ok(coasterWalkable(restored.player));
+  assert.ok(restored.player.y >= COASTER_PLATFORM.top + 10);
+  assert.ok(coasterPath(restored.player, OBJECTS[2][0], OBJECTS[2][0])?.length);
+});
+
 test('Thirteen locker blocks swept movement and remains accessible from both sides', () => {
   const locker = OBJECTS[2].find((item) => item.id === 'locker');
   const collision = createCollision([{ x: locker.x, y: locker.y, ...locker.footprint }], 10);
   assert.equal(locker.footprint.depth, 24.5);
-  assert.equal(locker.y - locker.footprint.depth / 2, COASTER_PLATFORM.top);
+  assert.equal(locker.y - locker.footprint.depth / 2, COASTER_PLATFORM.top + 10);
   assert.ok(locker.x + locker.footprint.width / 2 < 325, 'locker sits left of the platform light');
   assert.ok(locker.y + locker.footprint.depth / 2 <= COASTER_PLATFORM.bottom);
   assert.ok(collision.clearSegment({ x: locker.x - 70, y: 630 }, { x: locker.x + 70, y: 630 }),
@@ -845,9 +975,26 @@ test('Thirteen park items retain old saved IDs and give named collection feedbac
   assert.match(collected.message, /Refill cup/);
 });
 
-test('Thirteen ride and return are slightly faster while the drop stays sudden', () => {
-  assert.equal(COASTER_RIDE_SECONDS, 20);
-  assert.equal(COASTER_RETURN_SECONDS, 8.5);
+test('the last three Thirteen items are spread around the ride and still collectible from saved progress', () => {
+  const last = COASTER_TREATS.slice(2), previousPositions = [0.36, 0.42, 0.52];
+  assert.ok(last[0].progress - COASTER_TREATS[1].progress >= 0.17);
+  assert.ok(last[1].progress - last[0].progress >= 0.19);
+  assert.ok(last[2].progress - last[1].progress >= 0.19);
+  assert.ok(last[2].progress < 0.9);
+  for (const [index, item] of last.entries()) {
+    const saved = { ...newAdventureState(2), phase: 'riding', progress: previousPositions[index] + 0.01 };
+    const state = controlCoaster(restoreAdventureState(2, saved), item.lane < 0 ? 'left' : 'right');
+    const result = tickCoaster(state, (item.progress - state.progress + 0.001) * COASTER_RIDE_SECONDS);
+    assert.ok(result.treats.includes(item.id));
+    const alreadyCollected = restoreAdventureState(2, { ...saved, treats: [item.id] });
+    assert.deepEqual(tickCoaster(controlCoaster(alreadyCollected, item.lane < 0 ? 'left' : 'right'),
+      (item.progress - alreadyCollected.progress + 0.001) * COASTER_RIDE_SECONDS).treats, [item.id]);
+  }
+});
+
+test('Thirteen ride and return are faster while the drop stays sudden', () => {
+  assert.equal(COASTER_RIDE_SECONDS, 16);
+  assert.equal(COASTER_RETURN_SECONDS, 7);
   assert.equal(COASTER_DROP_SECONDS, 0.75);
   let state = { ...newAdventureState(2), phase: 'riding' };
   state = tickCoaster(state, COASTER_RIDE_SECONDS / 2);
@@ -857,6 +1004,16 @@ test('Thirteen ride and return are slightly faster while the drop stays sudden',
   state = tickCoaster(state, COASTER_DROP_SECONDS);
   state = tickCoaster(state, COASTER_RETURN_SECONDS / 2);
   assert.equal(state.progress, 0.5);
+});
+
+test('moving the map keeps collected saves and permits nearby unfinished saves to collect it', () => {
+  const map = COASTER_TREATS.find(({ kind }) => kind === 'map');
+  const saved = { ...newAdventureState(2), phase: 'riding', progress: 0.33, treats: ['sweet-1', 'sweet-2'] };
+  const seconds = (map.progress - saved.progress + 0.001) * COASTER_RIDE_SECONDS;
+  const unfinished = controlCoaster(restoreAdventureState(2, saved), 'left');
+  assert.deepEqual(tickCoaster(unfinished, seconds).treats, ['sweet-1', 'sweet-2', map.id]);
+  const collected = controlCoaster(restoreAdventureState(2, { ...saved, treats: [...saved.treats, map.id] }), 'left');
+  assert.deepEqual(tickCoaster(collected, seconds).treats, ['sweet-1', 'sweet-2', map.id]);
 });
 
 test('Thirteen requires every item before returning to the platform', () => {

@@ -1,5 +1,5 @@
 import { createCollision, findWorldPath } from '../world/world-collision.js';
-import { COASTER_DROP_SECONDS, COASTER_GOAL, COASTER_RETURN_SECONDS, COASTER_RIDE_SECONDS, COASTER_TREATS } from './coaster-course.js';
+import { COASTER_DROP_SECONDS, COASTER_GOAL, COASTER_PLATFORM, COASTER_RETURN_SECONDS, COASTER_RIDE_SECONDS, COASTER_TREATS } from './coaster-course.js';
 
 export const ADVENTURE_NAMES = { 1: 'Lucky Chucks', 2: 'Thirteen', 3: 'GoApe' };
 export const POOL_TABLE_FOOTPRINT = Object.freeze({ x: 500, y: 230, width: 220, depth: 131 });
@@ -8,8 +8,8 @@ export const PUB_EXIT = Object.freeze({ x: 900, y: 640 });
 export const PUB_PARTNER_OFFSET = -50;
 const COUPLE_FACING = Math.atan2(500, 950);
 export const PUB_GOODBYE = "Cat: We sucked at pool but I had so much fun! Let's go home.";
-export const COASTER_GOODBYE = 'Cat: You look so happy with yourself 😅, you got me good!';
-export const COUPLE_GOODBYE_SECONDS = 3;
+export const COASTER_GOODBYE = 'Cat: You look so happy with yourself 😅, I actually died!';
+export const COUPLE_GOODBYE_SECONDS = 2.5;
 export const COASTER_JOIN_POINT = Object.freeze({ x: 860, y: 580 });
 export const COASTER_EXIT = Object.freeze({ x: 900, y: 656 });
 const CANOPY_OFFSETS = [0, 200, 400, 400, 600, 600, 800, 1000];
@@ -86,21 +86,32 @@ const pubCollision = {
   blocked: (point) => !withinPub(point) || furnitureCollision.blocked(point),
   clearSegment: (start, end) => withinPub(end) && furnitureCollision.clearSegment(start, end)
 };
-export function couplePartnerPosition(point, facing) {
+export function couplePartnerPosition(point, facing, offset = PUB_PARTNER_OFFSET) {
   return {
-    x: point.x + PUB_PARTNER_OFFSET * Math.cos(facing),
-    y: point.y - PUB_PARTNER_OFFSET * Math.sin(facing)
+    x: point.x + offset * Math.cos(facing),
+    y: point.y - offset * Math.sin(facing)
   };
 }
 const withinRoom = (point) => point.x >= PUB_PLAYER_RADIUS && point.x <= 1000 - PUB_PLAYER_RADIUS
   && point.y >= PUB_PLAYER_RADIUS && point.y <= 700 - PUB_PLAYER_RADIUS;
-function coupleCollisionFor(obstacles) {
+const withinCoasterPlatform = (point) => point.x >= 40 && point.x <= 960
+  && point.y >= COASTER_PLATFORM.top + PUB_PLAYER_RADIUS && point.y <= 660;
+const coasterPartnerOnPlatform = (point) => point.x >= COASTER_PLATFORM.left + PUB_PLAYER_RADIUS
+  && point.x <= COASTER_PLATFORM.right - PUB_PLAYER_RADIUS
+  && point.y >= COASTER_PLATFORM.top + PUB_PLAYER_RADIUS && point.y <= COASTER_PLATFORM.bottom - PUB_PLAYER_RADIUS;
+const clampToCoasterPlatform = (point) => ({
+  x: Math.max(40, Math.min(960, point.x)),
+  y: Math.max(COASTER_PLATFORM.top + PUB_PLAYER_RADIUS, Math.min(660, point.y))
+});
+function coupleCollisionFor(obstacles, facing = COUPLE_FACING, offset = PUB_PARTNER_OFFSET,
+  withinPlayer = withinPub, withinPartner = withinRoom) {
   const collision = createCollision(obstacles, PUB_PLAYER_RADIUS);
-  const partner = (point) => couplePartnerPosition(point, COUPLE_FACING);
+  const partner = (point) => couplePartnerPosition(point, facing, offset);
   return {
-    blocked: (point) => !withinPub(point) || !withinRoom(partner(point))
+    blocked: (point) => !withinPlayer(point) || !withinPartner(partner(point))
       || collision.blocked(point) || collision.blocked(partner(point)),
-    clearSegment: (start, end) => withinPub(end) && withinRoom(partner(end))
+    clearSegment: (start, end) => withinPlayer(start) && withinPlayer(end)
+      && withinPartner(partner(start)) && withinPartner(partner(end))
       && collision.clearSegment(start, end) && collision.clearSegment(partner(start), partner(end))
   };
 }
@@ -110,10 +121,22 @@ const coasterObstacles = OBJECTS[2].filter((object) => object.footprint)
   .map(({ x, y, footprint }) => ({ x, y, ...footprint }));
 const platformCollision = createCollision(coasterObstacles, PUB_PLAYER_RADIUS);
 const coasterCollision = {
-  blocked: (point) => !withinPub(point) || platformCollision.blocked(point),
-  clearSegment: (start, end) => withinPub(end) && platformCollision.clearSegment(start, end)
+  blocked: (point) => !withinCoasterPlatform(point) || platformCollision.blocked(point),
+  clearSegment: (start, end) => withinCoasterPlatform(start) && withinCoasterPlatform(end)
+    && platformCollision.clearSegment(start, end)
 };
-const coasterCoupleCollision = coupleCollisionFor([{ x: locker.x, y: locker.y, ...locker.footprint }]);
+const coasterCoupleObstacles = [{ x: locker.x, y: locker.y, ...locker.footprint }];
+const coasterCoupleCollision = coupleCollisionFor(coasterCoupleObstacles, COUPLE_FACING, PUB_PARTNER_OFFSET,
+  withinCoasterPlatform, coasterPartnerOnPlatform);
+const coasterOtherSideCollision = coupleCollisionFor(coasterCoupleObstacles, 0, -PUB_PARTNER_OFFSET,
+  withinCoasterPlatform, coasterPartnerOnPlatform);
+const coasterCat = OBJECTS[2].find((item) => item.id === 'amor');
+export const COASTER_OTHER_JOIN_POINT = Object.freeze({ x: coasterCat.x + PUB_PARTNER_OFFSET, y: coasterCat.y });
+export const COASTER_OTHER_EXIT = Object.freeze({ x: COASTER_OTHER_JOIN_POINT.x, y: 660 });
+
+export function coasterExitFacing(side) {
+  return side === 1 ? 0 : COUPLE_FACING;
+}
 
 function followsCoupleHeading(start, end) {
   const dx = end.x - start.x, dy = end.y - start.y;
@@ -137,19 +160,26 @@ export function walkPubCouple(state, destination, seconds) {
   return { ...state, player: { ...state.player, ...next } };
 }
 
-export function coasterCouplePath(start) {
-  return followsCoupleHeading(start, COASTER_EXIT) && !coasterCoupleCollision.blocked(start) && !coasterCoupleCollision.blocked(COASTER_EXIT)
-    && coasterCoupleCollision.clearSegment(start, COASTER_EXIT) ? [COASTER_EXIT] : null;
+export function coasterCouplePath(start, side = -1) {
+  const destination = side === 1 ? COASTER_OTHER_EXIT : COASTER_EXIT;
+  const collision = side === 1 ? coasterOtherSideCollision : coasterCoupleCollision;
+  const heading = side === 1
+    ? Math.abs(start.x - destination.x) < 1e-6 && start.y <= destination.y
+    : followsCoupleHeading(start, destination);
+  return heading && !collision.blocked(start) && !collision.blocked(destination)
+    && collision.clearSegment(start, destination) ? [destination] : null;
 }
 
 export function walkCoasterCouple(state, destination, seconds) {
   if (!Number.isFinite(seconds) || seconds <= 0) return state;
+  const otherSide = state.coasterExitSide === 1;
+  const collision = otherSide ? coasterOtherSideCollision : coasterCoupleCollision;
   const dx = destination.x - state.player.x, dy = destination.y - state.player.y;
   const length = Math.hypot(dx, dy);
-  if (!length || !followsCoupleHeading(state.player, destination)) return state;
+  if (!length || (otherSide ? Math.abs(dx) >= 1e-6 || dy < 0 : !followsCoupleHeading(state.player, destination))) return state;
   const distance = Math.min(length, 105 * seconds);
   const next = { x: state.player.x + dx / length * distance, y: state.player.y + dy / length * distance };
-  if (!coasterCoupleCollision.clearSegment(state.player, next)) return state;
+  if (!collision.clearSegment(state.player, next)) return state;
   return { ...state, player: { ...state.player, ...next } };
 }
 
@@ -173,7 +203,8 @@ export function finishCoasterGoodbye(state) {
 }
 
 export function finishCoasterExit(state) {
-  if (state.rideEnding !== 'ready' || Math.hypot(state.player.x - COASTER_EXIT.x, state.player.y - COASTER_EXIT.y) > 1) return state;
+  const exit = state.coasterExitSide === 1 ? COASTER_OTHER_EXIT : COASTER_EXIT;
+  if (state.rideEnding !== 'ready' || Math.hypot(state.player.x - exit.x, state.player.y - exit.y) > 1) return state;
   return { ...state, phase: 'finished', complete: true, message: 'You leave Thirteen hand in hand.' };
 }
 
@@ -242,7 +273,24 @@ export function pubPath(player, destination, object = null) {
 }
 
 export function coasterPath(player, destination, object = null) {
-  return furniturePath(player, destination, object, coasterCollision);
+  return furniturePath(player, clampToCoasterPlatform(destination), object, coasterCollision);
+}
+
+export function coasterExitPlan(player) {
+  const options = [
+    { side: -1, join: COASTER_JOIN_POINT },
+    { side: 1, join: COASTER_OTHER_JOIN_POINT }
+  ].map(({ side, join }) => {
+    const joining = coasterPath(player, join), leaving = coasterCouplePath(join, side);
+    if (!joining?.length || !leaving?.length) return null;
+    const distance = joining.reduce((sum, point, index) => {
+      const previous = index ? joining[index - 1] : player;
+      return sum + Math.hypot(point.x - previous.x, point.y - previous.y);
+    }, 0);
+    return { side, joining, leaving, distance };
+  }).filter(Boolean);
+  options.sort((a, b) => a.distance - b.distance);
+  return options[0] ?? null;
 }
 
 const LEGACY_CANOPY_PLATFORMS = [
@@ -342,6 +390,10 @@ export function restoreAdventureState(index, saved) {
     && (index !== 1 || ['noteRead', 'caseUnlocked', 'hook', 'catCueGiven'].every((flag) => saved[flag] === undefined || typeof saved[flag] === 'boolean'))
     && (index !== 1 || saved.pubEnding === undefined || saved.pubEnding === null || ['dialogue', 'ready'].includes(saved.pubEnding))
     && (index !== 2 || saved.rideEnding === undefined || saved.rideEnding === null || ['dialogue', 'ready'].includes(saved.rideEnding))
+    && (index !== 2 || saved.coasterExitSide === undefined || [-1, 1].includes(saved.coasterExitSide))
+    && (index !== 2 || saved.coasterTogether === undefined || typeof saved.coasterTogether === 'boolean')
+    && (index !== 2 || !saved.coasterTogether || (saved.rideEnding === 'ready'
+      && [-1, 1].includes(saved.coasterExitSide) && coasterCouplePath(player, saved.coasterExitSide)))
     && typeof saved.complete === 'boolean'
     && (index !== 2 || (['boarding', 'riding', 'dropping', 'returning', 'platform', 'finished'].includes(saved.phase)
       && Number.isFinite(saved.progress) && saved.progress >= 0 && saved.progress <= 1
@@ -410,6 +462,8 @@ export function restoreAdventureState(index, saved) {
     if (['boarding', 'platform'].includes(restored.phase) && !restored.complete && coasterCollision.blocked(restored.player)) {
       const positions = coasterObstacles.flatMap((obstacle) => furnitureApproaches(restored.player, obstacle))
         .filter((point) => !coasterCollision.blocked(point));
+      const clamped = clampToCoasterPlatform(restored.player);
+      if (!coasterCollision.blocked(clamped)) positions.push(clamped);
       positions.push({ x: initial.player.x, y: initial.player.y });
       positions.sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y));
       restored.player = { ...restored.player, ...positions[0] };
@@ -484,7 +538,7 @@ export function walkAdventure(index, state, dx, dy, seconds) {
   if (!length) return state;
   const distance = Math.min(length, 175 * seconds);
   let x = Math.max(40, Math.min(index === 3 ? CANOPY_ZIPLINE.departure.x : 960, state.player.x + dx / length * distance));
-  let y = Math.max(40, Math.min(660, state.player.y + dy / length * distance));
+  let y = Math.max(index === 2 ? COASTER_PLATFORM.top + PUB_PLAYER_RADIUS : 40, Math.min(660, state.player.y + dy / length * distance));
   if (index === 1 || index === 2) {
     const collision = index === 1 ? furnitureCollision : platformCollision;
     const next = collision.move(state.player, x - state.player.x, y - state.player.y);

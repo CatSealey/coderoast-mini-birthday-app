@@ -1,3 +1,5 @@
+export const COASTER_ITEM_SCALE = 0.72;
+
 export function drawCoasterItem(ctx, kind) {
   ctx.clearRect(0, 0, 96, 96);
   ctx.fillStyle = '#263d3d';

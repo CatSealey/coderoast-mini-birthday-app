@@ -1,4 +1,4 @@
-import { CANOPY_CROSSINGS, COASTER_JOIN_POINT, COUPLE_GOODBYE_SECONDS, OBJECTS, PUB_JOIN_POINT, advanceCanopy, adventureObjectDistance, adventureObjectInRange, canopyMeter, canopyObjectAvailable, canopyTarget, coasterCouplePath, coasterPath, controlCoaster, finishCoasterExit, finishCoasterGoodbye, finishPubExit, finishPubGoodbye, interactAdventure, jumpCanopy, pubCouplePath, pubPath, restoreAdventureState, takePoolShot, tickCanopy, tickCoaster, unlockBallCase, walkAdventure, walkCoasterCouple, walkPubCouple } from './adventure-logic.js';
+import { CANOPY_CROSSINGS, COUPLE_GOODBYE_SECONDS, OBJECTS, PUB_JOIN_POINT, advanceCanopy, adventureObjectDistance, adventureObjectInRange, canopyMeter, canopyObjectAvailable, canopyTarget, coasterCouplePath, coasterExitFacing, coasterExitPlan, coasterPath, controlCoaster, finishCoasterExit, finishCoasterGoodbye, finishPubExit, finishPubGoodbye, interactAdventure, jumpCanopy, pubCouplePath, pubPath, restoreAdventureState, takePoolShot, tickCanopy, tickCoaster, unlockBallCase, walkAdventure, walkCoasterCouple, walkPubCouple } from './adventure-logic.js';
 import { COASTER_GOAL, COASTER_TREATS } from './coaster-course.js';
 import { createAdventureScene } from './adventure-scene.js';
 
@@ -252,15 +252,22 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
     update({ ...state, message: 'You join Cat and take her hand.' });
   }
   function startCoasterExit() {
-    const joining = coasterPath(state.player, COASTER_JOIN_POINT), leaving = coasterCouplePath(COASTER_JOIN_POINT);
-    if (!joining?.length || !leaving?.length) {
+    const leaving = state.coasterTogether ? coasterCouplePath(state.player, state.coasterExitSide) : null;
+    const plan = state.coasterTogether ? null : coasterExitPlan(state.player);
+    if (!leaving?.length && !plan) {
       exitFailed = true;
-      update({ ...state, message: 'There is no clear route to leave together. Move to another spot and try again.' });
+      update({ ...state, coasterTogether: false, message: 'There is no clear route to leave together. Move to another spot and try again.' });
       return;
     }
     stopWalking(); clearInput(); exitFailed = false;
-    exitPhase = 'joining'; exitPath = joining; couplePath = leaving;
-    update({ ...state, message: 'You join Cat and take her hand.' });
+    if (leaving) {
+      exitPhase = 'walking'; exitPath = leaving;
+      coupleFacing = coasterExitFacing(state.coasterExitSide);
+      update({ ...state, message: 'Hand in hand, you leave Thirteen together.' });
+    } else {
+      exitPhase = 'joining'; exitPath = plan.joining; couplePath = plan.leaving;
+      update({ ...state, coasterExitSide: plan.side, coasterTogether: false, message: 'You join Cat and take her hand.' });
+    }
   }
   function click(event) {
     const button = event.target.closest('button');
@@ -356,8 +363,10 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
           exitPath.shift();
           if (!exitPath.length && exitPhase === 'joining') {
             exitPhase = 'walking'; exitPath = couplePath;
-            coupleFacing = Math.atan2(exitPath[0].x - state.player.x, exitPath[0].y - state.player.y);
-            update({ ...state, message: `Hand in hand, you leave ${index === 2 ? 'Thirteen' : 'Lucky Chucks'} together.` });
+            coupleFacing = index === 2 ? coasterExitFacing(state.coasterExitSide)
+              : Math.atan2(exitPath[0].x - state.player.x, exitPath[0].y - state.player.y);
+            update({ ...state, ...(index === 2 ? { coasterTogether: true } : {}),
+              message: `Hand in hand, you leave ${index === 2 ? 'Thirteen' : 'Lucky Chucks'} together.` });
           } else if (!exitPath.length) {
             exitPhase = null;
             update(index === 2 ? finishCoasterExit(state) : finishPubExit(state));
@@ -368,7 +377,8 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
             : index === 2 ? walkCoasterCouple(state, point, dt) : walkPubCouple(state, point, dt);
           if (dt && next === state) {
             exitPhase = null; exitPath = []; couplePath = []; exitFailed = true;
-            update({ ...state, message: 'The way is blocked. Move to another spot and try leaving together again.' });
+            update({ ...state, ...(index === 2 ? { coasterTogether: false } : {}),
+              message: 'The way is blocked. Move to another spot and try leaving together again.' });
           } else update(next, false, false);
         }
       } else if (dx || dy) {

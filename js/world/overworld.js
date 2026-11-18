@@ -6,7 +6,7 @@ import { createWorld3D } from './world-3d.js';
 import { WORLD_NPCS } from './world-npcs.js';
 import { birthdayProgress } from '../progression.js';
 import { speechBubblePosition } from './speech-bubble.js';
-import { createCollision, findCharacterApproach, findWorldPath, worldObstacles } from './world-collision.js';
+import { createCollision, findCharacterApproach, findWorldPath, smoothWorldPath, worldObstacles } from './world-collision.js';
 import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, drawCharacterMarker } from '../character-appearance.js';
 import { TATTOO_ACCENT, TATTOO_INK } from '../character-body.js';
 import { sideQuestPosition } from '../side-quests.js';
@@ -85,7 +85,9 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     npcIndex: null, npcDialogue: Array(WORLD_NPCS.length).fill(0), speaker: null,
     frame: 0, lastFrame: 0, keys: new Set(), heldDirections: new Set(), disposed: false, path: []
   };
-  const collision = createCollision(worldObstacles(), PLAYER_RADIUS);
+  const obstacles = worldObstacles();
+  const collision = createCollision(obstacles, PLAYER_RADIUS);
+  const routeClearance = createCollision(obstacles, PLAYER_RADIUS + 2);
   let canvasWidth = 0;
   let canvasHeight = 0;
   let zoom = 1;
@@ -109,7 +111,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       return false;
     }
     state.target = path.at(-1) || { ...state.player };
-    state.path = path;
+    state.path = smoothWorldPath(state.player, path, collision, routeClearance);
     return true;
   }
 
@@ -121,7 +123,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       return false;
     }
     state.target = path.at(-1) || { ...state.player };
-    state.path = path;
+    state.path = smoothWorldPath(state.player, path, collision, routeClearance);
     return true;
   }
 
@@ -610,7 +612,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
         if (waypoint) {
           const next = moveToward(state.player, waypoint, WALK_SPEED * delta);
           state.player = collision.move(state.player, next.x - state.player.x, next.y - state.player.y);
-          if (distanceBetween(state.player, waypoint) <= 1) state.path.shift();
+          if (state.player.x === waypoint.x && state.player.y === waypoint.y) state.path.shift();
         }
         if (state.pendingEntrance !== null && isNearQuest(state.player, QUEST_LOCATIONS[state.pendingEntrance].entrance)) {
           const index = state.pendingEntrance;

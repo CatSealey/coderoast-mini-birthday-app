@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCollision, findCharacterApproach, findWorldPath, MAZE_REGION_CLEARANCE, worldCornWalls, worldObstacles, worldTrees } from '../js/world/world-collision.js';
+import { createCollision, findCharacterApproach, findWorldPath, MAZE_REGION_CLEARANCE, smoothWorldPath, worldCornWalls, worldObstacles, worldTrees } from '../js/world/world-collision.js';
 import { CASTLE_BARREL_COLLISION_RADIUS, CASTLE_CRATE_COLLISION_SIZE, CASTLE_ENTRANCE, CASTLE_EXTERIOR_SUPPLIES, CASTLE_LAYOUT, CASTLE_TOWERS, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_ROUTES, WORLD_SCALE, WORLD_SIZE, WORLD_SPAWN } from '../js/world/world-data.js';
+import { moveToward } from '../js/world/world-logic.js';
 import { WORLD_NPCS } from '../js/world/world-npcs.js';
 import { CANOPY_ILLUSTRATIONS, CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, harvestPumpkins, placeQuestDecorations } from '../js/world/world-scenery-data.js';
 import { regionBlendAt } from '../js/world/world-regions.js';
@@ -341,6 +342,77 @@ test('routes go around obstacles without crossing them', () => {
     assert.equal(collision.clearSegment(position, waypoint), true);
     position = waypoint;
   }
+});
+
+test('smoothed castle-to-Thirteen routes reduce turns and stay walkable to the same destination', () => {
+  const obstacles = worldObstacles();
+  const collision = createCollision(obstacles, 12), clearance = createCollision(obstacles, 14);
+  const quest = QUEST_LOCATIONS[2];
+  const castlePosition = findWorldPath(WORLD_SPAWN, CASTLE_ENTRANCE, collision).at(-1);
+  for (const start of [WORLD_SPAWN, castlePosition]) for (const raw of [
+    findCharacterApproach(start, quest, collision),
+    findWorldPath(start, quest.entrance, collision)
+  ]) {
+    assert.ok(raw?.length);
+    const smooth = smoothWorldPath(start, raw, collision, clearance);
+    assert.ok(smooth.length <= 8 && smooth.length < raw.length / 2);
+    assert.deepEqual(smooth.at(-1), raw.at(-1));
+    let position = start;
+    for (const waypoint of smooth) {
+      assert.ok(collision.clearSegment(position, waypoint));
+      let steps = 2000;
+      while ((position.x !== waypoint.x || position.y !== waypoint.y) && steps-- > 0) {
+        const next = moveToward(position, waypoint, 3.52);
+        const moved = collision.move(position, next.x - position.x, next.y - position.y);
+        assert.ok(Math.hypot(moved.x - next.x, moved.y - next.y) < 1e-8, 'movement does not catch on scenery');
+        position = moved;
+      }
+      assert.ok(steps > 0, 'the waypoint is reached');
+    }
+  }
+});
+
+test('smoothed overworld routes remain walkable to every guide and entrance', () => {
+  const obstacles = worldObstacles();
+  const collision = createCollision(obstacles, 12), clearance = createCollision(obstacles, 14);
+  for (const quest of QUEST_LOCATIONS) {
+    for (const raw of [
+      findCharacterApproach(WORLD_SPAWN, quest, collision),
+      findWorldPath(WORLD_SPAWN, quest.entrance, collision)
+    ]) {
+      assert.ok(raw?.length, `route to ${quest.name}`);
+      const smooth = smoothWorldPath(WORLD_SPAWN, raw, collision, clearance);
+      assert.deepEqual(smooth.at(-1), raw.at(-1));
+      let position = WORLD_SPAWN;
+      for (const waypoint of smooth) {
+        let steps = 2000;
+        while ((position.x !== waypoint.x || position.y !== waypoint.y) && steps-- > 0) {
+          const next = moveToward(position, waypoint, 3.52);
+          const moved = collision.move(position, next.x - position.x, next.y - position.y);
+          assert.ok(Math.hypot(moved.x - next.x, moved.y - next.y) < 1e-8, `${quest.name} route catches on scenery`);
+          position = moved;
+        }
+        assert.ok(steps > 0, `${quest.name} waypoint is reached`);
+      }
+    }
+  }
+});
+
+test('path smoothing retains endpoints and never shortcuts through obstacles', () => {
+  const collision = createCollision([{ x: 200, y: 200, width: 100, depth: 140 }]);
+  const start = { x: 100, y: 200 }, destination = { x: 300, y: 200 };
+  const raw = findWorldPath(start, destination, collision);
+  const smooth = smoothWorldPath(start, raw, collision);
+  assert.ok(smooth.length > 1 && smooth.length < raw.length);
+  assert.deepEqual(smooth.at(-1), destination);
+  let position = start;
+  for (const waypoint of smooth) {
+    assert.ok(collision.clearSegment(position, waypoint));
+    position = waypoint;
+  }
+  assert.deepEqual(smoothWorldPath(start, [], collision), []);
+  const blockedDestination = findWorldPath(start, { x: 200, y: 200 }, collision);
+  assert.deepEqual(smoothWorldPath(start, blockedDestination, collision).at(-1), blockedDestination.at(-1));
 });
 
 test('tree rocks use the original collision footprint', () => {

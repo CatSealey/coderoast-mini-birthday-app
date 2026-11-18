@@ -1,15 +1,15 @@
 export const COASTER_DROP_SECONDS = 0.75;
-export const COASTER_RIDE_SECONDS = 20;
-export const COASTER_RETURN_SECONDS = 8.5;
+export const COASTER_RIDE_SECONDS = 16;
+export const COASTER_RETURN_SECONDS = 7;
 export const COASTER_RAIL_OFFSET = 25;
-export const COASTER_PLATFORM = Object.freeze({ left: 25, right: 975, top: 580, bottom: 695 });
+export const COASTER_PLATFORM = Object.freeze({ left: 25, right: 975, top: 570, bottom: 695 });
 // The original IDs are retained so existing ride saves keep their collected items.
 export const COASTER_TREATS = Object.freeze([
   { id: 'sweet-1', progress: 0.12, lane: -1, kind: 'pizza', name: 'Pizza slice' },
   { id: 'sweet-2', progress: 0.22, lane: 1, kind: 'cup', name: 'Refill cup' },
-  { id: 'sweet-3', progress: 0.32, lane: -1, kind: 'map', name: 'Park map' },
-  { id: 'sweet-4', progress: 0.42, lane: -1, kind: 'ticket', name: 'Fastrack ticket' },
-  { id: 'sweet-5', progress: 0.52, lane: 1, kind: 'umbrella', name: 'Umbrella' }
+  { id: 'sweet-3', progress: 0.4, lane: -1, kind: 'map', name: 'Park map' },
+  { id: 'sweet-4', progress: 0.6, lane: -1, kind: 'ticket', name: 'Fastrack ticket' },
+  { id: 'sweet-5', progress: 0.8, lane: 1, kind: 'umbrella', name: 'Umbrella' }
 ].map(Object.freeze));
 export const COASTER_GOAL = COASTER_TREATS.length;
 

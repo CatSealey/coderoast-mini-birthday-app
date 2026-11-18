@@ -221,6 +221,22 @@ export function findWorldPath(start, destination, collision) {
   return null;
 }
 
+export function smoothWorldPath(start, path, collision, clearance = collision) {
+  const result = [];
+  let position = start, next = 0;
+  while (next < path.length) {
+    let furthest = path.length - 1;
+    while (furthest > next && (clearance.blocked(position)
+      || !clearance.clearSegment(position, path[furthest]) || !collision.clearSegment(position, path[furthest]))) {
+      furthest -= 1;
+    }
+    position = path[furthest];
+    result.push(position);
+    next = furthest + 1;
+  }
+  return result;
+}
+
 export function findCharacterApproach(start, character, collision) {
   if (Math.hypot(start.x - character.x, start.y - character.y) <= INTERACTION_RANGE
     && !collision.blocked(start)) return [];

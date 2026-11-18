@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CANOPY_COURSE_LENGTH, CANOPY_CROSSINGS, CANOPY_PLATFORMS, CANOPY_ZIPLINE, LEGACY_CANOPY_ZIPLINE, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_PARTNER_OFFSET, PUB_STOOLS, adventureObjectDistance, couplePartnerPosition } from './adventure-logic.js';
 import { COASTER_PLATFORM, COASTER_RAIL_OFFSET, COASTER_REJOIN_PROGRESS, COASTER_TREATS, coasterDirection, coasterHeading, coasterLanePosition, coasterPosition, coasterRailPosition } from './coaster-course.js';
-import { drawCoasterItem } from './coaster-art.js';
+import { COASTER_ITEM_SCALE, drawCoasterItem } from './coaster-art.js';
 import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
 import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
 import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
@@ -14,6 +14,7 @@ import { createCanopyForestLights, drawCanopyForest } from './canopy-tree-lights
 import { CANOPY_SAFETY_WIRE, ZIP_CABLE_SCREEN_OFFSET, addZipCable, canopySafetyAnchor, createZipRide, drawZipCable, drawZipHarness, drawZipTether, setZipRiderPose } from './canopy-zipline.js';
 import { createCanopyDeckTexture, drawCanopyDeck } from '../world/canopy-platform.js';
 import { createParkGroundCanvas, createParkGroundTexture, drawParkCar, PARK_PALETTE } from '../world/park-style.js';
+import { THIRTEEN_TREES, addThirteenRuins, addThirteenStation, addThirteenVault, drawThirteenScenery, drawThirteenVault, paintThirteenSign } from './thirteen-scenery.js';
 import { PUB_CAMERA_OFFSET, PUB_FURNITURE_PALETTE, PUB_POOL_LIGHTS, PUB_RACK_CUES, PUB_RUG, PUB_SHORT_CUE_SCALE, addPubCue, addPubFurnitureDetails, addPubStoolDetails, addPubWallDetails, drawPubHeldCue, drawPubInterior, drawPubObject, paintPubFloor, paintPubRug, positionPubCatCue, pubCameraFraming, pubCatHoldsCue, pubCuesTaken } from './pub-interior-art.js';
 
 const BARTENDER_OUTFIT = '#536c67';
@@ -36,6 +37,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   }
   const pubFloor = index === 1 ? pubCanvas(1000, 700, paintPubFloor) : null;
   const pubRug = index === 1 ? pubCanvas(340, 195, paintPubRug) : null;
+  const thirteenSign = index === 2 ? pubCanvas(512, 200, paintThirteenSign) : null;
   const scene = new THREE.Scene(), camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 4000);
   const raycaster = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -118,14 +120,22 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     box(0, 18, 0, 70, 35, 42, '#675143', group);
     box(0, 38, -17, 72, 25, 8, '#493d34', group);
     box(0, 34, 20, 74, 10, 6, '#9e896b', group);
+    box(0, 4, 0, 74, 8, 45, '#38372f', group);
     for (const z of [-21, 21]) {
       box(0, 12, z, 68, 4, 2, PARK_PALETTE.iron, group);
       box(0, 24, z, 64, 3, 2, PARK_PALETTE.brass, group);
+      for (const x of [-18, 18]) {
+        box(x, 17, z * 1.03, 27, 11, 1, '#7e6550', group);
+        box(x, 17, z * 1.06, 21, 2, 1, '#b39b74', group);
+      }
       for (const x of [-26, 26]) box(x, 21, z * 1.05, 3, 3, 2, PARK_PALETTE.cream, group);
     }
     for (const x of [-17, 17]) {
       box(x, 32, -12, 24, 21, 3, '#805e49', group);
       box(x, 29, 2, 20, 3, 23, '#977557', group);
+      box(x, 45, -14, 23, 3, 4, '#b29a75', group);
+      for (const side of [-1, 1]) box(x + side * 11, 43, 6, 3, 15, 5, '#46443a', group);
+      box(x, 50, 8, 24, 3, 4, '#8e8d7b', group);
     }
     for (const x of [-25, 25]) for (const z of [-24, 24]) {
       round(cylinderGeometry, x, 9, z, 15, 7, 15, '#252f2c', group).rotation.z = Math.PI / 2;
@@ -408,7 +418,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       const { left, right, top: platformTop, bottom: platformBottom } = COASTER_PLATFORM;
       box((left + right) / 2, -3, (platformTop + platformBottom) / 2, right - left, 6, platformBottom - platformTop, '#807768');
       for (let x = left + 15; x < right; x += 42) box(x, 0, (platformTop + platformBottom) / 2, 2, 0.2, platformBottom - platformTop - 5, '#5e584d');
-      box((left + right) / 2, 0.4, platformTop + 3, right - left - 4, 0.4, 3, PARK_PALETTE.brass);
+      box((left + right) / 2, 0.4, platformTop + 13, right - left - 4, 0.4, 3, PARK_PALETTE.brass);
       for (let x = left + 18; x < right; x += 42) for (const z of [platformTop + 12, platformBottom - 12]) {
         box(x, 0.5, z, 2, 0.5, 2, '#c2b49a');
       }
@@ -423,15 +433,24 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       for (let variant = 0; variant < 3; variant += 1) {
         const trunkGeometry = createFirTrunk(variant), canopyGeometry = createFirCanopy(variant);
         sceneryGeometries.push(trunkGeometry, canopyGeometry);
-        for (const [i, x] of [65, 245, 410, 590, 760, 935].entries()) {
-          if (i % 3 !== variant) continue;
+        for (const treeData of THIRTEEN_TREES.filter((tree) => tree.variant === variant)) {
           for (const [geometry, treeMaterial] of [[trunkGeometry, bark], [canopyGeometry, needles]]) {
             const tree = new THREE.Mesh(geometry, treeMaterial);
-            tree.position.set(x, 0, 40); tree.rotation.y = i * 0.73;
-            tree.scale.set(0.9, 1 + (variant - 1) * 0.08, 0.9); scene.add(tree);
+            tree.position.set(treeData.x, 0, treeData.y); tree.rotation.y = treeData.angle;
+            tree.scale.set(treeData.size, treeData.size * (1 + (variant - 1) * 0.08), treeData.size); scene.add(tree);
           }
         }
       }
+      const thirteenArt = { box, round, cylinder: cylinderGeometry, sphere: sphereGeometry, scene };
+      addThirteenRuins(thirteenArt);
+      addThirteenStation(thirteenArt);
+      const signTexture = new THREE.CanvasTexture(thirteenSign); signTexture.colorSpace = THREE.SRGBColorSpace;
+      textures.push(signTexture);
+      const signMaterial = new THREE.MeshBasicMaterial({ map: signTexture });
+      materials.set('thirteen-sign', signMaterial);
+      const signGeometry = new THREE.PlaneGeometry(126, 49); sceneryGeometries.push(signGeometry);
+      const signMesh = new THREE.Mesh(signGeometry, signMaterial);
+      signMesh.position.set(127.5, 72, 565.1); scene.add(signMesh);
       for (const phase of ['riding', 'returning']) {
         for (let i = 0; i < 120; i += 1) {
           if (phase === 'returning' && i / 120 >= COASTER_REJOIN_PROGRESS) break;
@@ -440,8 +459,10 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           for (const side of [-1, 1]) {
             const start = coasterRailPosition(phase, i / 120, side);
             const end = coasterRailPosition(phase, (i + 1) / 120, side);
-            beam([start.x, start.height, start.y], [end.x, end.height, end.y], 5,
-              phase === 'riding' ? '#b8a78a' : '#8b94a0');
+            beam([start.x, start.height - 3, start.y], [end.x, end.height - 3, end.y], 8,
+              phase === 'riding' ? '#66564a' : '#4e585b');
+            beam([start.x, start.height + 1, start.y], [end.x, end.height + 1, end.y], 4,
+              phase === 'riding' ? '#c1b399' : '#a2adaa');
           }
           if (i % 5 === 0) {
             beam([a.x - direction.y * 32, a.height - 4, a.y + direction.x * 32],
@@ -451,6 +472,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
             if (clearLowerTrack) {
               box(a.x, a.height / 2, a.y, 6, a.height, 6, '#5c5145');
               box(a.x, 2, a.y, 16, 4, 16, '#6d6657');
+              box(a.x, a.height - 9, a.y, 14, 4, 14, '#8a7b61');
             }
           }
         }
@@ -464,31 +486,12 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       dropTrack = new THREE.Group(); scene.add(dropTrack);
       for (const side of [-1, 1]) box(side * COASTER_RAIL_OFFSET, 0, 0, 5, 5, 74, '#b8a78a', dropTrack);
       for (const z of [-28, 0, 28]) box(0, -4, z, 64, 5, 6, '#645446', dropTrack);
-      const towerHeight = top.height + 105;
-      const towerSide = { x: -dropDirection.y * 70, y: dropDirection.x * 70 };
-      for (const side of [-1, 1]) {
-        box(top.x + towerSide.x * side, towerHeight / 2, top.y + towerSide.y * side,
-          10, towerHeight, 10, '#6d6654');
-        box(top.x + towerSide.x * side, 5, top.y + towerSide.y * side, 22, 10, 22, '#575247');
-      }
-      beam([top.x - towerSide.x, towerHeight, top.y - towerSide.y],
-        [top.x + towerSide.x, towerHeight, top.y + towerSide.y], 10, '#817867');
-      for (const y of [65, 140, 215]) {
-        if (y + 60 >= towerHeight) continue;
-        beam([top.x - towerSide.x, y, top.y - towerSide.y],
-          [top.x + towerSide.x, y + 60, top.y + towerSide.y], 4, '#95866b');
-        beam([top.x + towerSide.x, y, top.y + towerSide.y],
-          [top.x - towerSide.x, y + 60, top.y - towerSide.y], 4, '#706858');
-      }
+      addThirteenVault(thirteenArt, top, dropDirection);
       for (const treat of COASTER_TREATS) {
         const point = coasterLanePosition(treat.progress, treat.lane);
         const item = itemModel(treat.kind);
-        item.position.set(point.x, point.height, point.y); scene.add(item);
+        item.position.set(point.x, point.height, point.y); item.scale.setScalar(COASTER_ITEM_SCALE); scene.add(item);
         rideTreats.set(treat.id, item);
-      }
-      for (const x of [325, 925]) {
-        box(x, 34, 610, 8, 68, 8, '#5a4939');
-        round(sphereGeometry, x, 74, 610, 18, 18, 18, '#e1c47b', scene, true);
       }
       train = carriage(true);
     } else {
@@ -624,8 +627,9 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     const riding = index === 2 && ['riding', 'dropping', 'returning'].includes(state.phase);
     const ridePoint = riding ? coasterPosition(state.phase, state.progress) : null;
     const followRide = renderer && riding && width < 520;
-    const playerHeldArm = 0, catHeldArm = 1;
-    const partner = couplePartnerPosition(state.player, facing);
+    const partnerOffset = index === 2 && state.coasterExitSide === 1 ? -PUB_PARTNER_OFFSET : PUB_PARTNER_OFFSET;
+    const playerHeldArm = partnerOffset > 0 ? 1 : 0, catHeldArm = partnerOffset > 0 ? 0 : 1;
+    const partner = couplePartnerPosition(state.player, facing, partnerOffset);
     const targetX = followRide ? ridePoint.x : targetXForClick();
     const targetY = followRide ? ridePoint.y
       : state.pubTogether || (index === 3 && state.zipline) ? state.player.y : 350;
@@ -751,7 +755,9 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     }
     ctx.fillStyle = theme; ctx.fillRect(0, 0, width, height);
     const sx = (x) => width / 2 + (x - targetX) * scale, sy = (y) => height / 2 + (y - targetY) * scale;
-    const partnerScreen = { x: sx(state.player.x) + PUB_PARTNER_OFFSET * scale, y: sy(state.player.y) };
+    const partnerScreen = index === 2
+      ? { x: sx(partner.x), y: sy(partner.y) }
+      : { x: sx(state.player.x) + PUB_PARTNER_OFFSET * scale, y: sy(state.player.y) };
     if (index === 1) {
       ctx.save(); ctx.translate(sx(0), sy(0)); ctx.scale(scale, scale);
       drawPubInterior(ctx, pubFloor, pubRug); ctx.restore();
@@ -791,6 +797,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     }
     if (index === 2) {
       ctx.drawImage(parkGround, sx(0), sy(0), 1000 * scale, 700 * scale);
+      drawThirteenScenery(ctx, sx, sy, scale, thirteenSign);
       ctx.fillStyle = '#807768';
       ctx.fillRect(sx(COASTER_PLATFORM.left), sy(COASTER_PLATFORM.top),
         (COASTER_PLATFORM.right - COASTER_PLATFORM.left) * scale, (COASTER_PLATFORM.bottom - COASTER_PLATFORM.top) * scale);
@@ -800,33 +807,42 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           (COASTER_PLATFORM.bottom - COASTER_PLATFORM.top - 4) * scale);
       }
       ctx.fillStyle = PARK_PALETTE.brass;
-      ctx.fillRect(sx(COASTER_PLATFORM.left + 2), sy(COASTER_PLATFORM.top + 3),
+      ctx.fillRect(sx(COASTER_PLATFORM.left + 2), sy(COASTER_PLATFORM.top + 13),
         (COASTER_PLATFORM.right - COASTER_PLATFORM.left - 4) * scale, 3 * scale);
-      for (const [i, x] of [65, 245, 410, 590, 760, 935].entries()) {
-        for (const [radius, color] of [[22, '#243c2d'], [17, i % 2 ? '#365a3e' : '#406447'], [9, '#557653']]) {
-          ctx.fillStyle = color; ctx.beginPath(); ctx.arc(sx(x), sy(40), radius * scale, 0, Math.PI * 2); ctx.fill();
-        }
+      for (let x = 70; x < 955; x += 35) {
+        ctx.fillStyle = '#d4b87b'; ctx.fillRect(sx(x), sy(584), 20 * scale, 3 * scale);
+        ctx.fillStyle = '#c6b89a';
+        for (const y of [600, 677]) ctx.fillRect(sx(x), sy(y), 2 * scale, 2 * scale);
+      }
+      ctx.fillStyle = '#685746';
+      ctx.fillRect(sx(35), sy(692), 930 * scale, 3 * scale);
+      for (let x = 35; x <= 965; x += 62) {
+        ctx.fillStyle = '#4d4336'; ctx.fillRect(sx(x - 3), sy(690), 6 * scale, 6 * scale);
+        ctx.fillStyle = '#b1a07c'; ctx.fillRect(sx(x - 2), sy(691), 4 * scale, 2 * scale);
       }
       for (const phase of ['returning', 'riding']) {
         const segments = phase === 'returning' ? Math.round(120 * COASTER_REJOIN_PROGRESS) : 120;
         ctx.strokeStyle = '#645446'; ctx.lineWidth = 3 * scale; ctx.beginPath();
         for (let i = 0; i <= segments; i += 5) {
           const point = coasterPosition(phase, i / 120), direction = coasterDirection(phase, i / 120);
-          ctx.moveTo(sx(point.x - direction.y * 10), sy(point.y + direction.x * 10));
-          ctx.lineTo(sx(point.x + direction.y * 10), sy(point.y - direction.x * 10));
+          ctx.moveTo(sx(point.x - direction.y * 32), sy(point.y + direction.x * 32));
+          ctx.lineTo(sx(point.x + direction.y * 32), sy(point.y - direction.x * 32));
         }
         ctx.stroke();
-        ctx.strokeStyle = phase === 'riding' ? '#604c3e' : '#515a5d';
-        ctx.lineWidth = phase === 'riding' ? 8 : 6; ctx.beginPath();
-        for (let i = 0; i <= segments; i += 1) {
-          const point = coasterPosition(phase, i / 120);
-          if (i === 0) ctx.moveTo(sx(point.x), sy(point.y));
-          else ctx.lineTo(sx(point.x), sy(point.y));
+        for (const side of [-1, 1]) {
+          ctx.strokeStyle = phase === 'riding' ? '#604c3e' : '#515a5d';
+          ctx.lineWidth = 6 * scale; ctx.beginPath();
+          for (let i = 0; i <= segments; i += 1) {
+            const point = coasterRailPosition(phase, i / 120, side);
+            if (i === 0) ctx.moveTo(sx(point.x), sy(point.y));
+            else ctx.lineTo(sx(point.x), sy(point.y));
+          }
+          ctx.stroke();
+          ctx.strokeStyle = phase === 'riding' ? '#d1b995' : '#a9b0a9';
+          ctx.lineWidth = 3 * scale; ctx.stroke();
         }
-        ctx.stroke();
-        ctx.strokeStyle = phase === 'riding' ? '#d1b995' : '#a9b0a9';
-        ctx.lineWidth = phase === 'riding' ? 4 : 3; ctx.stroke();
       }
+      drawThirteenVault(ctx, sx, sy, scale, coasterPosition('dropping', 0), coasterDirection('dropping', 0));
       for (const x of [325, 925]) {
         ctx.fillStyle = '#594a39'; ctx.beginPath(); ctx.arc(sx(x), sy(610), 7 * scale, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#e1c47b'; ctx.beginPath(); ctx.arc(sx(x), sy(610), 4 * scale, 0, Math.PI * 2); ctx.fill();
@@ -834,7 +850,8 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       for (const treat of COASTER_TREATS) {
         if (state.treats.includes(treat.id)) continue;
         const point = coasterLanePosition(treat.progress, treat.lane);
-        ctx.drawImage(itemImage(treat.kind), sx(point.x) - 15, sy(point.y) - 15, 30, 30);
+        const size = 30 * COASTER_ITEM_SCALE;
+        ctx.drawImage(itemImage(treat.kind), sx(point.x) - size / 2, sy(point.y) - size / 2, size, size);
       }
     }
     if (index === 1) {

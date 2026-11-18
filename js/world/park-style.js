@@ -46,6 +46,11 @@ export function drawParkCar(ctx, width, depth) {
   ctx.fillStyle = PARK_PALETTE.woodLight; ctx.fillRect(x + width * 0.1, y + depth * 0.1, width * 0.8, depth * 0.12);
   ctx.fillStyle = '#493a31';
   for (const seat of [-1, 1]) ctx.fillRect(seat * width * 0.2 - width * 0.13, y + depth * 0.28, width * 0.26, depth * 0.48);
+  ctx.fillStyle = '#b39b74';
+  for (const seat of [-1, 1]) {
+    ctx.fillRect(seat * width * 0.2 - width * 0.13, y + depth * 0.25, width * 0.26, depth * 0.06);
+    ctx.fillRect(seat * width * 0.2 - width * 0.13, y + depth * 0.64, width * 0.26, depth * 0.06);
+  }
   ctx.fillStyle = PARK_PALETTE.brass;
   ctx.fillRect(x + width * 0.1, y + depth * 0.78, width * 0.8, depth * 0.07);
   for (const side of [-1, 1]) ctx.fillRect(side * width * 0.38 - width * 0.025, y + depth * 0.35, width * 0.05, depth * 0.2);
