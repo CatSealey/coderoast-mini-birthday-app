@@ -43,7 +43,7 @@ export function addCharacterHeadDetails(box, round, options) {
   box(0, headY - height * 0.23, front * 0.96, width * 0.18, height * 0.06, 1.2, '#a66f67');
 }
 
-export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = CHARACTER_HAIR, hairLength = 'long', trousers, shorts, legTattoo = false, belt, buckle, shortSleeves = false, tattoo = false, stride = 0, heldArm = -1, facing = 0 } = {}) {
+export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = CHARACTER_HAIR, hairLength = 'long', trousers, shorts, legTattoo = false, belt, buckle, shortSleeves = false, tattoo = false, stride = 0, heldArm = -1, facing = 0, zipline = false } = {}) {
   const back = Math.cos(facing) < -Math.SQRT1_2;
   const side = Math.abs(Math.sin(facing)) > Math.SQRT1_2;
   context.fillStyle = hair;
@@ -54,10 +54,14 @@ export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = C
   context.fillRect(x - 7 * scale, y + 6 * scale, 14 * scale, 10 * scale);
   for (const [index, side] of [-1, 1].entries()) {
     const armX = x + (side < 0 ? -10 : 7) * scale;
-    const armY = y + (7 + (index === heldArm ? 0 : side * stride * 2)) * scale;
-    context.fillRect(armX, armY, 3 * scale, (shortSleeves ? 4 : 9) * scale);
+    const armY = y + (zipline ? -10 : 7 + (index === heldArm ? 0 : side * stride * 2)) * scale;
+    context.fillRect(armX, armY, 3 * scale, (zipline ? 20 : shortSleeves ? 4 : 9) * scale);
   }
-  if (shortSleeves) {
+  if (zipline) {
+    context.fillStyle = '#dfb38c';
+    context.fillRect(x - 10 * scale, y - 12 * scale, 3 * scale, 3 * scale);
+    context.fillRect(x + 7 * scale, y - 12 * scale, 3 * scale, 3 * scale);
+  } else if (shortSleeves) {
     context.fillStyle = '#dfb38c';
     const rightArmStride = heldArm === 0 ? 0 : stride;
     const leftArmStride = heldArm === 1 ? 0 : stride;

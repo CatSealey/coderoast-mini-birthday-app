@@ -1109,6 +1109,39 @@ test('GoApe zip-wire stops the walking animation and walking resumes afterwards'
   }
 });
 
+test('GoApe fallback keeps the blue harness and tether while walking, crossing and zip-lining', () => {
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const colors = [], strokes = [];
+  const ctx = {
+    setTransform() {}, fillRect() { colors.push(this.fillStyle); }, strokeRect() {}, beginPath() {}, moveTo() {}, lineTo() {},
+    stroke() { strokes.push(this.strokeStyle); }, arc() {}, ellipse() {}, fill() {}, fillText() {}
+  };
+  const canvas = { getContext: () => ctx, addEventListener() {}, removeEventListener() {} };
+  globalThis.document = { createElement: () => ({ getContext: () => null }) };
+  globalThis.window = { devicePixelRatio: 1 };
+  try {
+    const scene = createAdventureScene(canvas, 3, () => {}, ''), initial = newAdventureState(3);
+    scene.resize(1000, 700);
+    for (const state of [
+      initial,
+      { ...initial, traversal: { kind: 'rope', crossingId: 'rope', progress: 0.5 }, player: { x: 820, y: 350, height: 100 } },
+      { ...initial, zipline: true, zipProgress: 0.5, player: canopyZipPosition(0.5) }
+    ]) {
+      colors.length = 0; strokes.length = 0;
+      scene.draw(state);
+      assert.ok(colors.includes('#3986c5'));
+      assert.ok(strokes.includes('#e3b970'));
+      assert.ok(strokes.includes('#b2c2bf'));
+    }
+    scene.dispose();
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
 test('GoApe fallback has no highlighted target square and keeps collectible markers', () => {
   const previousDocument = globalThis.document, previousWindow = globalThis.window;
   const outlines = [], fills = [];
@@ -1126,6 +1159,35 @@ test('GoApe fallback has no highlighted target square and keeps collectible mark
     assert.equal(outlines.length, CANOPY_PLATFORMS.length);
     assert.ok(outlines.every((color) => color === '#594c36'));
     assert.ok(fills.includes('#f4d686'));
+    scene.dispose();
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
+test('GoApe fallback shows colourful platform lamps and updates lanterns when lit', () => {
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const fills = [];
+  const ctx = {
+    setTransform() {}, fillRect() {}, strokeRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {},
+    arc() {}, ellipse() {}, fill() { fills.push(this.fillStyle); }, fillText() {}
+  };
+  const canvas = { getContext: () => ctx, addEventListener() {}, removeEventListener() {} };
+  globalThis.document = { createElement: () => ({ getContext: () => null }) };
+  globalThis.window = { devicePixelRatio: 1 };
+  try {
+    const scene = createAdventureScene(canvas, 3, () => {}, ''), state = newAdventureState(3);
+    scene.resize(1000, 700);
+    scene.draw(state);
+    assert.ok(fills.includes('#ffba72') && fills.includes('#f28fb3') && fills.includes('#7ed8ca'));
+    assert.equal(fills.filter((color) => color === '#8a7959').length, 3);
+    fills.length = 0;
+    scene.draw({ ...state, lanterns: ['lantern-1'] });
+    assert.equal(fills.filter((color) => color === '#8a7959').length, 2);
+    assert.ok(fills.includes('#78d8ce'));
     scene.dispose();
   } finally {
     if (previousDocument === undefined) delete globalThis.document;

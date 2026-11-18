@@ -19,7 +19,11 @@ export const CANOPY_ZIPLINE = Object.freeze({
   departure: Object.freeze({ x: canopyX(1850, 7), y: 375, height: 190 }),
   end: Object.freeze({ x: canopyX(2200, 7), y: 570, height: 0 }),
   departureProgress: 0.15,
-  cableHeight: 85
+  cableHeight: 125
+});
+export const LEGACY_CANOPY_ZIPLINE = Object.freeze({
+  start: Object.freeze({ x: 900, y: 350, height: 130 }),
+  end: Object.freeze({ x: 960, y: 570, height: 0 })
 });
 const PUB_BAR = Object.freeze({ x: 130, y: 120, width: 190, depth: 65 });
 export const OBJECTS = {
@@ -445,13 +449,13 @@ export function restoreAdventureState(index, saved) {
       }
     }
     if (saved.courseVersion !== 3 && !restored.traversal) {
-      if (restored.zipline && !restored.legacyZipline) restored.player = canopyZipPosition(restored.zipProgress);
-      else if (!restored.zipline) {
+      if (!restored.zipline) {
         const previousPlatform = LEGACY_CANOPY_PLATFORMS.findIndex((p) => player.x >= p.left && player.x <= p.right
           && player.y >= p.top && player.y <= p.bottom && Math.abs(player.height - p.height) < 1);
         if (previousPlatform >= 0) restored.player.x += CANOPY_OFFSETS[previousPlatform];
       }
     }
+    if (restored.zipline && !restored.legacyZipline) restored.player = canopyZipPosition(restored.zipProgress);
     if (restored.traversal) restored.message = 'Time your moves as the marker passes through the safe zone.';
     const flightOrigin = saved.flight?.from;
     const origin = Number.isInteger(flightOrigin) && flightOrigin >= 0 && flightOrigin <= restored.checkpoint
@@ -519,7 +523,11 @@ export function tickCanopy(state, seconds) {
   if (state.zipline && !state.complete && seconds > 0) {
     const zipProgress = Math.min(1, state.zipProgress + seconds / 3);
     const player = state.legacyZipline
-      ? { x: 900 + 60 * zipProgress, y: 350 + 220 * zipProgress, height: 130 * (1 - zipProgress) }
+      ? {
+        x: LEGACY_CANOPY_ZIPLINE.start.x + (LEGACY_CANOPY_ZIPLINE.end.x - LEGACY_CANOPY_ZIPLINE.start.x) * zipProgress,
+        y: LEGACY_CANOPY_ZIPLINE.start.y + (LEGACY_CANOPY_ZIPLINE.end.y - LEGACY_CANOPY_ZIPLINE.start.y) * zipProgress,
+        height: LEGACY_CANOPY_ZIPLINE.start.height * (1 - zipProgress)
+      }
       : canopyZipPosition(zipProgress);
     return {
       ...state, zipProgress, player,
@@ -708,7 +716,7 @@ export function interactAdventure(index, state, id) {
       return { ...state, lanterns: [...lanterns, id], message: `The ${object.name.toLowerCase()} glows. Lanterns lit: ${lanterns.length + 1}/3.` };
     }
     if (id === 'zipline') return state.collected.length === 4 && (state.lanterns || []).length === CANOPY_LANTERNS.length
-      ? { ...state, zipline: true, zipProgress: 0, treasuresUsed: true, message: 'You present the four treasures and clip onto the zip-wire!' }
+      ? { ...state, player: canopyZipPosition(0), zipline: true, zipProgress: 0, treasuresUsed: true, message: 'You present the four treasures and clip onto the zip-wire!' }
       : message(state, `The zip-wire needs four treasures (${state.collected.length}/4) and three lit lanterns (${(state.lanterns || []).length}/3).`);
   }
   return state;

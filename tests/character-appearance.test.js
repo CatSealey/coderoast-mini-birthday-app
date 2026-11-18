@@ -38,6 +38,21 @@ test('fallback character shows a back or profile and keeps the rear tattoo visib
   assert.ok(!rectangles.some((part) => part.color === CAT_STYLE.buckle));
 });
 
+test('fallback zip-line rider raises both arms without changing the walking pose', () => {
+  const rectangles = [], context = {
+    fillRect(x, y, width, height) { rectangles.push({ x, y, width, height, color: this.fillStyle }); },
+    beginPath() {}, ellipse() {}, arc() {}, fill() {}
+  };
+  drawCharacterMarker(context, 0, 0, PLAYER_OUTFIT, { ...PLAYER_STYLE, zipline: true });
+  for (const x of [-10, 7]) {
+    assert.ok(rectangles.some((part) => part.x === x && part.y === -10 && part.height === 20 && part.color === PLAYER_OUTFIT));
+    assert.ok(rectangles.some((part) => part.x === x && part.y === -12 && part.color === '#dfb38c'));
+  }
+  rectangles.length = 0;
+  drawCharacterMarker(context, 0, 0, PLAYER_OUTFIT, PLAYER_STYLE);
+  assert.ok(rectangles.some((part) => part.x === -10 && part.y === 7 && part.height === 9 && part.color === PLAYER_OUTFIT));
+});
+
 test('heads are proportionate and the player has longer hair than Cat', () => {
   const parts = [];
   const record = (kind) => (x, y, z, width, height, depth, color) => {

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CANOPY_COURSE_LENGTH, CANOPY_CROSSINGS, CANOPY_PLATFORMS, CANOPY_ZIPLINE, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_PARTNER_OFFSET, PUB_STOOLS, adventureObjectDistance, couplePartnerPosition } from './adventure-logic.js';
+import { CANOPY_COURSE_LENGTH, CANOPY_CROSSINGS, CANOPY_PLATFORMS, CANOPY_ZIPLINE, LEGACY_CANOPY_ZIPLINE, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_PARTNER_OFFSET, PUB_STOOLS, adventureObjectDistance, couplePartnerPosition } from './adventure-logic.js';
 import { COASTER_PLATFORM, COASTER_RAIL_OFFSET, COASTER_REJOIN_PROGRESS, COASTER_TREATS, coasterDirection, coasterHeading, coasterLanePosition, coasterPosition, coasterRailPosition } from './coaster-course.js';
 import { drawCoasterItem } from './coaster-art.js';
 import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
@@ -8,6 +8,10 @@ import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms }
 import { createFirCanopy, createFirTrunk, createNeedleTexture, createPlatformFirTrunk } from '../world/fir-tree.js';
 import { createTreeBarkTexture } from '../world/tree-geometry.js';
 import { CANOPY_EDGE_TREES, CANOPY_FOREST_TREES } from './canopy-scenery.js';
+import { createCanopyRopes, drawCanopyCrossing } from './canopy-rope.js';
+import { canopyLanternColor, canopyPlatformLightColor, drawCanopyLight } from './canopy-lights.js';
+import { createCanopyForestLights, drawCanopyForest } from './canopy-tree-lights.js';
+import { CANOPY_SAFETY_WIRE, ZIP_CABLE_SCREEN_OFFSET, addZipCable, canopySafetyAnchor, createZipRide, drawZipCable, drawZipHarness, drawZipTether, setZipRiderPose } from './canopy-zipline.js';
 import { createCanopyDeckTexture, drawCanopyDeck } from '../world/canopy-platform.js';
 import { createParkGroundCanvas, createParkGroundTexture, drawParkCar, PARK_PALETTE } from '../world/park-style.js';
 import { PUB_CAMERA_OFFSET, PUB_FURNITURE_PALETTE, PUB_POOL_LIGHTS, PUB_RACK_CUES, PUB_RUG, PUB_SHORT_CUE_SCALE, addPubCue, addPubFurnitureDetails, addPubStoolDetails, addPubWallDetails, drawPubHeldCue, drawPubInterior, drawPubObject, paintPubFloor, paintPubRug, positionPubCatCue, pubCameraFraming, pubCatHoldsCue, pubCuesTaken } from './pub-interior-art.js';
@@ -43,7 +47,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   const materials = new Map(), textures = [], sceneryGeometries = [], interactive = [], platformMeshes = [];
   const collectibles = new Map(), beacons = new Map(), rideTreats = new Map(), rideItemImages = new Map();
   let state, player, train, ball, platformAmor, width = 1, height = 1, scale = 1, ballAnimation = 0, lastBallLost = false;
-  let platformCarriage, pubLove, joinedHands, pubExitMarker, dropTrack;
+  let platformCarriage, pubLove, joinedHands, pubExitMarker, dropTrack, canopyRopes, zipRide, legacyZipCable;
   let cueGuide, poolBalls, placedCue, catCue, rackTakenCues, placedDrinks, previousPlayer, walkPhase = 0, facing = 0;
   const theme = index === 1 ? '#342f28' : index === 2 ? '#20272f' : '#152b29';
   scene.background = new THREE.Color(theme);
@@ -268,28 +272,42 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         const crossing = CANOPY_CROSSINGS[object.id];
         const [endX, , endHeight] = crossing.end;
         if (kind === 'net') {
-          mesh = beam([x, h + 6, z - 38], [endX, endHeight + 6, z - 38], 5, '#d7bd81');
-          for (let dz = -20; dz <= 40; dz += 20) beam([x, h + 6, z + dz], [endX, endHeight + 6, z + dz], 4, '#d7bd81');
+          mesh = canopyRopes.add([x, h + 6, z - 38], [endX, endHeight + 6, z - 38], 5);
+          for (let dz = -20; dz <= 40; dz += 20) canopyRopes.add([x, h + 6, z + dz], [endX, endHeight + 6, z + dz], 4);
           const segments = Math.ceil((endX - x) / 25);
           for (let i = 0; i <= segments; i += 1) {
-            box(x + (endX - x) * i / segments, h + 6 + (endHeight - h) * i / segments, z, 5, 5, 85, '#d7bd81');
+            const px = x + (endX - x) * i / segments, py = h + 6 + (endHeight - h) * i / segments;
+            canopyRopes.add([px, py, z - 42.5], [px, py, z + 42.5], 5);
           }
         } else {
-          mesh = beam([x, h + 5, z], [endX, endHeight + 5, z], 7, '#c3a77a');
-          for (const dz of [-27, 27]) beam([x, h + 55, z + dz], [endX, endHeight + 55, z + dz], 4, '#d7bd81');
+          mesh = canopyRopes.add([x, h + 5, z], [endX, endHeight + 5, z], 7);
+          for (const dz of [-27, 27]) canopyRopes.add([x, h + 55, z + dz], [endX, endHeight + 55, z + dz], 4);
           const segments = Math.ceil((endX - x) / 30);
           for (let i = 0; i <= segments; i += 1) for (const dz of [-27, 27]) {
-            box(x + (endX - x) * i / segments, h + 30 + (endHeight - h) * i / segments, z + dz, 3, 50, 3, '#d7bd81');
+            const px = x + (endX - x) * i / segments, py = h + 5 + (endHeight - h) * i / segments;
+            canopyRopes.add([px, py, z + dz], [px, py + 50, z + dz], 3);
           }
         }
       } else if (kind === 'zipline') {
-        mesh = box(x, h + 65, z, 10, 130, 10, '#c6a575');
+        mesh = box(x, h + 65, z + 25, 10, 130, 10, '#c6a575');
         const cablePoint = (point) => [point.x, point.height + CANOPY_ZIPLINE.cableHeight, point.y];
-        beam(cablePoint(CANOPY_ZIPLINE.start), cablePoint(CANOPY_ZIPLINE.departure), 4, '#e8d18c');
-        beam(cablePoint(CANOPY_ZIPLINE.departure), cablePoint(CANOPY_ZIPLINE.end), 4, '#e8d18c');
+        addZipCable({ round, cylinder: cylinderGeometry, parent: scene }, cablePoint(CANOPY_ZIPLINE.start), cablePoint(CANOPY_ZIPLINE.departure));
+        addZipCable({ round, cylinder: cylinderGeometry, parent: scene }, cablePoint(CANOPY_ZIPLINE.departure), cablePoint(CANOPY_ZIPLINE.end));
+        box(x, h + 125, z + 25, 18, 8, 18, '#526464');
+        box(x, h + 125, z + 12.5, 6, 6, 29, '#aeb8b6');
+        box(x, h + 10, z + 25, 24, 6, 24, '#6d5537');
+        const end = CANOPY_ZIPLINE.end;
+        box(end.x, end.height + 65, end.y + 25, 10, 130, 10, '#8e7250');
+        box(end.x, end.height + 125, end.y + 25, 18, 8, 18, '#526464');
+        box(end.x, end.height + 125, end.y + 12.5, 6, 6, 29, '#aeb8b6');
+        box(end.x, end.height + 4, end.y + 25, 24, 8, 24, '#6d5537');
+        legacyZipCable = new THREE.Group(); scene.add(legacyZipCable);
+        addZipCable({ round, cylinder: cylinderGeometry, parent: legacyZipCable },
+          cablePoint(LEGACY_CANOPY_ZIPLINE.start), cablePoint(LEGACY_CANOPY_ZIPLINE.end));
+        legacyZipCable.visible = false;
       } else if (kind === 'beacon') {
         box(x, h + 22, z, 10, 44, 10, '#6d5537');
-        mesh = round(sphereGeometry, x, h + 52, z, 25, 30, 25, '#8a7959');
+        mesh = round(sphereGeometry, x, h + 52, z, 25, 30, 25, canopyLanternColor(object.id, false));
         beacons.set(object.id, mesh);
       } else if (kind === 'collectible') {
         mesh = round(sphereGeometry, x, h + 30, z, 19, 19, 19, '#edd68e', scene, true);
@@ -515,9 +533,15 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           o.scale.set(1, 260 / (165 * (1 + (variant - 1) * 0.025)), 1);
         });
       }
+      const forestLights = createCanopyForestLights();
+      scene.add(forestLights);
+      sceneryGeometries.push(forestLights.geometry);
+      materials.set('canopy-forest-lights', forestLights.material);
+      textures.push(forestLights.material.map);
       const deckTexture = createCanopyDeckTexture();
       deckTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
       textures.push(deckTexture);
+      canopyRopes = createCanopyRopes(scene, renderer.capabilities.getMaxAnisotropy());
       for (const [name, color] of [['canopy-deck-active', '#a78760'], ['canopy-deck-locked', '#33473c']]) {
         materials.set(name, new THREE.MeshStandardMaterial({ color, map: deckTexture, roughness: 1 }));
       }
@@ -536,18 +560,31 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         for (const z of [p.top + 8, p.bottom - 8]) box((p.left + p.right) / 2, p.height + 46, z,
           p.right - p.left - 12, 4, 4, '#a58a60');
         for (let x = p.left + 25; x < p.right; x += 50) for (const z of [p.top + 8, p.bottom - 8]) {
-          box(x, p.height + 22, z, 3, 44, 3, '#d1b680');
+          canopyRopes.add([x, p.height, z], [x, p.height + 44, z], 3);
         }
       }
-      for (const p of CANOPY_PLATFORMS) {
+      for (const [i, p] of CANOPY_PLATFORMS.entries()) {
         const x = (p.left + p.right) / 2, z = p.top + 16;
         box(x, p.height + 52, z, 6, 104, 6, '#6d5537');
         box(x, p.height + 105, z, 24, 4, 4, '#856f4c');
-        round(sphereGeometry, x + 10, p.height + 96, z, 14, 18, 14, '#f0d484', scene, true);
+        round(sphereGeometry, x + 10, p.height + 96, z, 14, 18, 14, canopyPlatformLightColor(i), scene, true);
+      }
+      for (let i = 1; i < CANOPY_SAFETY_WIRE.length; i += 1) {
+        const from = CANOPY_SAFETY_WIRE[i - 1], to = CANOPY_SAFETY_WIRE[i];
+        addZipCable({ round, cylinder: cylinderGeometry, parent: scene },
+          [from.x, from.height, from.y], [to.x, to.height, to.y]);
+      }
+      for (const index of [0, 2, 4, 7]) {
+        const p = CANOPY_PLATFORMS[index], x = p.left + 8, z = p.top + 8;
+        box(x, p.height + 105, z, 5, 110, 5, '#775d3e');
+        box(x, p.height + 160, (z + 350) / 2, 4, 4, 350 - z, '#9aaca9');
       }
     }
     OBJECTS[index].forEach(makeObject);
     player = person(PLAYER_OUTFIT, null, 0, 0, scene, PLAYER_STYLE);
+    if (index === 3) zipRide = createZipRide({
+      box, round, cylinder: cylinderGeometry, sphere: sphereGeometry, player, scene, cableHeight: CANOPY_ZIPLINE.cableHeight
+    });
     const nameLabel = label(characterName, 0, 105, 0);
     player.userData.label = nameLabel;
   }
@@ -597,6 +634,17 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       player.rotation.y = facing;
       player.userData.legs[0].rotation.x = swing; player.userData.legs[1].rotation.x = -swing;
       swingCharacterArms(player.userData.arms, swing, state.pubTogether ? playerHeldArm : -1);
+      if (zipRide) {
+        const legacy = Boolean(state.legacyZipline), first = state.zipProgress <= CANOPY_ZIPLINE.departureProgress;
+        const from = legacy ? LEGACY_CANOPY_ZIPLINE.start : first ? CANOPY_ZIPLINE.start : CANOPY_ZIPLINE.departure;
+        const to = legacy ? LEGACY_CANOPY_ZIPLINE.end : first ? CANOPY_ZIPLINE.departure : CANOPY_ZIPLINE.end;
+        const direction = new THREE.Vector3(to.x - from.x, to.height - from.height, to.y - from.y);
+        const anchor = state.zipline
+          ? { x: state.player.x, y: state.player.y, height: state.player.height + CANOPY_ZIPLINE.cableHeight }
+          : canopySafetyAnchor(state.player.x);
+        setZipRiderPose(player, zipRide, Boolean(state.zipline), anchor, direction);
+        legacyZipCable.visible = Boolean(state.zipline && legacy);
+      }
       player.userData.label.visible = !riding && !state.pubTogether;
       if (platformAmor) {
         platformAmor.visible = !riding;
@@ -629,10 +677,21 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         positionJoinedHands(state.player, partner, facing);
         pubExitMarker.visible = state.pubEnding === 'ready';
       }
-      player.userData.label.position.set(state.player.x, state.player.height + (state.pubTogether ? 145 : 105), state.player.y);
+      player.userData.label.position.set(state.player.x,
+        state.player.height + (index === 3 ? (state.zipline ? 155 : 185) : state.pubTogether ? 145 : 105), state.player.y);
       if (index === 1) camera.position.set(targetX + PUB_CAMERA_OFFSET.x, PUB_CAMERA_OFFSET.y, targetY + PUB_CAMERA_OFFSET.z);
-      else camera.position.set(targetX + 500, 1100, targetY + 950);
-      camera.lookAt(targetX, 0, targetY); camera.updateMatrixWorld();
+      else {
+        const focusHeight = index === 3 && state.zipline ? state.player.height + 50 : 0;
+        camera.position.set(targetX + 500, 1100 + focusHeight, targetY + 950);
+        const zoom = index === 3 && state.zipline ? 1.35 : 1;
+        if (camera.zoom !== zoom) {
+          camera.zoom = zoom;
+          camera.updateProjectionMatrix();
+        }
+        camera.lookAt(targetX, focusHeight, targetY);
+      }
+      if (index === 1) camera.lookAt(targetX, 0, targetY);
+      camera.updateMatrixWorld();
       if (ball) {
         const t = state.ballFound || state.pubEnding ? 1 : ballAnimation;
         const offTable = Math.max(0, Math.min(1, (t - 0.2) / 0.15));
@@ -684,7 +743,8 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         item.visible = !state.collected.includes(id) && platform <= state.checkpoint + 1;
       });
       beacons.forEach((beacon, id) => {
-        beacon.material = material((state.lanterns || []).includes(id) ? '#f0d484' : '#8a7959', (state.lanterns || []).includes(id));
+        const lit = (state.lanterns || []).includes(id);
+        beacon.material = material(canopyLanternColor(id, lit), lit);
       });
       renderer.render(scene, camera);
       return;
@@ -696,16 +756,21 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       ctx.save(); ctx.translate(sx(0), sy(0)); ctx.scale(scale, scale);
       drawPubInterior(ctx, pubFloor, pubRug); ctx.restore();
     } else if (index === 2) { ctx.fillStyle = '#414d3d'; ctx.fillRect(sx(0), sy(0), 1000 * scale, 700 * scale); }
-    else for (const [i, p] of CANOPY_PLATFORMS.entries()) {
-      drawCanopyDeck(ctx, sx(p.left), sy(p.top), (p.right - p.left) * scale, (p.bottom - p.top) * scale,
-        { variant: i, tone: i <= state.checkpoint + 1 ? 'warm' : 'locked' });
-      ctx.strokeStyle = '#594c36'; ctx.lineWidth = 3;
-      ctx.strokeRect(sx(p.left), sy(p.top), (p.right - p.left) * scale, (p.bottom - p.top) * scale);
+    else {
+      drawCanopyForest(ctx, sx, sy, scale, width, height);
+      for (const [i, p] of CANOPY_PLATFORMS.entries()) {
+        drawCanopyDeck(ctx, sx(p.left), sy(p.top), (p.right - p.left) * scale, (p.bottom - p.top) * scale,
+          { variant: i, tone: i <= state.checkpoint + 1 ? 'warm' : 'locked' });
+        ctx.strokeStyle = '#594c36'; ctx.lineWidth = 3;
+        ctx.strokeRect(sx(p.left), sy(p.top), (p.right - p.left) * scale, (p.bottom - p.top) * scale);
+      }
     }
     if (index === 3) {
       ctx.fillStyle = '#6d5537';
-      for (const p of CANOPY_PLATFORMS) {
+      for (const [i, p] of CANOPY_PLATFORMS.entries()) {
         ctx.fillRect(sx((p.left + p.right) / 2 - 3), sy(p.top + 13), 6 * scale, 6 * scale);
+        drawCanopyLight(ctx, sx((p.left + p.right) / 2 + 10), sy(p.top + 16), 6 * scale, canopyPlatformLightColor(i));
+        ctx.fillStyle = '#6d5537';
       }
       for (const object of OBJECTS[3]) {
         if (object.kind === 'collectible') {
@@ -716,16 +781,13 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           ctx.fillRect(sx(object.x - 5), sy(object.y - 5), 10 * scale, 10 * scale);
         }
       }
-      ctx.strokeStyle = '#d7bd81'; ctx.lineWidth = 4;
-      Object.values(CANOPY_CROSSINGS).forEach(({ start, end }) => {
-        ctx.beginPath(); ctx.moveTo(sx(start[0]), sy(start[1])); ctx.lineTo(sx(end[0]), sy(end[1])); ctx.stroke();
-      });
+      Object.values(CANOPY_CROSSINGS).forEach((crossing) => drawCanopyCrossing(ctx, crossing, sx, sy, scale));
+      drawZipCable(ctx, CANOPY_SAFETY_WIRE, sx, sy);
       drawCanopyDeck(ctx, sx(CANOPY_ZIPLINE.end.x - 75), sy(CANOPY_ZIPLINE.end.y - 55), 150 * scale, 110 * scale);
-      ctx.beginPath();
-      ctx.moveTo(sx(CANOPY_ZIPLINE.start.x), sy(CANOPY_ZIPLINE.start.y));
-      ctx.lineTo(sx(CANOPY_ZIPLINE.departure.x), sy(CANOPY_ZIPLINE.departure.y));
-      ctx.lineTo(sx(CANOPY_ZIPLINE.end.x), sy(CANOPY_ZIPLINE.end.y));
-      ctx.stroke();
+      const points = state.zipline && state.legacyZipline
+        ? [LEGACY_CANOPY_ZIPLINE.start, LEGACY_CANOPY_ZIPLINE.end]
+        : [CANOPY_ZIPLINE.start, CANOPY_ZIPLINE.departure, CANOPY_ZIPLINE.end];
+      drawZipCable(ctx, points, sx, sy);
     }
     if (index === 2) {
       ctx.drawImage(parkGround, sx(0), sy(0), 1000 * scale, 700 * scale);
@@ -782,6 +844,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       }
     }
     OBJECTS[index].forEach((object) => {
+      if (index === 3 && (object.kind === 'net' || object.kind === 'rope')) return;
       if (['amor', 'carriage'].includes(object.id) && ['riding', 'dropping', 'returning'].includes(state.phase)) return;
       if (object.kind === 'collectible' && (state.collected.includes(object.id)
         || ['leaf', 'feather', 'acorn', 'star'].indexOf(object.id) > state.checkpoint + 1)) return;
@@ -809,6 +872,11 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           ctx.fillRect(sx(object.x + offset + 6), sy(object.y + 3), 3 * scale, 6 * scale);
           ctx.fillStyle = '#829395';
         }
+        return;
+      }
+      if (index === 3 && object.kind === 'beacon') {
+        const lit = (state.lanterns || []).includes(object.id);
+        drawCanopyLight(ctx, sx(object.x), sy(object.y), 12 * scale, canopyLanternColor(object.id, lit), lit);
         return;
       }
       if (index === 1 && object.footprint) {
@@ -839,8 +907,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         ctx.fillText(object.name, sx(object.x), sy(object.y) - 17);
         return;
       }
-      ctx.fillStyle = object.kind === 'npc' ? '#d29caf' : object.kind === 'collectible'
-        || (object.kind === 'beacon' && (state.lanterns || []).includes(object.id)) ? '#f4d686' : '#a9895e';
+      ctx.fillStyle = object.kind === 'npc' ? '#d29caf' : object.kind === 'collectible' ? '#f4d686' : '#a9895e';
       ctx.fillRect(sx(object.x) - 13, sy(object.y) - 13, 26, 26);
       if (index !== 3) {
         ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd'; ctx.fillText(object.name, sx(object.x), sy(object.y) - 17);
@@ -853,7 +920,14 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       ctx.stroke();
     }
     if (index !== 2 || !['riding', 'dropping', 'returning'].includes(state.phase)) {
-      drawCharacterMarker(ctx, sx(state.player.x), sy(state.player.y), PLAYER_OUTFIT, { ...PLAYER_STYLE, stride: swing, heldArm: state.pubTogether ? playerHeldArm : -1, facing });
+      const zipline = index === 3 && state.zipline, playerX = sx(state.player.x), playerY = sy(state.player.y);
+      if (index === 3) {
+        const anchor = zipline ? null : canopySafetyAnchor(state.player.x);
+        drawZipTether(ctx, playerX, playerY, anchor ? sx(anchor.x) : playerX,
+          anchor ? sy(anchor.y) - ZIP_CABLE_SCREEN_OFFSET : playerY - ZIP_CABLE_SCREEN_OFFSET);
+      }
+      drawCharacterMarker(ctx, playerX, playerY, PLAYER_OUTFIT, { ...PLAYER_STYLE, stride: swing, heldArm: state.pubTogether ? playerHeldArm : -1, facing, zipline });
+      if (index === 3) drawZipHarness(ctx, playerX, playerY);
       if ((index === 1 || index === 2) && state.pubTogether) {
         ctx.strokeStyle = '#dfb38c'; ctx.lineWidth = Math.max(2, 4 * scale);
         ctx.beginPath(); ctx.moveTo(partnerScreen.x, partnerScreen.y + 5);
@@ -861,7 +935,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       }
       if ((index === 1 || index === 3) && characterName && !state.pubTogether) {
         ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
-        ctx.fillText(characterName, sx(state.player.x), sy(state.player.y) - (state.pubTogether ? 31 : 17));
+        ctx.fillText(characterName, playerX, playerY - (index === 3 ? 35 : state.pubTogether ? 31 : 17));
       }
     }
     if (index === 2 && ['riding', 'dropping', 'returning'].includes(state.phase)) {
@@ -915,6 +989,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   return { draw, resize, objectPosition, dispose() {
     canvas.removeEventListener('click', click); boxGeometry.dispose(); torsoGeometry.dispose(); sphereGeometry.dispose(); cylinderGeometry.dispose(); coneGeometry.dispose(); triangleGeometry.dispose(); materials.forEach((m) => m.dispose());
     sceneryGeometries.forEach((geometry) => geometry.dispose());
+    canopyRopes?.dispose();
     textures.forEach((t) => t.dispose()); renderer?.dispose();
   } };
 }
