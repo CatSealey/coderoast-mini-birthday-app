@@ -73,6 +73,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   const pedestalGeometry = createHallPedestalGeometry();
   const torsoGeometry = createCharacterTorsoGeometry();
+  const shapedTorsoGeometry = createCharacterTorsoGeometry({ shaped: true });
   const characterHeadGeometry = createCharacterHeadGeometry();
   const characterFaceGeometry = createCharacterFaceGeometry();
   const characterLimbGeometry = createCharacterLimbGeometry();
@@ -220,9 +221,9 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   }
   const person = new THREE.Group(); scene.add(person);
   addShadow(person, 0, 2, 65, 45);
-  round(torsoGeometry, 0, 37 + CHARACTER_RISE, 0, 24, 36, 17, PLAYER_OUTFIT, person);
+  round(shapedTorsoGeometry, 0, 37 + CHARACTER_RISE, 0, 24, 36, 17, PLAYER_OUTFIT, person);
   addCharacterClothingDetails((x, y, z, w, h, d, color) => box(x, y, z, w, h, d, color, person),
-    { width: 24, height: 36, depth: 17, centerY: 37 + CHARACTER_RISE, color: PLAYER_OUTFIT, kind: 'player', limbGeometry: characterLimbGeometry, torsoGeometry });
+    { width: 24, height: 36, depth: 17, centerY: 37 + CHARACTER_RISE, color: PLAYER_OUTFIT, kind: 'player', limbGeometry: characterLimbGeometry, torsoGeometry: shapedTorsoGeometry });
   addCharacterBelt((x, y, z, w, h, d, color) => box(x, y, z, w, h, d, color, person),
     { width: 24, depth: 17, y: 24 + CHARACTER_RISE, color: PLAYER_STYLE.belt, limbGeometry: characterLimbGeometry });
   addCharacterHeadDetails((x, y, z, w, h, d, shade) => box(x, y, z, w, h, d, shade, person),
@@ -233,9 +234,9 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   const legs = createPlayerLegs(person, box, { offset: 6, height: 22 + CHARACTER_RISE, shoeColor: '#5a4434', shortsColor: PLAYER_STYLE.shorts, skin: '#dfb38c', limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry });
   const love = new THREE.Group(); scene.add(love);
   addShadow(love, 0, 2, 65, 45);
-  round(torsoGeometry, 0, 37 + CHARACTER_RISE, 0, 24, 36, 17, CAT_OUTFIT, love);
+  round(shapedTorsoGeometry, 0, 37 + CHARACTER_RISE, 0, 24, 36, 17, CAT_OUTFIT, love);
   addCharacterClothingDetails((x, y, z, w, h, d, color) => box(x, y, z, w, h, d, color, love),
-    { width: 24, height: 36, depth: 17, centerY: 37 + CHARACTER_RISE, color: CAT_OUTFIT, kind: 'cat', limbGeometry: characterLimbGeometry, torsoGeometry });
+    { width: 24, height: 36, depth: 17, centerY: 37 + CHARACTER_RISE, color: CAT_OUTFIT, kind: 'cat', limbGeometry: characterLimbGeometry, torsoGeometry: shapedTorsoGeometry });
   addCharacterBelt((x, y, z, w, h, d, color) => box(x, y, z, w, h, d, color, love),
     { width: 24, depth: 17, y: 24 + CHARACTER_RISE, color: CAT_STYLE.belt, buckle: CAT_STYLE.buckle, limbGeometry: characterLimbGeometry });
   addCharacterHeadDetails((x, y, z, w, h, d, shade) => box(x, y, z, w, h, d, shade, love),
@@ -257,7 +258,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     { x: -posedArmOffset, y: 35 + CHARACTER_RISE, z: 4, width: 6, height: 7, depth: 7 });
   addJapaneseSleeve((...args) => box(...args, love),
     { x: -posedArmOffset / 2, y: 30 + CHARACTER_RISE, z: 14, width: 16, height: 5.5, depth: 6 });
-  const loveLegs = createCharacterLegs(love, box, 6, '#5a4434', CAT_STYLE.trousers, characterLimbGeometry, { height: 22 + CHARACTER_RISE });
+  const loveLegs = createCharacterLegs(love, box, 6, '#5a4434', CAT_STYLE.trousers, characterLimbGeometry, { height: 22 + CHARACTER_RISE, shapedHips: true });
   const ticket = new THREE.Group(); love.add(ticket);
   box(0, 0, 0, 30, 20, 2, '#f2c56b', ticket);
   for (const x of [-10, 10]) for (const y of [-5, 0, 5]) box(x, y, 2, 2, 2, 1, '#9b6739', ticket);
@@ -742,9 +743,9 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     root.removeEventListener('pointerup', pointerUp); root.removeEventListener('pointercancel', pointerUp);
     document.removeEventListener('keydown', keydown); document.removeEventListener('keyup', keyup); window.removeEventListener('blur', clearInput);
     scene.traverse((object) => {
-      if (object.isMesh && ![geometry, pedestalGeometry, torsoGeometry, characterHeadGeometry, characterFaceGeometry, characterLimbGeometry, characterSkinGeometry, cylinder, orb, cone, shadowGeometry].includes(object.geometry)) object.geometry.dispose();
+      if (object.isMesh && ![geometry, pedestalGeometry, torsoGeometry, shapedTorsoGeometry, characterHeadGeometry, characterFaceGeometry, characterLimbGeometry, characterSkinGeometry, cylinder, orb, cone, shadowGeometry].includes(object.geometry)) object.geometry.dispose();
     });
-    [geometry, pedestalGeometry, torsoGeometry, characterHeadGeometry, characterFaceGeometry, characterLimbGeometry, characterSkinGeometry, cylinder, orb, cone, shadowGeometry].forEach((shape) => shape.dispose());
+    [geometry, pedestalGeometry, torsoGeometry, shapedTorsoGeometry, characterHeadGeometry, characterFaceGeometry, characterLimbGeometry, characterSkinGeometry, cylinder, orb, cone, shadowGeometry].forEach((shape) => shape.dispose());
     textures.forEach((texture) => texture.dispose()); materials.forEach((mat) => mat.dispose()); renderer?.dispose();
   };
 }

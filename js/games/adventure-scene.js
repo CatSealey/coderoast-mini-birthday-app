@@ -43,6 +43,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   const raycaster = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
   const torsoGeometry = createCharacterTorsoGeometry();
+  const shapedTorsoGeometry = createCharacterTorsoGeometry({ shaped: true });
   const characterHeadGeometry = createCharacterHeadGeometry();
   const characterFaceGeometry = createCharacterFaceGeometry();
   const characterLimbGeometry = createCharacterLimbGeometry();
@@ -106,16 +107,17 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   }
   function person(color, x, z, parent = scene, style = {}) {
     const group = new THREE.Group(); group.position.set(x, 0, z); parent.add(group);
-    round(torsoGeometry, 0, 39 + CHARACTER_RISE, 0, 26, 38, 17, color, group);
+    const bodyGeometry = style.shorts || style.tattoo ? shapedTorsoGeometry : torsoGeometry;
+    round(bodyGeometry, 0, 39 + CHARACTER_RISE, 0, 26, 38, 17, color, group);
     addCharacterClothingDetails((px, py, pz, w, h, d, shade) => box(px, py, pz, w, h, d, shade, group),
-      { width: 26, height: 38, depth: 17, centerY: 39 + CHARACTER_RISE, color, kind: style.shorts ? 'player' : style.tattoo ? 'cat' : 'npc', limbGeometry: characterLimbGeometry, torsoGeometry });
+      { width: 26, height: 38, depth: 17, centerY: 39 + CHARACTER_RISE, color, kind: style.shorts ? 'player' : style.tattoo ? 'cat' : 'npc', limbGeometry: characterLimbGeometry, torsoGeometry: bodyGeometry });
     addCharacterHeadDetails((px, py, pz, w, h, d, shade) => box(px, py, pz, w, h, d, shade, group),
       (px, py, pz, w, h, d, shade) => round(characterHeadGeometry, px, py, pz, w, h, d, shade, group),
       { headY: 70 + CHARACTER_RISE, width: 19, height: 20, depth: 19, skin: '#dfb38c', hairLength: style.hairLength,
         face: (px, py, pz, w, h, d, shade) => round(characterFaceGeometry, px, py, pz, w, h, d, shade, group) });
     group.userData.legs = style.shorts
       ? createPlayerLegs(group, box, { offset: 7, height: 22 + CHARACTER_RISE, shoeColor: '#594336', shortsColor: style.shorts, skin: '#dfb38c', limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry })
-      : createCharacterLegs(group, box, 7, '#594336', style.trousers, characterLimbGeometry, { height: 22 + CHARACTER_RISE });
+      : createCharacterLegs(group, box, 7, '#594336', style.trousers, characterLimbGeometry, { height: 22 + CHARACTER_RISE, shapedHips: Boolean(style.tattoo) });
     addCharacterBelt((px, py, pz, w, h, d, shade) => box(px, py, pz, w, h, d, shade, group),
       { width: 26, depth: 17, y: 27 + CHARACTER_RISE, color: style.belt || '#a98e60', buckle: style.buckle || (!style.shorts && !style.tattoo ? '#d3b47a' : undefined), limbGeometry: characterLimbGeometry });
     group.userData.arms = createCharacterArms(group, box, {
@@ -998,7 +1000,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   }, faceDirection(dx, dy) {
     if (dx || dy) pendingFacing = Math.atan2(dx, dy);
   }, dispose() {
-    canvas.removeEventListener('click', click); boxGeometry.dispose(); torsoGeometry.dispose(); characterHeadGeometry.dispose(); characterFaceGeometry.dispose(); characterLimbGeometry.dispose(); characterSkinGeometry.dispose(); sphereGeometry.dispose(); cylinderGeometry.dispose(); coneGeometry.dispose(); triangleGeometry.dispose(); materials.forEach((m) => m.dispose());
+    canvas.removeEventListener('click', click); boxGeometry.dispose(); torsoGeometry.dispose(); shapedTorsoGeometry.dispose(); characterHeadGeometry.dispose(); characterFaceGeometry.dispose(); characterLimbGeometry.dispose(); characterSkinGeometry.dispose(); sphereGeometry.dispose(); cylinderGeometry.dispose(); coneGeometry.dispose(); triangleGeometry.dispose(); materials.forEach((m) => m.dispose());
     sceneryGeometries.forEach((geometry) => geometry.dispose());
     canopyRopes?.dispose();
     textures.forEach((t) => t.dispose()); renderer?.dispose();

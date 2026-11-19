@@ -6,15 +6,19 @@ export function createCharacterHeadGeometry() {
   return new THREE.IcosahedronGeometry(0.5, 1);
 }
 
-function facetedBodyGeometry(profile, detailedFace = false) {
+function facetedBodyGeometry(profile, detailedFace = false, shapedChest = false) {
   const positions = [];
-  const ring = ({ y, width, depth, front = depth, back = depth, nose = 0, cheek = 0, lip = 0, chin = 0 }) => {
+  const ring = ({ y, width, depth, front = depth, back = depth, nose = 0, cheek = 0, lip = 0, chin = 0, bust = 0 }) => {
     const face = detailedFace ? [
       [-width * 0.27, y, front + cheek + chin * 0.55],
       [-width * 0.1, y, front + nose * 0.75 + lip * 0.8 + chin * 0.9],
       [0, y, front + nose + lip + chin],
       [width * 0.1, y, front + nose * 0.75 + lip * 0.8 + chin * 0.9],
       [width * 0.27, y, front + cheek + chin * 0.55]
+    ] : shapedChest ? [
+      [-width * 0.3, y, front + bust],
+      [0, y, front],
+      [width * 0.3, y, front + bust]
     ] : [];
     return [
       [-width * 0.52, y, front], ...face, [width * 0.52, y, front],
@@ -126,14 +130,21 @@ const TORSO_PROFILE = [
   { y: 0.47, width: 0.25, front: 0.25, back: 0.26 }
 ];
 
-export function createCharacterTorsoGeometry() {
-  return facetedBodyGeometry(TORSO_PROFILE);
+const SHAPED_TORSO_PROFILE = TORSO_PROFILE.map((point) => ({
+  ...point,
+  front: point.front + ({ 0.02: 0.025, 0.23: 0.07, 0.37: 0.025 }[point.y] || 0),
+  bust: point.y === 0.23 ? 0.035 : 0
+}));
+
+export function createCharacterTorsoGeometry({ shaped = false } = {}) {
+  return facetedBodyGeometry(shaped ? SHAPED_TORSO_PROFILE : TORSO_PROFILE, false, shaped);
 }
 
-function torsoFront(offset, depth, width, x = 0) {
-  const upper = TORSO_PROFILE.findIndex((point) => point.y >= offset);
-  const a = TORSO_PROFILE[upper <= 0 ? 0 : upper === -1 ? TORSO_PROFILE.length - 1 : upper - 1];
-  const b = TORSO_PROFILE[upper === -1 ? TORSO_PROFILE.length - 1 : upper];
+function torsoFront(offset, depth, width, x = 0, shaped = false) {
+  const profile = shaped ? SHAPED_TORSO_PROFILE : TORSO_PROFILE;
+  const upper = profile.findIndex((point) => point.y >= offset);
+  const a = profile[upper <= 0 ? 0 : upper === -1 ? profile.length - 1 : upper - 1];
+  const b = profile[upper === -1 ? profile.length - 1 : upper];
   const fraction = a === b ? 0 : (offset - a.y) / (b.y - a.y);
   const radius = width * (a.width + (b.width - a.width) * fraction);
   const across = Math.abs(x) / radius;
@@ -141,7 +152,10 @@ function torsoFront(offset, depth, width, x = 0) {
   const facet = across <= 0.52 ? 1 : across <= 0.82
     ? 1 - (across - 0.52) * 0.16 / 0.3
     : 0.84 - (across - 0.82) * 0.28 / 0.18;
-  return depth * (a.front + (b.front - a.front) * fraction) * facet;
+  const bust = shaped && across < 0.52
+    ? (a.bust + (b.bust - a.bust) * fraction) * Math.min(across / 0.3, (0.52 - across) / 0.22)
+    : 0;
+  return depth * ((a.front + (b.front - a.front) * fraction) * facet + bust);
 }
 
 function shade(color, lightness) {
@@ -160,8 +174,9 @@ export function addCharacterBelt(box, { width, depth, y, color, buckle, limbGeom
 }
 
 export function addCharacterClothingDetails(box, { width, height, depth, centerY, color, kind = 'npc', variant = 0, limbGeometry, torsoGeometry }) {
-  const surface = (offset, x = 0) => Math.max(torsoFront(offset, depth, width, x),
-    depth * 0.04 + torsoFront((offset - 0.015) / 0.9, depth * 0.96, width * 0.82, x)) + 0.12;
+  const shaped = kind === 'player' || kind === 'cat';
+  const surface = (offset, x = 0) => Math.max(torsoFront(offset, depth, width, x, shaped),
+    depth * 0.04 + torsoFront((offset - 0.015) / 0.9, depth * 0.96, width * 0.82, x, shaped)) + 0.12;
   const front = surface(0);
   const trim = shade(color, kind === 'npc' ? 0.13 : 0.07);
   const shadow = shade(color, -0.08);

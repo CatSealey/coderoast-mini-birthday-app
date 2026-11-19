@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { addCharacterHeadDetails } from '../js/character-appearance.js';
-import { createCharacterFaceGeometry, createCharacterHeadGeometry } from '../js/character-body.js';
+import { CHARACTER_HEAD_SCALE, addCharacterHeadDetails } from '../js/character-appearance.js';
+import { CHARACTER_RISE, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterTorsoGeometry } from '../js/character-body.js';
 
 test('face has a continuous, projecting nose and shaped cheeks and jaw', () => {
   const geometry = createCharacterFaceGeometry();
@@ -130,4 +130,37 @@ test('eyes and mouth remain visible and attached to the face at each scene size'
     assert.equal(parent.children.filter((mesh) => mesh.userData.color === '#e3d2ba').length, 2);
   }
   cube.dispose(); head.dispose(); faceGeometry.dispose(); material.dispose();
+});
+
+test('slightly smaller heads keep their neck attached in each scene', () => {
+  const cube = new THREE.BoxGeometry(), head = createCharacterHeadGeometry();
+  const face = createCharacterFaceGeometry(), torso = createCharacterTorsoGeometry();
+  const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+  for (const [torsoWidth, torsoHeight, torsoY, headY, width, height, depth] of [
+    [20, 30, 37, 60, 14, 14, 14],
+    [25, 38, 40, 68, 17, 18, 17],
+    [24, 36, 37, 66, 18, 18, 18],
+    [25, 36, 42, 70, 18, 19, 18],
+    [26, 38, 39, 70, 19, 20, 19]
+  ]) {
+    const parent = new THREE.Group(), body = new THREE.Mesh(torso, material);
+    body.position.y = torsoY + CHARACTER_RISE; body.scale.set(torsoWidth, torsoHeight, 17); parent.add(body);
+    const part = (geometry, x, y, z, w, h, d) => {
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(x, y, z); mesh.scale.set(w, h, d); parent.add(mesh); return mesh;
+    };
+    addCharacterHeadDetails((...args) => part(cube, ...args), (...args) => part(head, ...args), {
+      headY: headY + CHARACTER_RISE, width, height, depth, skin: '#dfb38c',
+      face: (...args) => part(face, ...args)
+    });
+    const neck = parent.children.find((mesh) => mesh.geometry === cube);
+    const faceMesh = parent.children.find((mesh) => mesh.geometry === face);
+    assert.ok(Math.abs(faceMesh.scale.x / (width * 0.96) - 0.93) < 1e-8);
+    assert.equal(CHARACTER_HEAD_SCALE, 0.93);
+    parent.updateMatrixWorld(true);
+    const neckBounds = new THREE.Box3().setFromObject(neck);
+    assert.ok(neckBounds.intersectsBox(new THREE.Box3().setFromObject(body)), 'neck reaches the torso');
+    assert.ok(neckBounds.intersectsBox(new THREE.Box3().setFromObject(faceMesh)), 'neck reaches the face');
+  }
+  cube.dispose(); head.dispose(); face.dispose(); torso.dispose(); material.dispose();
 });

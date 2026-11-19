@@ -107,6 +107,35 @@ test('pelvis joins the torso to both legs while the legs remain animated', () =>
   cube.dispose(); limb.dispose(); skin.dispose(); torsoGeometry.dispose(); material.dispose();
 });
 
+test('player and Cat hips have a modest rearward shape while ordinary hips stay unchanged', () => {
+  const cube = new THREE.BoxGeometry(), limb = createCharacterLimbGeometry(), skin = createCharacterSkinGeometry();
+  const material = new THREE.MeshBasicMaterial();
+  const make = (kind) => {
+    const parent = new THREE.Group();
+    const box = (x, y, z, width, height, depth, color, owner) => {
+      const mesh = new THREE.Mesh(cube, material);
+      mesh.position.set(x, y, z); mesh.scale.set(width, height, depth); owner.add(mesh); return mesh;
+    };
+    const legs = kind === 'player'
+      ? createPlayerLegs(parent, box, { offset: 6, height: 31, shoeColor: '#594336',
+        shortsColor: '#141619', skin: '#dfb38c', limbGeometry: limb, skinGeometry: skin })
+      : createCharacterLegs(parent, box, 6, '#594336', '#263d30', limb, { height: 31, shapedHips: kind === 'cat' });
+    const hips = parent.children.find((part) => part.isMesh);
+    parent.updateMatrixWorld(true);
+    return { hips, legs, bounds: new THREE.Box3().setFromObject(hips) };
+  };
+  const npc = make('npc'), player = make('player'), cat = make('cat');
+  for (const character of [player, cat]) {
+    const increase = npc.bounds.min.z - character.bounds.min.z;
+    assert.ok(increase > 1 && increase < 2, 'rear silhouette extends modestly beyond the ordinary hips');
+    assert.equal(character.hips.scale.x, npc.hips.scale.x);
+    swingCharacterLegs(character.legs, 1, true);
+    assert.notEqual(character.legs[0].rotation.x, 0);
+    assert.equal(character.hips.parent, character.legs[0].parent);
+  }
+  cube.dispose(); limb.dispose(); skin.dispose(); material.dispose();
+});
+
 test('player knees and ankles stay connected and shoes have an instep and heel', () => {
   const cube = new THREE.BoxGeometry(), limb = createCharacterLimbGeometry(), skin = createCharacterSkinGeometry();
   const material = new THREE.MeshBasicMaterial();

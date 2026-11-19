@@ -93,14 +93,15 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     const group = new THREE.Group();
     group.position.set(x, 0, z);
     shadow(group, 66, 45);
-    if (!geometries.has('character-torso')) geometries.set('character-torso', createCharacterTorsoGeometry());
+    const torsoKey = playerStyle ? 'character-torso-shaped' : 'character-torso';
+    if (!geometries.has(torsoKey)) geometries.set(torsoKey, createCharacterTorsoGeometry({ shaped: Boolean(playerStyle) }));
     if (!geometries.has('character-limb')) geometries.set('character-limb', createCharacterLimbGeometry());
     if (!geometries.has('character-skin')) geometries.set('character-skin', createCharacterSkinGeometry());
     if (!materials.has(color)) materials.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.9 }));
-    const torso = new THREE.Mesh(geometries.get('character-torso'), materials.get(color));
+    const torso = new THREE.Mesh(geometries.get(torsoKey), materials.get(color));
     torso.position.set(0, 40 + CHARACTER_RISE, 0); torso.scale.set(25, 38, 15); group.add(torso);
     addCharacterClothingDetails((px, py, pz, w, h, d, shade) => box(group, w, h, d, shade, px, py, pz),
-      { width: 25, height: 38, depth: 15, centerY: 40 + CHARACTER_RISE, color, kind: playerStyle ? 'player' : 'npc', limbGeometry: geometries.get('character-limb'), torsoGeometry: geometries.get('character-torso') });
+      { width: 25, height: 38, depth: 15, centerY: 40 + CHARACTER_RISE, color, kind: playerStyle ? 'player' : 'npc', limbGeometry: geometries.get('character-limb'), torsoGeometry: geometries.get(torsoKey) });
     if (!geometries.has('character-head')) geometries.set('character-head', createCharacterHeadGeometry());
     if (!geometries.has('character-face')) geometries.set('character-face', createCharacterFaceGeometry());
     addCharacterHeadDetails((px, py, pz, w, h, d, shade) => box(group, w, h, d, shade, px, py, pz),

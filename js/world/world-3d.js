@@ -83,6 +83,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   geometries.add(characterLimbGeometry);
   geometries.add(characterSkinGeometry);
   const torsoGeometry = createCharacterTorsoGeometry();
+  const shapedTorsoGeometry = createCharacterTorsoGeometry({ shaped: true });
   function material(color) {
     if (!materials.has(color)) materials.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.9 }));
     return materials.get(color);
@@ -445,9 +446,10 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   }
   function character(color, longHair = false, hair, belt = '#aa9160', style = null, variant = 0) {
     const g = new THREE.Group();
-    const torso = mesh(torsoGeometry, color, g, 0, 37 + CHARACTER_RISE, 0); torso.scale.set(20, 30, 12);
+    const bodyGeometry = style?.shorts || style?.tattoo ? shapedTorsoGeometry : torsoGeometry;
+    const torso = mesh(bodyGeometry, color, g, 0, 37 + CHARACTER_RISE, 0); torso.scale.set(20, 30, 12);
     addCharacterClothingDetails((x, y, z, w, h, d, shade) => box(g, w, h, d, shade, x, y, z),
-      { width: 20, height: 30, depth: 12, centerY: 37 + CHARACTER_RISE, color, kind: style?.shorts ? 'player' : style?.tattoo ? 'cat' : 'npc', variant, limbGeometry: characterLimbGeometry, torsoGeometry });
+      { width: 20, height: 30, depth: 12, centerY: 37 + CHARACTER_RISE, color, kind: style?.shorts ? 'player' : style?.tattoo ? 'cat' : 'npc', variant, limbGeometry: characterLimbGeometry, torsoGeometry: bodyGeometry });
     addCharacterHeadDetails((x, y, z, w, h, d, shade) => box(g, w, h, d, shade, x, y, z),
       (x, y, z, w, h, d, shade) => {
         const part = mesh(characterHeadGeometry, shade, g, x, y, z); part.scale.set(w, h, d);
@@ -466,7 +468,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       g.userData.legs = createPlayerLegs(g, bodyBox, { offset: 5, height: 23 + CHARACTER_RISE, width: 7, depth: 8,
         shoeColor: '#5a4434', shortsColor: style.shorts, skin: '#d7aa83', limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry });
     } else if (style?.trousers) {
-      g.userData.legs = createCharacterLegs(g, bodyBox, 5, '#5a4434', style.trousers, characterLimbGeometry, { height: 22 + CHARACTER_RISE });
+      g.userData.legs = createCharacterLegs(g, bodyBox, 5, '#5a4434', style.trousers, characterLimbGeometry, { height: 22 + CHARACTER_RISE, shapedHips: Boolean(style.tattoo) });
     } else {
       g.userData.legs = createCharacterLegs(g, bodyBox, 5, '#5a4434', '#443e34', characterLimbGeometry,
         { height: 23 + CHARACTER_RISE, width: 7, depth: 8 });

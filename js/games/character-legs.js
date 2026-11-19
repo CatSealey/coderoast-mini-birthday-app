@@ -30,9 +30,9 @@ export function supportCharacterFeet(legs, surfaces) {
   }
 }
 
-function addHips(parent, box, offset, height, width, depth, color, limbGeometry) {
-  const hipWidth = offset * 2 + width * 0.62, hipHeight = width * 0.85, hipDepth = depth * 1.12;
-  const hips = box(0, height + hipHeight * 0.12, -depth * 0.05, hipWidth, hipHeight, hipDepth, color, parent);
+function addHips(parent, box, offset, height, width, depth, color, limbGeometry, shaped = false) {
+  const hipWidth = offset * 2 + width * 0.62, hipHeight = width * 0.85, hipDepth = depth * (shaped ? 1.35 : 1.12);
+  const hips = box(0, height + hipHeight * 0.12, -depth * (shaped ? 0.13 : 0.05), hipWidth, hipHeight, hipDepth, color, parent);
   shapeCharacterLimb(hips, limbGeometry, hipWidth, hipHeight, hipDepth);
 }
 
@@ -87,8 +87,8 @@ export function swingCharacterLegs(legs, phase, moving) {
 }
 
 export function createCharacterLegs(parent, box, offset, shoeColor, trouserColor = '#302d2a', limbGeometry,
-  { height = 22, width = 9, depth = 10 } = {}) {
-  addHips(parent, box, offset, height, width, depth, trouserColor, limbGeometry);
+  { height = 22, width = 9, depth = 10, shapedHips = false } = {}) {
+  addHips(parent, box, offset, height, width, depth, trouserColor, limbGeometry, shapedHips);
   return [-offset, offset].map((x) => {
     const leg = new THREE.Group();
     leg.position.set(x, height, 0);
@@ -119,7 +119,7 @@ export function createCharacterLegs(parent, box, offset, shoeColor, trouserColor
 }
 
 export function createPlayerLegs(parent, box, { offset, height = 22, width = 9, depth = 10, shoeColor, shortsColor, skin, limbGeometry, skinGeometry }) {
-  addHips(parent, box, offset, height, width, depth, shortsColor, limbGeometry);
+  addHips(parent, box, offset, height, width, depth, shortsColor, limbGeometry, true);
   return [-offset, offset].map((x) => {
     const leg = new THREE.Group();
     leg.position.set(x, height, 0);

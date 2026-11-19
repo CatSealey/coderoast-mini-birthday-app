@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../js/character-appearance.js';
+import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, CHARACTER_HEAD_SCALE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../js/character-appearance.js';
 import { newHouseState } from '../js/games/abigail-house.js';
 import { createAbigailScene } from '../js/games/abigail-scene.js';
 import { createCharacterLegs, createPlayerLegs } from '../js/games/character-legs.js';
@@ -77,6 +77,23 @@ test('fallback character shows a back or profile and keeps the rear tattoo visib
   assert.ok(!rectangles.some((part) => part.color === CAT_STYLE.buckle));
 });
 
+test('fallback side profiles shape the player and Cat without changing other characters', () => {
+  for (const [outfit, style] of [[PLAYER_OUTFIT, PLAYER_STYLE], [CAT_OUTFIT, CAT_STYLE]]) {
+    for (const direction of [-1, 1]) {
+      const ellipses = [], rectangles = [];
+      const context = {
+        fillRect(x, y, width, height) { rectangles.push({ x, y, width, height, color: this.fillStyle }); },
+        beginPath() {}, ellipse(x, y, rx, ry) { ellipses.push({ x, y, rx, ry, color: this.fillStyle }); },
+        arc() {}, fill() {}
+      };
+      drawCharacterMarker(context, 0, 0, outfit, { ...style, facing: direction * Math.PI / 2 });
+      assert.ok(ellipses.some((part) => part.color === outfit && part.y === 9 && part.x === direction));
+      assert.ok(rectangles.some((part) => part.color === (style.shorts || style.trousers)
+        && part.y === 16 && Math.abs(part.x - (-8 - direction * 0.6)) < 1e-8));
+    }
+  }
+});
+
 test('fallback zip-line rider raises both arms without changing the walking pose', () => {
   const rectangles = [], context = {
     fillRect(x, y, width, height) { rectangles.push({ x, y, width, height, color: this.fillStyle }); },
@@ -101,8 +118,8 @@ test('heads are proportionate and the player has longer hair than Cat', () => {
     { headY: 66, width: 18, height: 18, depth: 18, skin: '#dfb38c', hairLength: PLAYER_STYLE.hairLength });
 
   const head = parts.find((part) => part.color === '#dfb38c' && part.kind === 'round');
-  assert.equal(head.width, 18 * 0.96);
-  assert.ok(head.width / 24 >= 0.7 && head.width / 24 <= 0.8);
+  assert.equal(head.width, 18 * 0.96 * CHARACTER_HEAD_SCALE);
+  assert.ok(head.width / 24 >= 0.66 && head.width / 24 <= 0.68);
   const sideLocks = parts.filter((part) => part.color === CHARACTER_HAIR && Math.abs(part.x) === head.width * 0.43);
   assert.equal(sideLocks.length, 2);
   const eyes = parts.filter((part) => part.color === '#49382f');
@@ -128,7 +145,7 @@ test('short and custom-coloured hair retains its own shape and colour', () => {
   };
   addCharacterHeadDetails(record, record,
     { headY: 66, width: 18, height: 18, depth: 18, skin: '#dfb38c', hair: '#c4beb2' });
-  const sideLocks = parts.filter((part) => part.color === '#c4beb2' && Math.abs(part.x) === 18 * 0.96 * 0.43);
+  const sideLocks = parts.filter((part) => part.color === '#c4beb2' && Math.abs(part.x) === 18 * 0.96 * CHARACTER_HEAD_SCALE * 0.43);
   assert.equal(sideLocks.length, 2);
   assert.ok(sideLocks.every((part) => part.y - part.height / 2 > 57));
 });
@@ -383,6 +400,58 @@ test('faceted torso narrows at the waist and slopes at the shoulders', () => {
   const normals = geometry.getAttribute('normal');
   assert.ok(Array.from({ length: normals.count }, (_, i) => normals.getY(i)).some((y) => Math.abs(y) > 0.1 && Math.abs(y) < 0.95));
   geometry.dispose();
+});
+
+test('player and Cat torsos have a modest shaped chest without changing other characters', () => {
+  const normal = createCharacterTorsoGeometry(), shaped = createCharacterTorsoGeometry({ shaped: true });
+  const depthAt = (geometry, height) => {
+    const positions = geometry.getAttribute('position');
+    let front = -Infinity;
+    for (let i = 0; i < positions.count; i += 1) {
+      if (Math.abs(positions.getY(i) - height) < 0.0001) front = Math.max(front, positions.getZ(i));
+    }
+    return front;
+  };
+  const chestIncrease = depthAt(shaped, 0.23) - depthAt(normal, 0.23);
+  assert.ok(chestIncrease > 0.1 && chestIncrease < 0.11);
+  const positions = shaped.getAttribute('position');
+  const chestVertices = Array.from({ length: positions.count }, (_, i) =>
+    ({ x: positions.getX(i), y: positions.getY(i), z: positions.getZ(i) }))
+    .filter((point) => Math.abs(point.y - 0.23) < 1e-4);
+  assert.ok(chestVertices.some((point) => point.x < -0.1 && Math.abs(point.z - depthAt(shaped, 0.23)) < 1e-4));
+  assert.ok(chestVertices.some((point) => point.x > 0.1 && Math.abs(point.z - depthAt(shaped, 0.23)) < 1e-4));
+  assert.ok(chestVertices.some((point) => point.x === 0 && point.z < depthAt(shaped, 0.23)));
+  assert.ok(Math.abs(depthAt(shaped, -0.25) - depthAt(normal, -0.25)) < 1e-6);
+  assert.ok(Math.abs(depthAt(shaped, 0.47) - depthAt(normal, 0.47)) < 1e-6);
+  normal.dispose(); shaped.dispose();
+});
+
+test('player and Cat clothing details remain on the shaped torso in every scene size', () => {
+  const cube = new THREE.BoxGeometry(), torso = createCharacterTorsoGeometry({ shaped: true });
+  const limb = createCharacterLimbGeometry(), material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+  for (const [width, height, depth] of [[20, 30, 12], [24, 36, 17], [25, 38, 15], [25, 36, 17], [26, 38, 17]]) {
+    for (const kind of ['player', 'cat']) {
+      const parent = new THREE.Group(), body = new THREE.Mesh(torso, material);
+      body.scale.set(width, height, depth); parent.add(body);
+      const box = (x, y, z, w, h, d) => {
+        const mesh = new THREE.Mesh(cube, material);
+        mesh.position.set(x, y, z); mesh.scale.set(w, h, d); parent.add(mesh); return mesh;
+      };
+      addCharacterClothingDetails(box, { width, height, depth, centerY: 0, color: '#25272b',
+        kind, limbGeometry: limb, torsoGeometry: torso });
+      const shirt = parent.children.find((part) => part !== body && part.geometry === torso);
+      parent.updateMatrixWorld(true);
+      const seams = parent.children.filter((part) => part.geometry === cube && part.position.x === 0
+        && Math.abs(part.scale.x - width * 0.02) < 1e-8 && Math.abs(part.scale.y - height * 0.13) < 1e-8);
+      assert.equal(seams.length, 3);
+      for (const seam of seams) {
+        const ray = new THREE.Raycaster(new THREE.Vector3(0, seam.position.y, 100), new THREE.Vector3(0, 0, -1));
+        const front = Math.max(...[...ray.intersectObject(body), ...ray.intersectObject(shirt)].map((hit) => hit.point.z));
+        assert.ok(seam.position.z - front > 0 && seam.position.z - front < 0.8);
+      }
+    }
+  }
+  cube.dispose(); torso.dispose(); limb.dispose(); material.dispose();
 });
 
 test('face geometry has a shaped jaw and layered clothing follows the torso', () => {
