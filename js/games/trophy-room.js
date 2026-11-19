@@ -242,19 +242,19 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
       face: (x, y, z, w, h, d, shade) => round(characterFaceGeometry, x, y, z, w, h, d, shade, love) });
   const posedArmOffset = characterArmOffset(15, 7);
   for (const x of [-posedArmOffset, posedArmOffset]) {
-    const sleeve = box(x, 45 + CHARACTER_RISE, 4, 7, 14, 8, CAT_OUTFIT, love);
-    shapeCharacterLimb(sleeve, characterLimbGeometry, 7, 14, 8);
-    const upperArm = box(x, 35 + CHARACTER_RISE, 4, 7, 7, 8, '#dfb38c', love);
-    shapeCharacterLimb(upperArm, characterSkinGeometry, 7, 7, 8);
-    const forearm = box(x / 2, 30 + CHARACTER_RISE, 14, 17, 7, 7, '#dfb38c', love);
-    shapeCharacterLimb(forearm, characterSkinGeometry, 17, 7, 7);
-    const hand = box(x / 2, 30 + CHARACTER_RISE, 19, 7, 6, 6, '#dfb38c', love);
-    shapeCharacterLimb(hand, characterLimbGeometry, 7, 6, 6);
+    const sleeve = box(x, 45 + CHARACTER_RISE, 4, 6.5, 14, 7, CAT_OUTFIT, love);
+    shapeCharacterLimb(sleeve, characterLimbGeometry, 6.5, 14, 7);
+    box(x, 35 + CHARACTER_RISE, 4, 6, 7, 7, '#dfb38c', love);
+    const elbow = box(x, 31.5 + CHARACTER_RISE, 6, 6, 5, 6, '#dfb38c', love);
+    shapeCharacterLimb(elbow, characterLimbGeometry, 6, 5, 6);
+    box(x / 2, 30 + CHARACTER_RISE, 14, 16, 5.5, 6, '#dfb38c', love);
+    const hand = box(x / 2, 30 + CHARACTER_RISE, 19, 6, 5, 5, '#dfb38c', love);
+    shapeCharacterLimb(hand, characterLimbGeometry, 6, 5, 5);
   }
   addJapaneseSleeve((...args) => box(...args, love),
-    { x: -posedArmOffset, y: 35 + CHARACTER_RISE, z: 4, width: 7, height: 7, depth: 8 });
+    { x: -posedArmOffset, y: 35 + CHARACTER_RISE, z: 4, width: 6, height: 7, depth: 7 });
   addJapaneseSleeve((...args) => box(...args, love),
-    { x: -posedArmOffset / 2, y: 30 + CHARACTER_RISE, z: 14, width: 17, height: 7, depth: 7 });
+    { x: -posedArmOffset / 2, y: 30 + CHARACTER_RISE, z: 14, width: 16, height: 5.5, depth: 6 });
   const loveLegs = createCharacterLegs(love, box, 6, '#5a4434', CAT_STYLE.trousers, characterLimbGeometry, { height: 22 + CHARACTER_RISE });
   const ticket = new THREE.Group(); love.add(ticket);
   box(0, 0, 0, 30, 20, 2, '#f2c56b', ticket);
@@ -282,12 +282,14 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     let guestArms = null;
     if (member.id === 'gran') {
       for (const x of [-posedArmOffset, posedArmOffset]) {
-        const sleeve = box(x, 40 + CHARACTER_RISE, 0, 7, 28, 8, member.outfit, model);
-        shapeCharacterLimb(sleeve, characterLimbGeometry, 7, 28, 8);
-        const forearm = box(x, 35 + CHARACTER_RISE, 12, 7, 7, 24, member.outfit, model);
-        shapeCharacterLimb(forearm, characterLimbGeometry, 7, 7, 24);
-        const hand = box(x, 35 + CHARACTER_RISE, 25, 7, 6, 8, '#dfb38c', model);
-        shapeCharacterLimb(hand, characterLimbGeometry, 7, 6, 8);
+        const sleeve = box(x, 45 + CHARACTER_RISE, 0, 7, 18, 8, member.outfit, model);
+        shapeCharacterLimb(sleeve, characterLimbGeometry, 7, 18, 8);
+        const elbow = box(x, 35 + CHARACTER_RISE, 2, 6, 5, 7, member.outfit, model);
+        shapeCharacterLimb(elbow, characterLimbGeometry, 6, 5, 7);
+        const forearm = box(x, 35 + CHARACTER_RISE, 12, 6, 6, 24, member.outfit, model);
+        shapeCharacterLimb(forearm, characterLimbGeometry, 6, 6, 24);
+        const hand = box(x, 35 + CHARACTER_RISE, 25, 6, 5, 8, '#dfb38c', model);
+        shapeCharacterLimb(hand, characterLimbGeometry, 6, 5, 8);
       }
     } else guestArms = createCharacterArms(model, box, { offset: 15, shoulderY: 54 + CHARACTER_RISE, length: 28, width: 7, depth: 8, color: member.outfit, skin: '#dfb38c', limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry });
     if (member.id === 'gran') {
