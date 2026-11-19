@@ -1,9 +1,48 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../js/character-appearance.js';
+import { newHouseState } from '../js/games/abigail-house.js';
+import { createAbigailScene } from '../js/games/abigail-scene.js';
 import { createCharacterLegs, createPlayerLegs } from '../js/games/character-legs.js';
 import { TATTOO_ACCENT, TATTOO_INK, addJapaneseSleeve, createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../js/character-body.js';
 import * as THREE from 'three';
+
+test('Abigail walking stride follows distance instead of frame rate and rests when stopped', () => {
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const shoes = [];
+  const context = {
+    setTransform() {}, fillRect(x, y) { if (this.fillStyle === '#594336') shoes.push({ x, y }); },
+    beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, fillText() {}, ellipse() {}, arc() {}, fill() {}
+  };
+  const canvas = { getContext: () => context, addEventListener() {}, removeEventListener() {} };
+  globalThis.document = { createElement: () => ({ getContext: () => null }) };
+  globalThis.window = { devicePixelRatio: 1, matchMedia: () => ({ matches: false }) };
+  try {
+    for (const frames of [30, 60, 120]) {
+      const scene = createAbigailScene(canvas, () => {});
+      scene.resize(1000, 1060);
+      const state = newHouseState();
+      scene.draw(state);
+      for (let frame = 1; frame <= frames; frame += 1) {
+        shoes.length = 0;
+        scene.draw({ ...state, player: { ...state.player, x: state.player.x + 210 * frame / frames } });
+      }
+      const scale = 970 / 1100;
+      assert.equal(shoes.length, 2);
+      const stride = (shoes[0].y - shoes[1].y) / (4 * scale);
+      assert.ok(Math.abs(stride - Math.sin(210 * 0.04) * 0.4) < 1e-10);
+      shoes.length = 0;
+      scene.draw({ ...state, player: { ...state.player, x: state.player.x + 210 } });
+      assert.equal(shoes[0].y, shoes[1].y);
+      scene.dispose();
+    }
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
 
 test('movement determines facing in all directions and idle keeps the last direction', () => {
   const origin = { x: 10, y: 20 };

@@ -1,5 +1,10 @@
 export const CELL = 110;
 export const SIZE = 25;
+export const FRIGHT_PLAYER_RADIUS = 15;
+export const FRIGHT_OBJECT_SCALE = 0.4;
+export function frightRandom(x, y, salt = 0) {
+  return (((x * 73856093) ^ (y * 19349663) ^ (salt * 83492791)) >>> 0) % 1000 / 1000;
+}
 const stage = (question, choices, answer) => ({ question, choices, answer });
 export const FRIGHT_THEMES = Object.freeze([
   { id: 'disease', name: 'Disease', item: 'Remedy vial', color: '#83c86c', zone: 'Quarantine Ward',
@@ -112,16 +117,49 @@ const sections = centers.map(([x, y]) => nodes
     || a.y - b.y || a.x - b.x)
   .slice(0, 5).map((node) => { allocated.add(`${node.x},${node.y}`); return node; }));
 const point = (node) => ({ x: (node.x + 0.5) * CELL, y: (node.y + 0.5) * CELL });
+function sidePoint(node) {
+  const approach = point(node);
+  const side = [[-1, 0], [0, -1], [1, 0], [0, 1]]
+    .find(([dx, dy]) => FRIGHT_MAZE[node.y + dy]?.[node.x + dx] === '#');
+  if (!side) throw new Error(`No wall beside Fright Nights object at ${node.x},${node.y}.`);
+  return { x: approach.x + side[0] * CELL / 2, y: approach.y + side[1] * CELL / 2, approach };
+}
 export const FRIGHT_OBJECTS = Object.freeze([
   { id: 'exit', name: 'Escape gate', ...FRIGHT_START, kind: 'exit' },
   ...FRIGHT_THEMES.flatMap((theme, index) => [
     ...FRIGHT_CLUES[theme.id].map((text, clueIndex) => ({
       id: `clue-${theme.id}-${clueIndex + 1}`, name: `${theme.name} clue ${clueIndex + 1}`,
-      kind: 'clue', theme: theme.id, text, ...point(sections[index][clueIndex])
+      kind: 'clue', theme: theme.id, text, ...sidePoint(sections[index][clueIndex])
     })),
-    { id: `tool-${theme.id}`, name: theme.tool.name, kind: 'tool', theme: theme.id, ...point(sections[index][3]) },
-    { id: `cache-${theme.id}`, name: `${theme.name} mechanism`, kind: 'cache', theme: theme.id, ...point(sections[index][4]) }
+    { id: `tool-${theme.id}`, name: theme.tool.name, kind: 'tool', theme: theme.id, ...sidePoint(sections[index][3]) },
+    { id: `cache-${theme.id}`, name: `${theme.name} mechanism`, kind: 'cache', theme: theme.id, ...sidePoint(sections[index][4]) }
   ])
+]);
+
+const themedObjects = FRIGHT_OBJECTS.filter((object) => object.theme);
+export function frightAreaAt(x, y) {
+  const closest = themedObjects.map((object) => ({
+    object, distance: Math.hypot(object.approach.x - x, object.approach.y - y)
+  })).sort((a, b) => a.distance - b.distance)[0];
+  return closest.distance < CELL * 1.6 ? closest.object.theme : null;
+}
+
+const objectCells = new Set(FRIGHT_OBJECTS.map((object) => {
+  const location = object.approach || object;
+  return `${Math.floor(location.x / CELL)},${Math.floor(location.y / CELL)}`;
+}));
+export const FRIGHT_SCENERY = Object.freeze(FRIGHT_MAZE.flatMap((row, y) => [...row].flatMap((tile, x) => {
+  if (tile !== '.' || objectCells.has(`${x},${y}`) || frightRandom(x, y, 101) >= 0.45) return [];
+  const center = point({ x, y }), theme = frightAreaAt(center.x, center.y);
+  if (!theme || ![[-1, 0], [0, -1], [1, 0], [0, 1]]
+    .some(([dx, dy]) => FRIGHT_MAZE[y + dy]?.[x + dx] === '#')) return [];
+  return [{ ...sidePoint({ x, y }), theme, variant: Math.floor(frightRandom(x, y, 102) * 2), halfSize: 18 }];
+})));
+export const FRIGHT_OBSTACLES = Object.freeze([
+  ...FRIGHT_OBJECTS.filter((object) => object.kind !== 'exit').map((object) => ({
+    x: object.x, y: object.y, halfSize: object.kind === 'cache' ? 27 : object.kind === 'clue' ? 17 : 12
+  })),
+  ...FRIGHT_SCENERY
 ]);
 
 export function frightThemeCluesFound(state, themeId) {
@@ -133,11 +171,41 @@ export function newFrightState() {
     message: 'Explore the seven fears: find three separate clues in each area, take its tool, then work its mechanism.' };
 }
 
-export function frightWalkable(player) {
+function mazeWalkable(player) {
   if (!player || !Number.isFinite(player.x) || !Number.isFinite(player.y)) return false;
-  const radius = 15;
+  const radius = FRIGHT_PLAYER_RADIUS;
   return [[-radius, -radius], [radius, -radius], [-radius, radius], [radius, radius]]
     .every(([dx, dy]) => FRIGHT_MAZE[Math.floor((player.y + dy) / CELL)]?.[Math.floor((player.x + dx) / CELL)] === '.');
+}
+
+export function frightWalkable(player) {
+  if (!mazeWalkable(player)) return false;
+  return !FRIGHT_OBSTACLES.some((object) => Math.abs(player.x - object.x) < object.halfSize + FRIGHT_PLAYER_RADIUS
+      && Math.abs(player.y - object.y) < object.halfSize + FRIGHT_PLAYER_RADIUS);
+}
+
+export function frightTeleportPosition(player) {
+  const directions = [[1, -1], [1, 0], [0, -1], [-1, 0], [0, 1], [-1, -1], [1, 1], [-1, 1]]
+    .map(([x, y]) => {
+      const length = Math.hypot(x, y);
+      return { x: x / length, y: y / length };
+    });
+  const offsets = [40, 32, 24, 16, 8];
+  for (const margin of [6, 0]) {
+    for (const distance of offsets) {
+      for (const direction of directions) {
+        const point = { x: player.x + direction.x * distance, y: player.y + direction.y * distance };
+        const clear = [-margin, margin].every((dx) => [-margin, margin]
+          .every((dy) => frightWalkable({ x: point.x + dx, y: point.y + dy })));
+        const reachable = [0.25, 0.5, 0.75, 1].every((fraction) => frightWalkable({
+          x: player.x + direction.x * distance * fraction,
+          y: player.y + direction.y * distance * fraction
+        }));
+        if (clear && reachable) return point;
+      }
+    }
+  }
+  return { ...player };
 }
 
 export function restoreFrightState(saved) {
@@ -156,7 +224,7 @@ export function restoreFrightState(saved) {
   const validPosition = legacy
     ? saved.player && Number.isFinite(saved.player.x) && Number.isFinite(saved.player.y)
       && saved.player.x >= 0 && saved.player.y >= 0 && saved.player.x <= 13 * CELL && saved.player.y <= 13 * CELL
-    : frightWalkable(saved.player);
+    : mazeWalkable(saved.player);
   if (![2, 3].includes(saved.version) || !validPosition || !(legacy ? validIds(saved.clues) : validClues(saved.clues)) || !validIds(saved.collected)
     || typeof saved.legacyKey !== 'boolean' || typeof saved.complete !== 'boolean') {
     console.warn('Invalid saved Fright Nights progress; starting the maze again.');
@@ -171,9 +239,15 @@ export function restoreFrightState(saved) {
   const knownThemes = legacy ? [...saved.clues, ...saved.collected, ...tools] : saved.collected;
   const clues = legacy ? [] : saved.clues;
   const migratedClues = FRIGHT_OBJECTS.filter((object) => object.kind === 'clue' && knownThemes.includes(object.theme)).map((object) => object.id);
-  return { ...fresh, player: legacy ? { ...FRIGHT_START } : { ...saved.player }, clues: [...new Set([...clues, ...migratedClues])],
+  const savedCellCenter = legacy ? FRIGHT_START : {
+    x: (Math.floor(saved.player.x / CELL) + 0.5) * CELL, y: (Math.floor(saved.player.y / CELL) + 0.5) * CELL
+  };
+  const moved = !legacy && !frightWalkable(saved.player);
+  const player = legacy ? FRIGHT_START : moved ? savedCellCenter : saved.player;
+  return { ...fresh, player: { ...player }, clues: [...new Set([...clues, ...migratedClues])],
     tools: [...new Set([...tools, ...saved.collected])], collected: [...saved.collected], scares,
-    legacyKey: saved.legacyKey, complete: saved.complete };
+    legacyKey: saved.legacyKey, complete: saved.complete,
+    ...(moved ? { message: 'Your saved position was moved to a clear place beside the maze objects.' } : {}) };
 }
 
 export function walkFright(state, dx, dy, seconds) {
@@ -182,10 +256,18 @@ export function walkFright(state, dx, dy, seconds) {
   if (!length) return state;
   const distance = Math.min(length, 175 * seconds, 15);
   const player = { x: state.player.x + dx / length * distance, y: state.player.y + dy / length * distance };
-  return frightWalkable(player) ? { ...state, player } : state;
+  const steps = Math.ceil(distance / 3);
+  for (let i = 1; i <= steps; i += 1) {
+    if (!frightWalkable({
+      x: state.player.x + (player.x - state.player.x) * i / steps,
+      y: state.player.y + (player.y - state.player.y) * i / steps
+    })) return state;
+  }
+  return { ...state, player };
 }
 
 export function frightPath(start, destination) {
+  destination = destination.approach || destination;
   const from = [Math.floor(start.x / CELL), Math.floor(start.y / CELL)];
   const to = [Math.floor(destination.x / CELL), Math.floor(destination.y / CELL)];
   if (!frightWalkable(start) || !frightWalkable(destination)) return null;
@@ -206,7 +288,26 @@ export function frightPath(start, destination) {
     cells.unshift({ x: (x + 0.5) * CELL, y: (y + 0.5) * CELL });
     key = previous.get(key);
   }
-  return [...cells, destination];
+  const points = [], candidates = [...cells, destination];
+  let current = start;
+  const clear = (a, b) => {
+    const steps = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 5);
+    for (let i = 1; i <= steps; i += 1) {
+      if (!frightWalkable({ x: a.x + (b.x - a.x) * i / steps, y: a.y + (b.y - a.y) * i / steps })) return false;
+    }
+    return true;
+  };
+  for (const target of candidates) {
+    if (!clear(current, target)) {
+      const bends = [{ x: current.x, y: target.y }, { x: target.x, y: current.y }];
+      const bend = bends.find((point) => clear(current, point) && clear(point, target));
+      if (!bend) return null;
+      points.push(bend);
+    }
+    points.push(target);
+    current = target;
+  }
+  return points;
 }
 
 export function frightExitReady(state) {

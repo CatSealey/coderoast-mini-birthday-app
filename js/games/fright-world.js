@@ -29,7 +29,7 @@ export function mountFrightWorld(root, { characterName, savedState, onProgress, 
         <button type="button" class="rs3-btn" data-fright-interact>Investigate</button>
       </div>
       <div class="abigail-world__dialogue" id="frightMessage" role="status"></div>
-      <section id="frightPuzzle" class="abigail-world__puzzle" aria-labelledby="frightPuzzleTitle" hidden>
+      <section id="frightPuzzle" class="abigail-world__puzzle fright-world__puzzle" aria-labelledby="frightPuzzleTitle" hidden>
         <strong id="frightPuzzleTitle"></strong>
         <p id="frightQuestion"></p>
         <div class="fright-world__choices" id="frightChoices"></div>
@@ -105,10 +105,11 @@ export function mountFrightWorld(root, { characterName, savedState, onProgress, 
   function select(selection) {
     if (state.puzzle) return;
     stopWalking(); keysDown.clear(); held.clear();
+    if (selection.teleport) { update(teleportFright(state)); return; }
     const object = FRIGHT_OBJECTS.find((entry) => entry.id === selection.objectId);
     const destination = object || selection;
     const route = frightPath(state.player, destination);
-    if (!route) { update({ ...state, message: 'The maze wall blocks that route.' }); return; }
+    if (!route) { update({ ...state, message: 'A wall or object blocks that route.' }); return; }
     path = route;
     selectedObject = object?.id || null;
   }

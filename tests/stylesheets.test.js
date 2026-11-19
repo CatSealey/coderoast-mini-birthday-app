@@ -58,3 +58,17 @@ test('quest icons and remove controls have matching visible boxes and a usable t
   assert.equal(removeButton.get('width'), '44px');
   assert.equal(removeButton.get('height'), '44px');
 });
+
+test('Fright Nights answers have room for long labels and reflow on narrow screens', async () => {
+  const css = await readFile(new URL('../css/parts/quest-interiors.css', import.meta.url), 'utf8');
+  const root = postcss.parse(css);
+  const declarations = (selector) => {
+    const properties = new Map();
+    root.walkRules(selector, (rule) => rule.walkDecls((decl) => properties.set(decl.prop, decl.value)));
+    return properties;
+  };
+  assert.equal(declarations('.fright-world__puzzle').get('width'), 'min(480px, calc(100% - 24px))');
+  assert.equal(declarations('.fright-world__choices').get('grid-template-columns'),
+    'repeat(auto-fit, minmax(min(130px, 100%), 1fr))');
+  assert.equal(declarations('.fright-world__choice').get('min-height'), '44px');
+});

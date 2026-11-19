@@ -4,6 +4,7 @@ import { mountAdventureWorld } from './games/adventure-world.js';
 import { restoreAdventureState } from './games/adventure-logic.js';
 import { mountFrightWorld } from './games/fright-world.js';
 import { restoreFrightState } from './games/fright-logic.js';
+import { createFrightInventoryIcons } from './games/fright-inventory-icons.js';
 import { mountTrophyRoom } from './games/trophy-room.js';
 import { presentAvailable, restoreBirthdayGuests, restoreDisplays, restoreTrophyQuest } from './games/trophy-logic.js';
 import { restoreHouseState } from './games/abigail-house.js';
@@ -127,7 +128,7 @@ export function startGame(characterName) {
   let sideQuestCompleted = progress.sideQuestCompleted;
   let inTrophyRoom = false;
   let suppressGameSaves = false;
-  let inventorySignature = null;
+  let inventorySignature = null, frightInventoryIcons;
   const journalStepSignatures = Array(chapters.length + 1).fill(null);
   let activeChapter = 0;
   let disposeGame = () => { };
@@ -269,6 +270,14 @@ export function startGame(characterName) {
     const signature = JSON.stringify(items);
     if (signature === inventorySignature) return;
     inventorySignature = signature;
+    if (frightInventoryIcons === undefined && items.some((item) => item.frightMarker)) {
+      try {
+        frightInventoryIcons = createFrightInventoryIcons();
+      } catch (error) {
+        console.error('Could not render 3D Fright Nights inventory icons; using illustrated icons.', error);
+        frightInventoryIcons = null;
+      }
+    }
     for (const id of ['questInventory', 'activityInventory']) {
       const container = document.querySelector(`#${id}`);
       container.replaceChildren();
@@ -280,7 +289,7 @@ export function startGame(characterName) {
         entry.dataset.tooltip = item.name;
         entry.setAttribute('aria-label', `${item.name}, ${item.quest}`);
         const icon = document.createElement('img');
-        icon.src = item.image;
+        icon.src = frightInventoryIcons?.get(item.frightMarker) || item.image;
         icon.alt = '';
         entry.append(icon);
         container.append(entry);

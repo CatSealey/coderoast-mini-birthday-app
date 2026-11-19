@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { questItems } from '../js/quest-items.js';
 import { newHouseState, restoreHouseState, interactHouse } from '../js/games/abigail-house.js';
 import { restoreMazeState } from '../js/games/maze.js';
@@ -9,6 +10,10 @@ import { restoreCanopyState } from '../js/games/canopy.js';
 import { chooseAbigailRune } from '../js/games/abigail-logic.js';
 import { newAdventureState, restoreAdventureState } from '../js/games/adventure-logic.js';
 import { COASTER_TREATS } from '../js/games/coaster-course.js';
+import { FRIGHT_OBJECTS, FRIGHT_THEMES, answerFright, interactFright, newFrightState, restoreFrightState } from '../js/games/fright-logic.js';
+import { createFrightInventoryIcons } from '../js/games/fright-inventory-icons.js';
+import { discoveredFrightClues } from '../js/games/fright-clues.js';
+import { frightMarkerVisible } from '../js/games/fright-markers.js';
 
 test('quest inventory shows only actually collected items across quests', () => {
   const saves = [null, null, null, null, null];
@@ -69,6 +74,92 @@ test('Fright Nights tools appear until their matching mechanisms are solved', ()
   assert.ok(after.includes('Remedy vial'));
   saves[4].complete = true;
   assert.deepEqual(questItems(saves), []);
+});
+
+test('Fright Nights clues enter the quest inventory on pickup and survive reload', () => {
+  const clue = FRIGHT_OBJECTS.find((object) => object.id === 'clue-ai-1');
+  const otherClue = FRIGHT_OBJECTS.find((object) => object.id === 'clue-ai-2');
+  const inventory = (state) => questItems([null, null, null, null, state]);
+  let state = { ...newFrightState(), player: clue.approach };
+  assert.deepEqual(inventory(state), []);
+  state = interactFright(state, clue.id);
+  assert.deepEqual(inventory(state).map(({ name }) => name), [clue.name]);
+  assert.ok(inventory(state)[0].image.endsWith('/fright-clue-ai.svg'));
+  state = interactFright(state, clue.id);
+  assert.equal(inventory(state).length, 1);
+  state = restoreFrightState(JSON.parse(JSON.stringify(state)));
+  assert.deepEqual(inventory(state).map(({ name }) => name), [clue.name]);
+  state = interactFright({ ...state, player: otherClue.approach }, otherClue.id);
+  assert.deepEqual(inventory(state).map(({ name }) => name), [clue.name, otherClue.name]);
+  assert.deepEqual(inventory({ ...state, complete: true }), []);
+});
+
+test('recovering an area reward clears only its clues from the inventory', () => {
+  const theme = FRIGHT_THEMES.find((entry) => entry.id === 'ai');
+  const cache = FRIGHT_OBJECTS.find((object) => object.id === 'cache-ai');
+  const clues = FRIGHT_OBJECTS.filter((object) => object.kind === 'clue' && object.theme === theme.id);
+  const otherClue = FRIGHT_OBJECTS.find((object) => object.id === 'clue-disease-1');
+  const inventory = (state) => questItems([null, null, null, null, state]).map(({ name }) => name);
+  let state = { ...newFrightState(), player: cache.approach,
+    clues: [...clues.map(({ id }) => id), otherClue.id], tools: [theme.id] };
+  const before = inventory(state);
+  assert.ok(clues.every((clue) => before.includes(clue.name)));
+  assert.ok(before.includes(otherClue.name));
+  state = interactFright(state, cache.id);
+  const wrong = theme.stages[0].choices.find((choice) => choice !== theme.stages[0].answer);
+  state = answerFright(state, wrong);
+  assert.deepEqual(inventory(state), before);
+  state = interactFright(state, cache.id);
+  for (const stage of theme.stages) state = answerFright(state, stage.answer);
+  assert.ok(clues.every((clue) => !inventory(state).includes(clue.name)));
+  assert.ok(inventory(state).includes(otherClue.name));
+  assert.ok(inventory(state).includes(theme.item));
+  assert.ok(!inventory(state).includes(theme.tool.name));
+  state = restoreFrightState(JSON.parse(JSON.stringify(state)));
+  assert.ok(clues.every((clue) => state.clues.includes(clue.id) && !frightMarkerVisible(clue, state)));
+  assert.equal(discoveredFrightClues(state).find((group) => group.theme.id === theme.id).clues.length, 3);
+  assert.ok(clues.every((clue) => !inventory(state).includes(clue.name)));
+  assert.ok(inventory(state).includes(otherClue.name));
+});
+
+test('Fright Nights inventory icons match each pickup’s theme colour', () => {
+  const clues = FRIGHT_OBJECTS.filter(({ kind }) => kind === 'clue').map(({ id }) => id);
+  const themes = FRIGHT_THEMES.map(({ id }) => id);
+  const inventory = (state) => questItems([null, null, null, null, state]);
+  const tools = inventory({ clues, tools: themes, collected: [], complete: false });
+  const rewards = inventory({ clues: [], tools: [], collected: themes, complete: false });
+  const clueImages = new Set();
+  for (const theme of FRIGHT_THEMES) {
+    const clue = FRIGHT_OBJECTS.find((object) => object.kind === 'clue' && object.theme === theme.id);
+    const entries = [tools.find(({ name }) => name === clue.name),
+      tools.find(({ name }) => name === theme.tool.name),
+      rewards.find(({ name }) => name === theme.item)];
+    assert.deepEqual(entries.map((item) => item?.frightMarker),
+      [`clue:${theme.id}`, `tool:${theme.id}`, `cache:${theme.id}`]);
+    for (const item of entries) {
+      assert.ok(item, `inventory item for ${theme.name}`);
+      const svg = readFileSync(new URL(item.image), 'utf8');
+      assert.match(svg, /<svg\b/);
+      assert.ok(svg.includes(theme.color), `${item.name} uses ${theme.color}`);
+    }
+    clueImages.add(tools.find(({ name }) => name === clue.name).image);
+  }
+  assert.equal(clueImages.size, FRIGHT_THEMES.length);
+});
+
+test('Fright Nights inventory uses illustrated icons when WebGL is unavailable', () => {
+  const previousDocument = globalThis.document, previousWarn = console.warn;
+  const warnings = [];
+  globalThis.document = { createElement: () => ({ getContext: () => null }) };
+  console.warn = (message) => warnings.push(message);
+  try {
+    assert.equal(createFrightInventoryIcons(), null);
+    assert.match(warnings[0], /WebGL is unavailable/);
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    console.warn = previousWarn;
+  }
 });
 
 test('items stay until used, including after a failed rune sequence and across saves', () => {

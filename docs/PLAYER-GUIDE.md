@@ -30,7 +30,11 @@ The side-quest list offers optional encounters with Cat. Select an entry to
 find her, then speak to her to begin.
 
 Your items and keepsakes appear in the inventory panels. Hover over, focus or
-tap an item to see its name.
+tap an item to see its name. Fright Nights clues appear in your quest inventory
+as you find them, with the same colours as in the maze. Once you recover an
+area's object, its clues leave the inventory but remain readable in the journal
+and the maze's clues panel. In browsers with WebGL, their inventory icons use
+the same 3D models as the maze pickups.
 
 ## Music and settings
 

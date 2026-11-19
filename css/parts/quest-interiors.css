@@ -259,9 +259,13 @@
   margin: 0;
 }
 
+.fright-world__puzzle {
+  width: min(480px, calc(100% - 24px));
+}
+
 .fright-world__choices {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));
   gap: 6px;
 }
 

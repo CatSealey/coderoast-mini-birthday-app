@@ -1,4 +1,4 @@
-import { FRIGHT_THEMES } from './games/fright-logic.js';
+import { FRIGHT_OBJECTS, FRIGHT_THEMES } from './games/fright-logic.js';
 import { COASTER_TREATS } from './games/coaster-course.js';
 
 const images = {
@@ -15,6 +15,15 @@ const images = {
   bogeymen: new URL('../assets/items/dream-catcher.svg', import.meta.url).href,
   claustrophobia: new URL('../assets/items/air-charm.svg', import.meta.url).href,
   clowns: new URL('../assets/items/carnival-mask.svg', import.meta.url).href
+};
+const frightClueImages = {
+  disease: new URL('../assets/items/fright-clue-disease.svg', import.meta.url).href,
+  ai: new URL('../assets/items/fright-clue-ai.svg', import.meta.url).href,
+  darkness: new URL('../assets/items/fright-clue-darkness.svg', import.meta.url).href,
+  chainsaws: new URL('../assets/items/fright-clue-chainsaws.svg', import.meta.url).href,
+  bogeymen: new URL('../assets/items/fright-clue-bogeymen.svg', import.meta.url).href,
+  claustrophobia: new URL('../assets/items/fright-clue-claustrophobia.svg', import.meta.url).href,
+  clowns: new URL('../assets/items/fright-clue-clowns.svg', import.meta.url).href
 };
 const adventureImages = {
   drinks: new URL('../assets/items/drinks.svg', import.meta.url).href,
@@ -84,13 +93,18 @@ export function questItems(saves) {
   }
   const fright = saves[4];
   if ((fright?.hasKey || fright?.legacyKey) && !fright.complete) items.push({ name: 'Lantern key', image: images.lantern, quest: 'Fright Nights' });
+  if (!fright?.complete && Array.isArray(fright?.clues)) {
+    FRIGHT_OBJECTS.filter((object) => object.kind === 'clue' && fright.clues.includes(object.id)
+      && !fright.collected?.includes(object.theme))
+      .forEach((clue) => items.push({ name: clue.name, image: frightClueImages[clue.theme], quest: 'Fright Nights', frightMarker: `clue:${clue.theme}` }));
+  }
   if (!fright?.complete && Array.isArray(fright?.tools)) {
     FRIGHT_THEMES.filter((theme) => fright.tools.includes(theme.id) && !fright.collected?.includes(theme.id))
-      .forEach((theme) => items.push({ name: theme.tool.name, image: frightToolImages[theme.id], quest: 'Fright Nights' }));
+      .forEach((theme) => items.push({ name: theme.tool.name, image: frightToolImages[theme.id], quest: 'Fright Nights', frightMarker: `tool:${theme.id}` }));
   }
   if (!fright?.complete && Array.isArray(fright?.collected)) {
     FRIGHT_THEMES.filter((theme) => fright.collected.includes(theme.id))
-      .forEach((theme) => items.push({ name: theme.item, image: images[theme.id], quest: 'Fright Nights' }));
+      .forEach((theme) => items.push({ name: theme.item, image: images[theme.id], quest: 'Fright Nights', frightMarker: `cache:${theme.id}` }));
   }
   return items;
 }

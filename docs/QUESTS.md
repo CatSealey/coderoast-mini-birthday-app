@@ -60,9 +60,16 @@ or bad timing returns the player to a platform without losing progress.
 Explore the seven themed maze areas. Find each area's three clues and tool,
 then solve its three-step mechanism to recover its object. Wrong answers reset
 that mechanism but preserve items. Discovered clues remain in the journal and
-the nearby-objects panel. After finding all seven objects, use **Teleport
-out** or return to the entrance gate. Position and discoveries are saved when
-leaving.
+the nearby-objects panel. After finding all seven objects, click the glowing
+teleport circle beside you, use **Teleport out**, or return to the entrance
+gate. Position and discoveries are saved when
+leaving. Clues, tools, mechanisms and solid scenery sit at the sides of the
+walkways; walk up beside them to investigate. The darker strips around the
+slim walls remain outside the walkable paths. In the 3D maze, glowing notes,
+tools and reward objects mark the clues, collectibles and mechanisms. Found
+clues and items appear in the quest inventory, and their glowing markers
+disappear when picked up. An area's clues leave the inventory when its object
+is recovered, but remain available in the journal and clues panel.
 
 ## Hall of Memories and finale
 
