@@ -11,6 +11,15 @@ export function isOnHallExitMat(x, z) {
   return dz >= -1 && dz <= 0 && dx * dx + dz * dz <= 1;
 }
 
+export function hallExitMatIntersectsFoot(bounds) {
+  const { x, z, depth } = HALL_EXIT_MAT;
+  const edge = z + depth / 2;
+  if (bounds.min.z > edge) return false;
+  const closestX = Math.max(bounds.min.x, Math.min(bounds.max.x, x));
+  const closestZ = Math.max(bounds.min.z, Math.min(bounds.max.z, edge));
+  return isOnHallExitMat(closestX, closestZ);
+}
+
 export function nearTrophyExit(player) {
   return Math.hypot(player.x - TROPHY_EXIT.x, player.z - TROPHY_EXIT.z) <= TROPHY_EXIT.range;
 }

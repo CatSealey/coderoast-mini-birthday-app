@@ -782,7 +782,7 @@ export function takePoolShot(state, aim, power) {
     const hint = Math.abs(aim) > 7 ? 'The cue ball missed the rack. Adjust the line towards the centre.'
       : power < 55 ? 'The break was too gentle. Try a little more power.'
         : 'That break was too hard. Try a more controlled shot.';
-    return { ...state, message: hint };
+    return { ...state, message: `${hint} The cue ball resets for another try.` };
   }
   return { ...state, shot: false, ballLost: true, message: 'The break scatters the balls, but the eight-ball rolls away under the cabinet!' };
 }

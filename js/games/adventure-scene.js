@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { CANOPY_COURSE_LENGTH, CANOPY_CROSSINGS, CANOPY_PLATFORMS, CANOPY_ZIPLINE, LEGACY_CANOPY_ZIPLINE, OBJECTS, POOL_TABLE_FOOTPRINT, PUB_EXIT, PUB_PARTNER_OFFSET, PUB_STOOLS, adventureObjectDistance, couplePartnerPosition } from './adventure-logic.js';
 import { COASTER_PLATFORM, COASTER_RAIL_OFFSET, COASTER_REJOIN_PROGRESS, COASTER_TREATS, coasterDirection, coasterHeading, coasterLanePosition, coasterPosition, coasterRailPosition } from './coaster-course.js';
 import { COASTER_ITEM_SCALE, drawCoasterItem } from './coaster-art.js';
-import { createCharacterLegs, createPlayerLegs, swingCharacterLegs } from './character-legs.js';
+import { poolMissOffset } from './pool-shot-animation.js';
+import { createCharacterLegs, createFootSupportSurface, createPlayerLegs, supportCharacterFeet, swingCharacterLegs } from './character-legs.js';
 import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
 import { CHARACTER_RISE, addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, poseCharacterHoldingHand, swingCharacterArms } from '../character-body.js';
 import { createFirCanopy, createFirTrunk, createNeedleTexture, createPlatformFirTrunk } from '../world/fir-tree.js';
@@ -15,7 +16,7 @@ import { CANOPY_SAFETY_WIRE, ZIP_CABLE_SCREEN_OFFSET, addZipCable, canopySafetyA
 import { createCanopyDeckTexture, drawCanopyDeck } from '../world/canopy-platform.js';
 import { createParkGroundCanvas, createParkGroundTexture, drawParkCar, PARK_PALETTE } from '../world/park-style.js';
 import { THIRTEEN_TREES, addThirteenRuins, addThirteenStation, addThirteenVault, drawThirteenScenery, drawThirteenVault, paintThirteenSign } from './thirteen-scenery.js';
-import { PUB_CAMERA_OFFSET, PUB_FURNITURE_PALETTE, PUB_POOL_LIGHTS, PUB_RACK_CUES, PUB_RUG, PUB_SHORT_CUE_SCALE, addPubCue, addPubFurnitureDetails, addPubStoolDetails, addPubWallDetails, attachPubCatCue, drawPubHeldCue, drawPubInterior, drawPubObject, paintPubFloor, paintPubRug, pubCameraFraming, pubCatHoldsCue, pubCuesTaken } from './pub-interior-art.js';
+import { PUB_CAMERA_OFFSET, PUB_FURNITURE_PALETTE, PUB_POOL_LIGHTS, PUB_RACK_CUES, PUB_RUG, PUB_SHORT_CUE_SCALE, addPubCue, addPubDrinksTable, addPubFurnitureDetails, addPubStoolDetails, addPubTableStool, addPubWallDetails, attachPubCatCue, drawPubHeldCue, drawPubInterior, drawPubObject, paintPubFloor, paintPubRug, pubCameraFraming, pubCatHoldsCue, pubCuesTaken } from './pub-interior-art.js';
 
 const BARTENDER_OUTFIT = '#536c67';
 const BARTENDER_STYLE = Object.freeze({ trousers: '#332f2b', belt: '#1e201e', hairLength: 'short' });
@@ -51,10 +52,12 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   const coneGeometry = new THREE.ConeGeometry(0.5, 1, 8);
   const triangleGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 3);
   const materials = new Map(), textures = [], sceneryGeometries = [], interactive = [], platformMeshes = [];
+  const pubFootSurfaces = [];
   const collectibles = new Map(), beacons = new Map(), rideTreats = new Map(), rideItemImages = new Map();
   let state, player, train, ball, platformAmor, width = 1, height = 1, scale = 1, ballAnimation = 0, lastBallLost = false;
   let platformCarriage, pubLove, pubExitMarker, dropTrack, canopyRopes, zipRide, legacyZipCable;
-  let cueGuide, poolBalls, placedCue, catCue, rackTakenCues, placedDrinks, previousPlayer, walkPhase = 0, facing = 0;
+  let cueGuide, poolBalls, placedCue, catCue, rackTakenCues, placedDrinks, previousPlayer, walkPhase = 0, facing = 0, pendingFacing = null;
+  let poolMiss = null;
   const theme = index === 1 ? '#342f28' : index === 2 ? '#20272f' : '#152b29';
   scene.background = new THREE.Color(theme);
 
@@ -250,13 +253,8 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         addPubCue({ box, round, cylinder: cylinderGeometry, parent: placedCue }, 0, 0, 0);
         cueGuide = box(x - 5, 80, z, 120, 2, 2, '#fff3be', scene, true);
       } else if (kind === 'table') {
-        mesh = box(x, 60, z, 100, 8, 70, '#9a7046');
-        for (const dx of [-40, 40]) for (const dz of [-25, 25]) box(x + dx, 30, z + dz, 7, 60, 7, '#5e4330');
         placedDrinks = new THREE.Group(); scene.add(placedDrinks);
-        for (const dx of [-18, 18]) {
-          round(cylinderGeometry, x + dx, 73, z, 13, 19, 13, '#d6ae6e', placedDrinks);
-          round(cylinderGeometry, x + dx, 84, z, 13, 3, 13, '#eee3b3', placedDrinks);
-        }
+        mesh = addPubDrinksTable(object, { box, round, cylinder: cylinderGeometry, parent: scene, drinksParent: placedDrinks });
       } else if (kind === 'rack') {
         mesh = box(x, 45, z, 80, 90, 15, '#60422e');
         rackTakenCues = new THREE.Group(); scene.add(rackTakenCues);
@@ -371,17 +369,17 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       }
       const rugTexture = new THREE.CanvasTexture(pubRug); rugTexture.colorSpace = THREE.SRGBColorSpace; textures.push(rugTexture);
       materials.set('pub-rug', new THREE.MeshStandardMaterial({ map: rugTexture, roughness: 1 }));
-      box(PUB_RUG.x, 2, PUB_RUG.y, PUB_RUG.width, 3, PUB_RUG.depth, '#ffffff').material = materials.get('pub-rug');
-      for (const { x, y: z, radius } of PUB_STOOLS) {
+      const rug = box(PUB_RUG.x, 2, PUB_RUG.y, PUB_RUG.width, 3, PUB_RUG.depth, '#ffffff');
+      rug.material = materials.get('pub-rug');
+      pubFootSurfaces.push(createFootSupportSurface(rug));
+      for (const stool of PUB_STOOLS) {
+        const { x, y: z, radius } = stool;
         if (radius === 17.5) {
           round(cylinderGeometry, x, 20, z, 8, 40, 8, '#5a3d2c');
           round(cylinderGeometry, x, 42, z, radius * 2, 7, radius * 2, '#9a714c');
           round(cylinderGeometry, x, 2, z, 24, 4, 24, '#4f392e');
         } else {
-          for (const dx of [-7, 7]) for (const dz of [-7, 7]) {
-            box(x + dx, 17, z + dz, 4, 34, 4, '#523c2c');
-          }
-          round(cylinderGeometry, x, 36, z, radius * 2, 7, radius * 2, '#956d48');
+          addPubTableStool(stool, { box, round, cylinder: cylinderGeometry, parent: scene });
         }
       }
       for (const x of [360, 660, 920]) {
@@ -412,8 +410,9 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       const signGeometry = new THREE.PlaneGeometry(136, 49); sceneryGeometries.push(signGeometry);
       const signMesh = new THREE.Mesh(signGeometry, signMaterial); signMesh.position.set(535, 108, 28.1); scene.add(signMesh);
       pubExitMarker = new THREE.Group(); scene.add(pubExitMarker);
-      box(PUB_EXIT.x, 3, PUB_EXIT.y, 100, 5, 65, '#567b62', pubExitMarker);
-      box(PUB_EXIT.x, 7, PUB_EXIT.y, 65, 3, 5, '#d7c58c', pubExitMarker);
+      pubFootSurfaces.push(createFootSupportSurface(box(PUB_EXIT.x, 3, PUB_EXIT.y, 100, 5, 65, '#567b62', pubExitMarker)));
+      pubFootSurfaces.push(createFootSupportSurface(box(PUB_EXIT.x, 5.6, PUB_EXIT.y, 65, 0.2, 5, '#d7c58c', pubExitMarker)));
+      pubExitMarker.visible = false;
     } else if (index === 2) {
       const groundTexture = createParkGroundTexture(); textures.push(groundTexture);
       groundTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
@@ -615,6 +614,8 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     state = next;
     facing = state.pubTogether && Number.isFinite(state.coupleFacing)
       ? state.coupleFacing : facingForMovement(previousPlayer, state.player, facing);
+    if (!state.pubTogether && pendingFacing !== null) facing = pendingFacing;
+    pendingFacing = null;
     const distance = previousPlayer && dt > 0 && !(index === 3 && state.zipline)
       ? Math.hypot(state.player.x - previousPlayer.x, state.player.y - previousPlayer.y) : 0;
     walkPhase += distance * 0.08;
@@ -623,6 +624,12 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     if (state.ballLost && !lastBallLost) ballAnimation = 0.001;
     lastBallLost = Boolean(state.ballLost);
     if (ballAnimation && ballAnimation < 1) ballAnimation = Math.min(1, ballAnimation + dt / 2);
+    if (poolMiss && (!state.shot || state.ballLost)) poolMiss = null;
+    if (poolMiss) {
+      poolMiss.elapsed += dt;
+      if (poolMiss.elapsed >= 1.7) poolMiss = null;
+    }
+    const cueOffset = poolMiss ? poolMissOffset(poolMiss.aim, poolMiss.power, poolMiss.elapsed) : { x: 0, y: 0 };
     const riding = index === 2 && ['riding', 'dropping', 'returning'].includes(state.phase);
     const ridePoint = riding ? coasterPosition(state.phase, state.progress) : null;
     const followRide = renderer && riding && width < 520;
@@ -633,9 +640,11 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     const targetY = followRide ? ridePoint.y
       : state.pubTogether || (index === 3 && state.zipline) ? state.player.y : 350;
     if (renderer) {
+      if (pubExitMarker) pubExitMarker.visible = state.pubEnding === 'ready';
       player.visible = !riding; player.position.set(state.player.x, state.player.height, state.player.y);
       player.rotation.y = facing;
       swingCharacterLegs(player.userData.legs, walkPhase, distance > 0.1);
+      if (index === 1) supportCharacterFeet(player.userData.legs, pubFootSurfaces);
       swingCharacterArms(player.userData.arms, walkPhase, distance > 0.1, state.pubTogether ? playerHeldArm : -1);
       if (zipRide) {
         const legacy = Boolean(state.legacyZipline), first = state.zipProgress <= CANOPY_ZIPLINE.departureProgress;
@@ -677,12 +686,12 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         pubLove.userData.label.visible = !together;
         pubLove.userData.label.position.set(loveX, 103 + CHARACTER_RISE, loveY);
         swingCharacterLegs(pubLove.userData.legs, walkPhase, together && distance > 0.1);
+        supportCharacterFeet(pubLove.userData.legs, pubFootSurfaces);
         swingCharacterArms(pubLove.userData.arms, walkPhase, together && distance > 0.1, together ? catHeldArm : -1);
         if (together) {
           poseCharacterHoldingHand(player.userData.arms[playerHeldArm], Math.abs(partnerOffset));
           poseCharacterHoldingHand(pubLove.userData.arms[catHeldArm], Math.abs(partnerOffset));
         }
-        pubExitMarker.visible = state.pubEnding === 'ready';
       }
       player.userData.label.position.set(state.player.x,
         state.player.height + (index === 3 ? (state.zipline ? 155 : 185) : state.pubTogether ? 145 : 105) + CHARACTER_RISE, state.player.y);
@@ -711,8 +720,9 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         poolBalls.visible = state.ballsPlaced;
         const t = state.ballLost ? ballAnimation : 0;
         poolBalls.children.forEach((piece) => {
-          piece.position.set(piece.userData.start.x + piece.userData.scatter.x * t, piece.userData.start.y,
-            piece.userData.start.z + piece.userData.scatter.z * t);
+          const cue = piece === poolBalls.children.at(-1);
+          piece.position.set(piece.userData.start.x + piece.userData.scatter.x * t + (cue ? cueOffset.x : 0), piece.userData.start.y,
+            piece.userData.start.z + piece.userData.scatter.z * t + (cue ? cueOffset.y : 0));
         });
       }
       if (placedCue) placedCue.visible = state.cuesPlaced;
@@ -720,7 +730,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       if (rackTakenCues) rackTakenCues.visible = !pubCuesTaken(state);
       if (placedDrinks) placedDrinks.visible = state.drinksPlaced;
       if (cueGuide) {
-        cueGuide.visible = state.shot;
+        cueGuide.visible = state.shot && !poolMiss;
         cueGuide.rotation.y = -aim * Math.PI / 180;
         cueGuide.position.set(435 + 60 * Math.cos(aim * Math.PI / 180), 81, 230 + 60 * Math.sin(aim * Math.PI / 180));
       }
@@ -921,7 +931,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           return;
         }
         ctx.save(); ctx.translate(sx(0), sy(0)); ctx.scale(scale, scale);
-        drawPubObject(ctx, object, state, ballAnimation); ctx.restore();
+        drawPubObject(ctx, object, state, ballAnimation, cueOffset); ctx.restore();
         return;
       }
       if (object.id === 'amor') {
@@ -936,7 +946,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd'; ctx.fillText(object.name, sx(object.x), sy(object.y) - 17);
       }
     });
-    if (index === 1 && state.shot) {
+    if (index === 1 && state.shot && !poolMiss) {
       ctx.strokeStyle = '#fff3be'; ctx.lineWidth = 3; ctx.beginPath();
       ctx.moveTo(sx(435), sy(230));
       ctx.lineTo(sx(435 + 120 * Math.cos(aim * Math.PI / 180)), sy(230 + 120 * Math.sin(aim * Math.PI / 180)));
@@ -1004,7 +1014,11 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     }
     return { x: width / 2 + (object.x - targetXForClick()) * scale, y: height / 2 + (object.y - 350) * scale - 30 };
   }
-  return { draw, resize, objectPosition, dispose() {
+  return { draw, resize, objectPosition, playPoolMiss(aim, power) {
+    poolMiss = { aim, power, elapsed: 0 };
+  }, faceDirection(dx, dy) {
+    if (dx || dy) pendingFacing = Math.atan2(dx, dy);
+  }, dispose() {
     canvas.removeEventListener('click', click); boxGeometry.dispose(); torsoGeometry.dispose(); characterHeadGeometry.dispose(); characterFaceGeometry.dispose(); characterLimbGeometry.dispose(); characterSkinGeometry.dispose(); sphereGeometry.dispose(); cylinderGeometry.dispose(); coneGeometry.dispose(); triangleGeometry.dispose(); materials.forEach((m) => m.dispose());
     sceneryGeometries.forEach((geometry) => geometry.dispose());
     canopyRopes?.dispose();

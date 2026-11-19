@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { HOUSE_BOUNDS, HOUSE_OBJECTS, HOUSE_WALLS } from './abigail-house.js';
 import { PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
 import { CHARACTER_RISE, addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
-import { createCharacterLegs, createPlayerLegs, swingCharacterLegs } from './character-legs.js';
+import { createCharacterLegs, createFootSupportSurface, createPlayerLegs, supportCharacterFeet, swingCharacterLegs } from './character-legs.js';
 
 export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer') {
   const probe = document.createElement('canvas').getContext('webgl2');
@@ -29,6 +29,7 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
   let walkingPhase = 0;
   let facing = 0;
   const lanternFlames = [];
+  const footSurfaces = [];
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   if (renderer) {
@@ -384,10 +385,14 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
       box(roomGroup, 47, 3, 18, i % 2 ? '#827966' : '#6e6a59', -525 + i * 50, 105, -248);
     }
     for (const x of [-300, 240]) {
-      texturedBox(roomGroup, 205, 2, 120, x < 0 ? '#ffffff' : '#c9bad0', rug, x, 1, 70).userData.ground = true;
+      const carpet = texturedBox(roomGroup, 205, 2, 120, x < 0 ? '#ffffff' : '#c9bad0', rug, x, 1, 70);
+      carpet.userData.ground = true;
+      footSurfaces.push(createFootSupportSurface(carpet));
     }
     for (const x of [-365, 0, 365]) {
-      texturedBox(roomGroup, 170, 2, 105, x === 0 ? '#c9bad0' : '#ffffff', rug, x, 1, 370).userData.ground = true;
+      const carpet = texturedBox(roomGroup, 170, 2, 105, x === 0 ? '#c9bad0' : '#ffffff', rug, x, 1, 370);
+      carpet.userData.ground = true;
+      footSurfaces.push(createFootSupportSurface(carpet));
     }
     for (const x of [-490, -80, 110, 480]) {
       box(roomGroup, 34, 50, 5, '#46382d', x, 66, -237);
@@ -464,6 +469,7 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
       swingCharacterLegs(player.userData.legs, walkingPhase, distance > 0.01);
       swingCharacterArms(player.userData.arms, walkingPhase, distance > 0.01);
       player.position.set(state.player.x, 0, state.player.y);
+      supportCharacterFeet(player.userData.legs, footSurfaces);
       const cameraX = width < 520 ? Math.max(-240, Math.min(240, state.player.x * 0.55)) : 0;
       const cameraZ = Math.max(0, Math.min(350, state.player.y * 0.75));
       camera.position.set(550 + cameraX, 1050, 1350 + cameraZ);

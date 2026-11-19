@@ -206,6 +206,10 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
     if (index === 2 && state.phase === 'riding' && previous.phase !== 'riding') { stopWalking(); clearInput(); }
   }
   function stopWalking() { target = null; path = []; selected = null; }
+  function interactWith(object) {
+    if (index === 1) scene.faceDirection(object.x - state.player.x, object.y - state.player.y);
+    update(interactAdventure(index, state, object.id));
+  }
   function select(selection) {
     if (state.puzzle || state.shot || state.pubEnding === 'dialogue' || (state.rideEnding && !exitFailed) || exitPhase
       || (index === 2 && state.phase !== 'boarding' && state.phase !== 'platform')) return;
@@ -217,7 +221,7 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
     stopWalking();
     held.clear(); keyHeld.clear();
     if ((index === 1 || index === 2) && object && adventureObjectInRange(index, state.player, object)) {
-      update(interactAdventure(index, state, object.id));
+      interactWith(object);
       return;
     }
     const destination = object ? { x: object.x, y: object.y } : selection;
@@ -238,7 +242,8 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
     const object = OBJECTS[index].map((item) => ({ item, distance: adventureObjectDistance(index, state.player, item) }))
       .filter(({ item }) => (index !== 3 || canopyObjectAvailable(state, item)) && adventureObjectInRange(index, state.player, item))
       .sort((a, b) => a.distance - b.distance)[0];
-    update(object ? interactAdventure(index, state, object.item.id) : { ...state, message: 'Move closer to an object to investigate.' });
+    if (object) interactWith(object.item);
+    else update({ ...state, message: 'Move closer to an object to investigate.' });
   }
   function startPubExit() {
     const joining = pubPath(state.player, PUB_JOIN_POINT), leaving = pubCouplePath(PUB_JOIN_POINT);
@@ -278,7 +283,12 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
     }
     else if (button.dataset.caseCode) update(unlockBallCase(state, button.dataset.caseCode));
     else if (button.hasAttribute('data-case-close')) update({ ...state, puzzle: false, message: 'You step away from the ball case.' });
-    else if (button.hasAttribute('data-pool-shoot')) update(takePoolShot(state, Number(root.querySelector('#poolAim').value), Number(root.querySelector('#poolPower').value)));
+    else if (button.hasAttribute('data-pool-shoot')) {
+      const aim = Number(root.querySelector('#poolAim').value), power = Number(root.querySelector('#poolPower').value);
+      const next = takePoolShot(state, aim, power);
+      if (next !== state && !next.ballLost) scene.playPoolMiss(aim, power);
+      update(next);
+    }
     else if (button.hasAttribute('data-pool-close')) update({ ...state, shot: false, message: 'You step away from the pool table.' });
     else if (state.puzzle || state.shot) return;
     else if (button.hasAttribute('data-adventure-interact')) investigate();
@@ -289,7 +299,9 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
       else select({ objectId: button.dataset.adventureObject });
     } else if (button.dataset.adventureMove) {
       const direction = vectors[button.dataset.adventureMove];
-      update(walkAdventure(index, state, direction[0] * 175, direction[1] * 175, 0.07), false);
+      const next = walkAdventure(index, state, direction[0] * 175, direction[1] * 175, 0.07);
+      if (index === 1 && next === state) scene.faceDirection(...direction);
+      update(next, false);
     }
   }
   function keyDown(event) {
@@ -384,6 +396,7 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
       } else if (dx || dy) {
         let next = walkAdventure(index, state, dx * 175, dy * 175, dt);
         if (next === state && dx && dy) next = walkAdventure(index, state, dx * 175, 0, dt);
+        if (index === 1 && dt && next === state) scene.faceDirection(dx, dy);
         update(next, false, false);
       } else if (target) {
         const x = target.x - state.player.x, y = target.y - state.player.y, distance = Math.hypot(x, y);
@@ -391,7 +404,9 @@ export function mountAdventureWorld(root, { index, characterName, savedState, on
           if (index === 1 || index === 2) { path.shift(); target = path[0] || null; }
           else target = null;
           if (!target) {
-            const id = selected; stopWalking(); if (id) update(interactAdventure(index, state, id));
+            const object = OBJECTS[index].find((item) => item.id === selected);
+            stopWalking();
+            if (object) interactWith(object);
           }
         } else {
           const next = walkAdventure(index, state, x, y, dt);

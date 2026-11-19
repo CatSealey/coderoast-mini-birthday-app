@@ -28,7 +28,7 @@ export function createBirthdayDogModel(box, round, orb) {
     const leg = new THREE.Group();
     leg.position.set(x, 15, z); model.add(leg);
     box(0, -6, 0, 7, 12, 8, coat, leg);
-    round(orb, 0, -11, 2, 8, 5, 10, dark, leg);
+    leg.userData.foot = round(orb, 0, -11, 2, 8, 5, 10, dark, leg);
     legs.push(leg);
   }
   const tail = new THREE.Group();

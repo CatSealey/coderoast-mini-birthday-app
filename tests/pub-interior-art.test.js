@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { OBJECTS, PUB_STOOLS, newAdventureState } from '../js/games/adventure-logic.js';
-import { PUB_CAMERA_OFFSET, PUB_FURNITURE_PALETTE, PUB_POOL_LIGHTS, PUB_RACK_CUES, PUB_RUG, PUB_SHORT_CUE_SCALE, PUB_STOOL_SEAT_COLOR, addPubCue, addPubFurnitureDetails, addPubStoolDetails, addPubWallDetails, attachPubCatCue, drawPubHeldCue, drawPubInterior, drawPubObject, paintPubFloor, paintPubRug, pubCameraFraming, pubCatHoldsCue, pubCuesTaken } from '../js/games/pub-interior-art.js';
+import { PUB_CAMERA_OFFSET, PUB_DRINKS_TABLE_HEIGHT, PUB_FURNITURE_PALETTE, PUB_POOL_LIGHTS, PUB_RACK_CUES, PUB_RUG, PUB_SHORT_CUE_SCALE, PUB_STOOL_SEAT_COLOR, PUB_TABLE_STOOL_SEAT, addPubCue, addPubDrinksTable, addPubFurnitureDetails, addPubStoolDetails, addPubTableStool, addPubWallDetails, attachPubCatCue, drawPubHeldCue, drawPubInterior, drawPubObject, paintPubFloor, paintPubRug, pubCameraFraming, pubCatHoldsCue, pubCuesTaken } from '../js/games/pub-interior-art.js';
 import { createCharacterArms, swingCharacterArms } from '../js/character-body.js';
 
 function recordingContext() {
@@ -61,9 +61,48 @@ test('table stools are smaller and lower than before while bar stools stay uncha
   });
   for (const stool of tableStools) {
     const seat = seats.find(({ x, z }) => x === stool.x && z === stool.y);
-    assert.equal(seat.y, 41);
+    assert.equal(seat.y, PUB_TABLE_STOOL_SEAT + 1);
     assert.equal(seat.w, stool.radius * 2 - 4);
+    const pieces = [];
+    addPubTableStool(stool, {
+      box: (x, y, z, w, h, d) => { pieces.push({ y, h }); },
+      round: (geometry, x, y, z, w, h, d) => { pieces.push({ y, h }); },
+      cylinder: {}, parent: {}
+    });
+    assert.equal(pieces.length, 5);
+    assert.ok(pieces.slice(0, 4).every(({ y, h }) => y - h / 2 === 0 && y + h / 2 >= pieces[4].y - pieces[4].h / 2));
+    assert.ok(pieces[4].y + pieces[4].h / 2 >= seat.y - 1);
   }
+});
+
+test('the lowered drinks table keeps its legs, decoration and drinks aligned', () => {
+  const object = OBJECTS[1].find(({ kind }) => kind === 'table'), pieces = [];
+  const parent = {}, drinksParent = {};
+  const box = (x, y, z, w, h, d, color, owner) => {
+    const piece = { x, y, z, w, h, d, color, owner }; pieces.push(piece); return piece;
+  };
+  const round = (geometry, x, y, z, w, h, d, color, owner) => {
+    const piece = { x, y, z, w, h, d, color, owner }; pieces.push(piece); return piece;
+  };
+  const tabletop = addPubDrinksTable(object, { box, round, cylinder: {}, parent, drinksParent });
+  addPubFurnitureDetails(object, { box, round, cylinder: {}, sphere: {}, parent });
+  assert.equal(tabletop.y, 34);
+  assert.ok(tabletop.y < 46);
+  const legs = pieces.filter(({ color }) => color === '#5e4330');
+  assert.equal(legs.length, 4);
+  assert.ok(legs.every(({ y, h }) => y - h / 2 === 0 && y + h / 2 === PUB_DRINKS_TABLE_HEIGHT));
+  const grain = pieces.filter(({ color, h }) => ['#be946a', '#805b40'].includes(color) && h === 0.2);
+  assert.equal(grain.length, 22);
+  const surface = Math.max(...grain.map(({ y, h }) => y + h / 2));
+  assert.ok(surface - (PUB_TABLE_STOOL_SEAT + 2) >= 10);
+  assert.ok(surface < 45);
+  const drinks = pieces.filter(({ owner, color }) => owner === drinksParent && color === '#d6ae6e');
+  const foam = pieces.filter(({ owner, color }) => owner === drinksParent && color === '#eee3b3');
+  assert.equal(drinks.length, 2);
+  assert.equal(foam.length, 2);
+  assert.ok(drinks.every(({ y, h }) => Math.abs(y - h / 2 - surface) < 1e-8));
+  assert.ok(foam.every(({ x, y, h }) => drinks.some((drink) =>
+    drink.x === x && Math.abs(y - h / 2 - drink.y - drink.h / 2) < 1e-8)));
 });
 
 test('the furniture has visible wood grain and the pool table has supported feet', () => {

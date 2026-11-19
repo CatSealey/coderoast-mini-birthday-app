@@ -5,6 +5,7 @@ import { COASTER_DROP_SECONDS, COASTER_GOAL, COASTER_PLATFORM, COASTER_REJOIN_PR
 import { COASTER_ITEM_SCALE } from '../js/games/coaster-art.js';
 import { createCollision } from '../js/world/world-collision.js';
 import { createAdventureScene } from '../js/games/adventure-scene.js';
+import { poolMissOffset } from '../js/games/pool-shot-animation.js';
 import { questItems } from '../js/quest-items.js';
 import { CAT_OUTFIT, CHARACTER_HAIR, PLAYER_OUTFIT } from '../js/character-appearance.js';
 
@@ -274,6 +275,104 @@ test('pub player turns when walking and keeps facing after stopping', () => {
     state.player = { ...state.player, y: state.player.y + 5 };
     scene.draw(state, 0.05);
     assert.equal(eyes.length, 6);
+    scene.dispose();
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
+test('pub player can face the bar from the clue pedestal without moving', () => {
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const eyes = [];
+  const ctx = {
+    setTransform() {}, fillRect(x, y) { if (this.fillStyle === '#49382f') eyes.push({ x, y }); },
+    beginPath() {}, arc() {}, ellipse() {}, fill() {}, fillText() {}
+  };
+  const canvas = { getContext: () => ctx, addEventListener() {}, removeEventListener() {} };
+  globalThis.document = pubCanvasDocument(ctx);
+  globalThis.window = { devicePixelRatio: 1 };
+  try {
+    const scene = createAdventureScene(canvas, 1, () => {}, 'Player');
+    scene.resize(1000, 700);
+    const bar = OBJECTS[1].find(({ id }) => id === 'bar');
+    const state = { ...newAdventureState(1), player: { x: 239, y: 130, height: 0 } };
+    assert.ok(pubWalkable(state.player));
+    assert.ok(adventureObjectInRange(1, state.player, bar));
+    assert.strictEqual(walkAdventure(1, state, -175, 0, 0.05), state, 'the bar blocks forward movement');
+    scene.draw(state);
+    assert.equal(eyes.length, 6);
+    eyes.length = 0;
+    scene.faceDirection(bar.x - state.player.x, bar.y - state.player.y);
+    scene.draw(state);
+    assert.equal(eyes.length, 5, 'the player turns towards the bar');
+    const playerX = 500 + (state.player.x - 500) * (700 / 750);
+    assert.ok(eyes.at(-1).x < playerX, 'the visible eye faces left towards the bar');
+    eyes.length = 0;
+    scene.draw(state);
+    assert.equal(eyes.length, 5, 'the player keeps facing the bar');
+    eyes.length = 0;
+    scene.draw({ ...state, player: { ...state.player, x: state.player.x + 5 } }, 0.05);
+    assert.equal(eyes.length, 5, 'subsequent walking can turn the player again');
+    assert.ok(eyes.at(-1).x > playerX + 5 * (700 / 750), 'walking right faces right');
+    scene.dispose();
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
+test('missed pool breaks animate the cue ball and reset for another try', () => {
+  for (const [aim, power] of [[-35, 65], [35, 65], [-8, 65], [8, 65], [0, 40], [0, 90]]) {
+    const start = poolMissOffset(aim, power, 0), moving = poolMissOffset(aim, power, 0.6);
+    assert.ok(start.x === 0 && start.y === 0);
+    assert.ok(moving.x > 0);
+    if (aim) assert.equal(Math.sign(moving.y), Math.sign(aim));
+    assert.ok(moving.x <= 163 && Math.abs(moving.y) <= 45);
+    for (const elapsed of [0.2, 0.6, 1, 1.4]) {
+      const position = poolMissOffset(aim, power, elapsed);
+      assert.ok(Math.hypot(77 - position.x, position.y) >= 11 - 1e-8, 'missed shot does not pass through the black ball');
+    }
+    assert.deepEqual(poolMissOffset(aim, power, 1.7), { x: 0, y: 0 });
+  }
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const balls = [];
+  const ctx = {
+    setTransform() {}, fillRect() {}, beginPath() {}, ellipse() {}, fill() {}, fillText() {},
+    arc(x, y, radius) { if (this.fillStyle === '#f2ead8' || this.fillStyle === '#141a1c') balls.push({ x, y, radius, color: this.fillStyle }); }
+  };
+  const canvas = { getContext: () => ctx, addEventListener() {}, removeEventListener() {} };
+  globalThis.document = pubCanvasDocument(ctx);
+  globalThis.window = { devicePixelRatio: 1 };
+  try {
+    const scene = createAdventureScene(canvas, 1, () => {}, 'Player');
+    const state = { ...newAdventureState(1), ballsPlaced: true, shot: true };
+    scene.resize(1000, 700);
+    scene.draw(state);
+    const originalCue = balls.find(({ color }) => color === '#f2ead8');
+    const originalBlack = balls.find(({ color }) => color === '#141a1c');
+    balls.length = 0;
+    const missed = takePoolShot(state, 20, 65);
+    assert.equal(missed.ballLost, false);
+    assert.equal(missed.shot, true);
+    scene.playPoolMiss(20, 65);
+    scene.draw(missed, 0.6, 20);
+    const movingCue = balls.find(({ color }) => color === '#f2ead8');
+    assert.ok(movingCue.x > originalCue.x && movingCue.y > originalCue.y);
+    assert.deepEqual(balls.find(({ color }) => color === '#141a1c'), originalBlack);
+    balls.length = 0;
+    scene.draw(missed, 1.2, 20);
+    assert.deepEqual(balls.find(({ color }) => color === '#f2ead8'), originalCue);
+    balls.length = 0;
+    scene.playPoolMiss(-20, 65);
+    scene.draw(missed, 0.6, -20);
+    assert.ok(balls.find(({ color }) => color === '#f2ead8').y < originalCue.y);
+    const success = takePoolShot(missed, 0, 65);
+    assert.equal(success.ballLost, true);
     scene.dispose();
   } finally {
     if (previousDocument === undefined) delete globalThis.document;

@@ -2,6 +2,8 @@ import { PUB_STOOLS } from './adventure-logic.js';
 
 export const PUB_RUG = Object.freeze({ x: 530, y: 520, width: 340, depth: 195 });
 export const PUB_STOOL_SEAT_COLOR = '#722c3a';
+export const PUB_DRINKS_TABLE_HEIGHT = 34;
+export const PUB_TABLE_STOOL_SEAT = 28;
 export const PUB_SHORT_CUE_SCALE = 0.85;
 export const PUB_RACK_CUES = Object.freeze([
   Object.freeze({ offset: -25, taken: false, short: false }),
@@ -16,6 +18,28 @@ export const PUB_FURNITURE_PALETTE = Object.freeze({
   cabinet: Object.freeze({ body: '#3b261b', frame: '#d0a575', door: '#805638', inset: '#c0976b', detail: '#523524' }),
   box: Object.freeze({ body: '#66473b', frame: '#e6c594', door: '#a66f4c', inset: '#d1a878', detail: '#744b39' })
 });
+
+export function addPubDrinksTable(object, { box, round, cylinder, parent, drinksParent }) {
+  const { x, y: z } = object, height = PUB_DRINKS_TABLE_HEIGHT;
+  const tabletop = box(x, height, z, 100, 8, 70, '#9a7046', parent);
+  for (const dx of [-40, 40]) for (const dz of [-25, 25]) {
+    box(x + dx, height / 2, z + dz, 7, height, 7, '#5e4330', parent);
+  }
+  const surface = height + 7.2;
+  for (const dx of [-18, 18]) {
+    round(cylinder, x + dx, surface + 9.5, z, 13, 19, 13, '#d6ae6e', drinksParent);
+    round(cylinder, x + dx, surface + 20.5, z, 13, 3, 13, '#eee3b3', drinksParent);
+  }
+  return tabletop;
+}
+
+export function addPubTableStool({ x, y: z, radius }, { box, round, cylinder, parent }) {
+  const legHeight = PUB_TABLE_STOOL_SEAT - 6;
+  for (const dx of [-7, 7]) for (const dz of [-7, 7]) {
+    box(x + dx, legHeight / 2, z + dz, 4, legHeight, 4, '#523c2c', parent);
+  }
+  round(cylinder, x, PUB_TABLE_STOOL_SEAT - 3.5, z, radius * 2, 7, radius * 2, '#956d48', parent);
+}
 
 export function pubCatHoldsCue(state) {
   return Boolean(state.catCueGiven && !state.pubEnding && !state.pubTogether);
@@ -279,13 +303,14 @@ export function addPubFurnitureDetails(object, { box, round, cylinder, sphere, p
       round(sphere, x + dx, y, z + 10, 3, 3, 2, '#d9bb7b', parent);
     }
   } else if (object.kind === 'table') {
-    box(x, 65, z, 93, 2, 63, '#c39a68', parent);
-    box(x, 66.5, z, 85, 1, 55, '#9f754d', parent);
+    const height = PUB_DRINKS_TABLE_HEIGHT;
+    box(x, height + 5, z, 93, 2, 63, '#c39a68', parent);
+    box(x, height + 6.5, z, 85, 1, 55, '#9f754d', parent);
     for (const grain of woodGrainSegments(75, 43, 22)) {
-      box(x + grain.x, 67.1, z + grain.y, grain.length, 0.2, 0.5, grain.color, parent);
+      box(x + grain.x, height + 7.1, z + grain.y, grain.length, 0.2, 0.5, grain.color, parent);
     }
     for (const dx of [-39, 39]) for (const dz of [-24, 24]) {
-      round(sphere, x + dx, 67, z + dz, 3, 1, 3, '#e3c88e', parent);
+      round(sphere, x + dx, height + 7, z + dz, 3, 1, 3, '#e3c88e', parent);
     }
   } else if (object.kind === 'note') {
     box(x, 5, z, 50, 7, 27, '#5b3e2c', parent);
@@ -385,7 +410,7 @@ export function drawPubHeldCue(ctx, x, y) {
 export function addPubStoolDetails({ box, round, cylinder, sphere, parent }) {
   for (const stool of PUB_STOOLS) {
     const { x, y: z, radius } = stool;
-    const seat = radius === 17.5 ? 46 : 40;
+    const seat = radius === 17.5 ? 46 : PUB_TABLE_STOOL_SEAT;
     round(cylinder, x, seat + 1, z, radius * 2 - 4, 2, radius * 2 - 4, PUB_STOOL_SEAT_COLOR, parent);
     for (let i = 0; i < 8; i += 1) {
       const angle = i * Math.PI / 4;
@@ -393,8 +418,8 @@ export function addPubStoolDetails({ box, round, cylinder, sphere, parent }) {
         2, 1, 2, '#d9b67f', parent);
     }
     if (radius !== 17.5) {
-      for (const dz of [-7, 7]) box(x, 14, z + dz, 16, 3, 2, '#b59364', parent);
-      for (const dx of [-7, 7]) box(x + dx, 14, z, 2, 3, 16, '#b59364', parent);
+      for (const dz of [-7, 7]) box(x, 10, z + dz, 16, 3, 2, '#b59364', parent);
+      for (const dx of [-7, 7]) box(x + dx, 10, z, 2, 3, 16, '#b59364', parent);
     }
   }
 }
@@ -413,7 +438,7 @@ export function drawPubInterior(ctx, floor, rug) {
   }
 }
 
-export function drawPubObject(ctx, object, state, ballAnimation) {
+export function drawPubObject(ctx, object, state, ballAnimation, cueOffset = { x: 0, y: 0 }) {
   const { x, y, kind, footprint } = object;
   const w = footprint.width, d = footprint.depth;
   ctx.fillStyle = 'rgba(25,18,14,.32)'; ctx.fillRect(x - w / 2 + 4, y - d / 2 + 5, w, d);
@@ -446,7 +471,7 @@ export function drawPubObject(ctx, object, state, ballAnimation) {
         ctx.beginPath(); ctx.arc(bx, by, 5, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(bx - 1.5, by - 1.5, 1, 0, Math.PI * 2); ctx.fill();
       }
-      ctx.fillStyle = '#f2ead8'; ctx.beginPath(); ctx.arc(x - 65 + 45 * t, y - 16 * t, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f2ead8'; ctx.beginPath(); ctx.arc(x - 65 + 45 * t + cueOffset.x, y - 16 * t + cueOffset.y, 5, 0, Math.PI * 2); ctx.fill();
       if (!state.ballFound && !state.pubEnding && (!state.ballLost || ballAnimation < 1)) {
         const tBall = state.ballLost ? ballAnimation : 0;
         ctx.fillStyle = '#141a1c'; ctx.beginPath(); ctx.arc(x + 12 + 388 * tBall, y + 70 * tBall, 6, 0, Math.PI * 2); ctx.fill();

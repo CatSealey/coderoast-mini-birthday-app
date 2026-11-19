@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CELL, FRIGHT_MAZE, FRIGHT_OBJECTS, FRIGHT_OBJECT_SCALE, FRIGHT_SCENERY, FRIGHT_THEMES, SIZE, frightAreaAt, frightExitReady, frightRandom, frightTeleportPosition } from './fright-logic.js';
 import { PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
 import { CHARACTER_RISE, addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
-import { createPlayerLegs, swingCharacterLegs } from './character-legs.js';
+import { createFootSupportSurface, createPlayerLegs, supportCharacterFeet, swingCharacterLegs } from './character-legs.js';
 import { FRIGHT_PALETTES, drawFrightTileDetail, frightWallSegments, paintFrightConsole, paintFrightDocument, paintFrightFloor, paintFrightWall } from './fright-scenery.js';
 import { createFrightMarker, createFrightMarkerGeometries, createFrightMaterial, frightMarkerVisible } from './fright-markers.js';
 
@@ -26,6 +26,7 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
   const characterLimbGeometry = createCharacterLimbGeometry();
   const characterSkinGeometry = createCharacterSkinGeometry();
   const materials = new Map(), markers = new Map(), textures = [], animations = [], lights = [];
+  const footSurfaces = [];
   const documents = new Map(), consoles = new Map();
   let state, player, playerLabel, teleportCircle, teleportPosition, previousPosition, walkingPhase = 0, facing = 0, width = 1, height = 1, scale = 1, animationFrame = 0;
   const teleportRadius = 21;
@@ -90,13 +91,13 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
     const cx = (x + 0.5) * CELL, cz = (y + 0.5) * CELL;
     const r = (k) => rand(x, y, k), jitter = (k) => (r(k) - 0.5) * (CELL - 40);
     if (theme === 'disease') {
-      if (r(1) < 0.5) box(cx + jitter(2), 3, cz + jitter(3), 28 + r(4) * 20, 1, 22 + r(5) * 16, '#8fe068', true, 0.55);
+      if (r(1) < 0.5) footSurfaces.push(createFootSupportSurface(box(cx + jitter(2), 3, cz + jitter(3), 28 + r(4) * 20, 1, 22 + r(5) * 16, '#8fe068', true, 0.55)));
       if (r(9) < 0.4) {
         const mist = ball(cx + jitter(10), 28, cz + jitter(11), 46, '#9be06f', true, 0.18);
         animations.push((t) => { mist.position.y = 28 + Math.sin(t * 0.8 + x + y) * 6; });
       }
     } else if (theme === 'ai') {
-      box(cx, 2.5, cz, 6, 1, CELL - 20, '#46e6ff', true);
+      footSurfaces.push(createFootSupportSurface(box(cx, 2.5, cz, 6, 1, CELL - 20, '#46e6ff', true)));
     } else if (theme === 'darkness') {
       if (r(1) < 0.4) {
         const eyeX = cx + jitter(2), eyeZ = cz + jitter(3);
@@ -108,9 +109,9 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
         animations.push((t) => { star.rotation.y = t; star.position.y = 10 + Math.sin(t * 2 + x) * 3; });
       }
     } else if (theme === 'chainsaws') {
-      if (r(1) < 0.5) box(cx + jitter(2), 3, cz + jitter(3), 40, 1, 30, '#c9a86d', false, 0.8);
+      if (r(1) < 0.5) footSurfaces.push(createFootSupportSurface(box(cx + jitter(2), 3, cz + jitter(3), 40, 1, 30, '#c9a86d', false, 0.8)));
     } else if (theme === 'claustrophobia') {
-      box(cx, 2.5, cz, CELL - 30, 1, 6, '#e2b64a');
+      footSurfaces.push(createFootSupportSurface(box(cx, 2.5, cz, CELL - 30, 1, 6, '#e2b64a')));
     }
   }
 
@@ -550,6 +551,7 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
       if (tile !== '#') {
         const floor = box((x + 0.5) * CELL, 1, (y + 0.5) * CELL, CELL - 2, 2, CELL - 2, '#ffffff');
         floor.material = floors.get(area);
+        footSurfaces.push(createFootSupportSurface(floor));
         if (area) decorateFloor(area, x, y);
         return;
       }
@@ -692,6 +694,7 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
       player.position.set(state.player.x, 0, state.player.y);
       player.rotation.y = facing;
       swingCharacterLegs(player.userData.legs, walkingPhase, distance > 0.01);
+      supportCharacterFeet(player.userData.legs, footSurfaces);
       swingCharacterArms(player.userData.arms, walkingPhase, distance > 0.01);
       previousPosition = { ...state.player };
       playerLabel.position.set(state.player.x, 108 + CHARACTER_RISE, state.player.y);

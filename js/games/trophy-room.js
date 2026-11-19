@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { HALL_CENTER, HALL_EXIT_MAT, HALL_WIDTH, isOnHallExitMat, nearTrophyExit, placeKeepsake, presentAvailable, TROPHY_EXIT } from './trophy-logic.js';
+import { HALL_CENTER, HALL_EXIT_MAT, HALL_WIDTH, hallExitMatIntersectsFoot, isOnHallExitMat, nearTrophyExit, placeKeepsake, presentAvailable, TROPHY_EXIT } from './trophy-logic.js';
 import { createTrophyModel } from './trophy-models.js';
 import { createCollision, findWorldPath } from '../world/world-collision.js';
-import { createCharacterLegs, createPlayerLegs, swingCharacterLegs } from './character-legs.js';
+import { createCharacterLegs, createFootSupportSurface, createPlayerLegs, supportCharacterFeet, swingCharacterLegs } from './character-legs.js';
 import { BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, birthdayArrivalPath, birthdayArrivalPose, birthdayDogFacing, birthdayFamilyPaths, birthdayGuestObstacles, createBirthdayEnding, scheduleBirthdayArrivals } from './birthday-ending.js';
 import { createBirthdayDogModel, drawBirthdayDog } from './birthday-dog.js';
 import { addHallBookcase, addHallPedestal, addHallPlanter, addHallPresent, addHallSconce, addHallTable, createHallBannerGeometry, createHallExitMatGeometry, createHallPedestalGeometry, drawHallDisplay, drawHallFurniture, drawHallPresent, HALL_BANNER_HEIGHT, HALL_BOOKCASE_WIDTH, HALL_BOOKCASE_X, HALL_BOOKCASE_Z, HALL_PEDESTAL_DEPTH, HALL_PEDESTAL_WIDTH, HALL_PILLAR_X, HALL_RUG, HALL_SCONCE_X, HALL_PLANTER_X, HALL_TABLE_X, HALL_TROPHY_ACCENTS, paintHallBanner, paintHallExitMat, paintHallFloor, paintHallRug, paintHallStone } from './castle-interior-art.js';
@@ -132,7 +132,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   const shadowGeometry = new THREE.PlaneGeometry(1, 1);
   function addShadow(parent, x, z, w, d) {
     const mesh = new THREE.Mesh(shadowGeometry, shadowMaterial);
-    mesh.rotation.x = -Math.PI / 2; mesh.position.set(x, 2.4, z); mesh.scale.set(w, d, 1); parent.add(mesh);
+    mesh.rotation.x = -Math.PI / 2; mesh.position.set(x, 3.1 / parent.scale.y, z); mesh.scale.set(w, d, 1); parent.add(mesh);
   }
   scene.add(new THREE.HemisphereLight('#f1e4cd', '#403f45', 1.45));
   const light = new THREE.DirectionalLight('#ffe0a4', 1.9); light.position.set(-200, 650, 400); scene.add(light);
@@ -145,6 +145,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   const exitMat = new THREE.Mesh(createHallExitMatGeometry(), exitMaterial);
   exitMat.rotation.x = -Math.PI / 2;
   exitMat.position.set(HALL_EXIT_MAT.x, 2.8, HALL_EXIT_MAT.z); scene.add(exitMat);
+  const footSurfaces = [createFootSupportSurface(exitMat, hallExitMatIntersectsFoot)];
   for (const z of [0, 600]) {
     box(HALL_CENTER, 4, z, HALL_WIDTH, 8, 8, '#5b5140');
   }
@@ -162,7 +163,9 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
       box(x, y, 62, 12, 2, 1, '#a08f78');
     }
   }
-  texturedBox(HALL_CENTER, 1.5, HALL_RUG.z, HALL_RUG.depth, 2, HALL_RUG.width, rug).rotation.y = Math.PI / 2;
+  const hallRug = texturedBox(HALL_CENTER, 1.5, HALL_RUG.z, HALL_RUG.depth, 2, HALL_RUG.width, rug);
+  hallRug.rotation.y = Math.PI / 2;
+  footSurfaces.push(createFootSupportSurface(hallRug));
   for (const x of HALL_BOOKCASE_X) for (const z of HALL_BOOKCASE_Z) {
     addHallBookcase(x, z, { box, round, orb, parent: scene });
   }
@@ -385,6 +388,11 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
       person.position.set(player.x, 0, player.z);
       person.rotation.y = facing;
       love.position.set(lovePosition.x, 0, lovePosition.y); love.rotation.y = loveFacing;
+      supportCharacterFeet(legs, footSurfaces);
+      supportCharacterFeet(loveLegs, footSurfaces);
+      family.forEach((guest) => {
+        if (guest.model.visible) supportCharacterFeet(guest.legs, footSurfaces);
+      });
       camera.position.set(HALL_CENTER, 720, 980); camera.lookAt(HALL_CENTER, 35, 285);
       const scale = Math.max(1140 / width, 650 / height);
       camera.left = -width * scale / 2; camera.right = width * scale / 2;

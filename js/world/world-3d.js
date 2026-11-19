@@ -8,7 +8,7 @@ import { CANOPY_LINKS, CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, harvestP
 import { worldCornWalls, worldTrees } from './world-collision.js';
 import { CAT_OUTFIT, CAT_STYLE, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, addCharacterHeadDetails } from '../character-appearance.js';
 import { CHARACTER_RISE, addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, shapeCharacterLimb, swingCharacterArms } from '../character-body.js';
-import { createCharacterLegs, createPlayerLegs, swingCharacterLegs } from '../games/character-legs.js';
+import { createCharacterLegs, createFootSupportSurface, createPlayerLegs, supportCharacterFeet, swingCharacterLegs } from '../games/character-legs.js';
 import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { sideQuestPosition } from '../side-quests.js';
 import { SURROUNDINGS_BOUNDS, surroundingTrees, treeType } from './world-surroundings.js';
@@ -322,6 +322,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       for (const dx of [-7, 7]) for (const y of [3, 17]) box(group, 1.4, 1.4, 1, band, dx, y, 11.5);
     }
   }
+  let castleStep;
   function castle(x, z) {
     const g = groupAt(x, z);
     const { wall, tower, trim, shadow, gate, gateIron, windowGlass, metal, roof: roofColor, roofTrim, royalBlue, heraldryGold } = CASTLE_PALETTE;
@@ -440,7 +441,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       g.add(windowGroup);
       windowFrame(windowGroup, 0, 0, 0);
     }
-    box(g, 70, 5, 35, '#a6a18f', 0, 3, 82);
+    castleStep = box(g, 70, 5, 35, '#a6a18f', 0, 3, 82);
   }
   function character(color, longHair = false, hair, belt = '#aa9160', style = null, variant = 0) {
     const g = new THREE.Group();
@@ -541,6 +542,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   });
 
   castle(CASTLE_LAYOUT.x, CASTLE_LAYOUT.y);
+  const worldFootSurfaces = [createFootSupportSurface(castleStep)];
   const worldSupplyGroup = groupAt(0, 0);
   WORLD_SUPPLIES.forEach((item) => supply(worldSupplyGroup, { ...item, z: item.y }, 0));
   house(WORLD_SPAWN.x - 205, WORLD_SPAWN.y - 95, false, 0.8);
@@ -1305,6 +1307,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       }
       previousPosition = { ...position };
       swingCharacterLegs(player.userData.legs, time / 120, moving);
+      supportCharacterFeet(player.userData.legs, worldFootSurfaces);
       swingCharacterArms(player.userData.arms, time / 120, moving);
       guides.forEach(({ marker, label }, index) => {
         marker.material = material(completed[index] ? '#97c77c' : '#e6bf63');

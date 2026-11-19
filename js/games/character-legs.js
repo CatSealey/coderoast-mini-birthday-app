@@ -1,6 +1,35 @@
 import * as THREE from 'three';
 import { addJapaneseSleeve, shapeCharacterLimb } from '../character-body.js';
 
+export function createFootSupportSurface(mesh, intersectsFoot) {
+  mesh.updateWorldMatrix(true, false);
+  return { mesh, bounds: new THREE.Box3().setFromObject(mesh), intersectsFoot };
+}
+
+export function supportCharacterFeet(legs, surfaces) {
+  const bounds = new THREE.Box3(), scale = new THREE.Vector3();
+  for (const leg of legs) {
+    leg.position.y -= leg.userData.surfaceLift || 0;
+    leg.userData.surfaceLift = 0;
+    leg.updateWorldMatrix(true, true);
+    bounds.setFromObject(leg.userData.foot);
+    let height = bounds.min.y;
+    for (const surface of surfaces) {
+      const area = surface.bounds;
+      if (area.max.y <= height || bounds.max.x < area.min.x || bounds.min.x > area.max.x
+        || bounds.max.z < area.min.z || bounds.min.z > area.max.z
+        || (surface.intersectsFoot && !surface.intersectsFoot(bounds))) continue;
+      let visible = true;
+      for (let object = surface.mesh; object; object = object.parent) visible &&= object.visible;
+      if (visible) height = area.max.y;
+    }
+    leg.parent.getWorldScale(scale);
+    const lift = (height - bounds.min.y) / scale.y;
+    leg.position.y += lift;
+    leg.userData.surfaceLift = lift;
+  }
+}
+
 function addHips(parent, box, offset, height, width, depth, color, limbGeometry) {
   const hipWidth = offset * 2 + width * 0.62, hipHeight = width * 0.85, hipDepth = depth * 1.12;
   const hips = box(0, height + hipHeight * 0.12, -depth * 0.05, hipWidth, hipHeight, hipDepth, color, parent);
@@ -53,6 +82,7 @@ export function swingCharacterLegs(legs, phase, moving) {
     const footLift = height - 2 + leg.userData.knee.position.y * Math.cos(thigh)
       + foot.position.y * Math.cos(thigh + knee);
     leg.position.y = height - Math.min(hipLift, Math.max(0, footLift));
+    leg.userData.surfaceLift = 0;
   });
 }
 
