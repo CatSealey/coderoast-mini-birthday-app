@@ -33,11 +33,38 @@ test('quest steps grow naturally inside the scrollable journal', async () => {
     return properties;
   };
   assert.equal(declarations('.quest-journal__scroll').get('overflow-y'), 'auto');
+  assert.equal(declarations('.quest-journal__scroll').get('flex'), '1 1 0');
+  assert.equal(declarations('.quest-journal__scroll').has('max-height'), false);
+  assert.equal(declarations('.client-chat').has('margin-top'), false);
+  assert.equal(declarations('.client-chat').get('border'), '1px solid #3c4d59');
+  assert.equal(declarations('.client-chat').get('border-radius'), '4px');
+  assert.equal(declarations('.client-chat').get('background'), 'rgba(5, 11, 16, 0.6)');
+  assert.equal(declarations('.quest-journal__divider').get('flex'), '0 0 1px');
+  assert.equal(declarations('.quest-journal__divider').get('margin'), '4px 3px');
+  assert.equal(declarations('.quest-journal__divider').get('background'), 'rgba(146, 165, 176, 0.2)');
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(html, /<div class="quest-journal__divider" aria-hidden="true"><\/div>\s*<div class="client-chat"/);
   const steps = declarations('.quest-steps__list');
   assert.ok(steps.size > 0);
   assert.equal(steps.has('max-height'), false);
   assert.equal(steps.has('overflow-y'), false);
   assert.equal(steps.has('overflow'), false);
+});
+
+test('stacked quest panels keep a bounded scroll area without extra guide spacing', async () => {
+  const css = await readFile(new URL('../css/parts/client-responsive.css', import.meta.url), 'utf8');
+  const root = postcss.parse(css);
+  const medium = root.nodes.find((node) => node.type === 'atrule' && node.params === '(max-width: 1050px)');
+  assert.ok(medium);
+  const declarations = (selector) => {
+    const properties = new Map();
+    medium.walkRules(selector, (rule) => rule.walkDecls((decl) => properties.set(decl.prop, decl.value)));
+    return properties;
+  };
+  assert.equal(declarations('.quest-journal__scroll').get('flex'), '0 1 auto');
+  assert.equal(declarations('.quest-journal__scroll').get('max-height'), 'min(42vh, 360px)');
+  assert.equal(declarations('.quest-panel').has('gap'), false);
+  assert.equal(declarations('.client-chat').has('margin-top'), false);
 });
 
 test('quest icons and remove controls have matching visible boxes and a usable target', async () => {

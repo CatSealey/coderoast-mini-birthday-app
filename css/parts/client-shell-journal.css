@@ -270,6 +270,7 @@
 
 .quest-panel {
   display: flex;
+  min-height: 0;
   flex: 1 1 auto;
   flex-direction: column;
   padding: 10px;
@@ -326,7 +327,7 @@
 
 .quest-journal__scroll {
   min-height: 0;
-  max-height: min(65vh, max(160px, 100vh - 340px), 640px);
+  flex: 1 1 0;
   padding: 2px 3px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -335,6 +336,12 @@
 .quest-journal__scroll:focus-visible {
   outline: 2px solid #eed487;
   outline-offset: -2px;
+}
+
+.quest-journal__divider {
+  flex: 0 0 1px;
+  margin: 5px 3px;
+  background: rgba(146, 165, 176, 0.2);
 }
 
 .quest-list {
@@ -601,7 +608,7 @@
 }
 
 .client-chat {
-  margin-top: auto;
+  flex-shrink: 0;
   padding: 7px 9px;
   border: 1px solid #3c4d59;
   border-radius: 4px;
