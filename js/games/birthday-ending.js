@@ -3,6 +3,7 @@ import { HALL_CENTER, TROPHY_EXIT } from './trophy-logic.js';
 
 export const BIRTHDAY_ENTRANCE = Object.freeze({ x: TROPHY_EXIT.x, y: TROPHY_EXIT.z - 20 });
 export const BIRTHDAY_PLAYER_POSITION = Object.freeze({ x: HALL_CENTER, z: 390 });
+export const VINNIE_HOME = Object.freeze({ x: HALL_CENTER + 180, y: 450 });
 const GUEST_CLEARANCE = 38;
 const ARRIVAL_SPEED = 120;
 const ARRIVAL_INTERVAL = 0.1;
@@ -59,7 +60,11 @@ export const BIRTHDAY_FAMILY = Object.freeze([
 ]);
 
 export function birthdayGuestObstacles(phase, lovePosition, family) {
-  if (phase !== 'finished') return [];
+  if (phase !== 'finished') {
+    return family.filter((guest) => guest.visible && guest.member.kind === 'dog').map((guest) => ({
+      x: guest.position.x, y: guest.position.y, radius: 16 * guest.member.size
+    }));
+  }
   return [
     { x: lovePosition.x, y: lovePosition.y, radius: 16 },
     ...family.filter((guest) => guest.visible).map((guest) => ({
@@ -116,7 +121,15 @@ function arrivalsClear(first, second) {
 
 export function scheduleBirthdayArrivals(catPath, familyPaths) {
   const cat = arrivalTrajectory(catPath, 0), scheduled = [cat], family = [];
+  const resident = familyPaths.find((guest) => guest.member.kind === 'dog' && guest.origin);
+  if (resident) {
+    const trajectory = arrivalTrajectory(resident.path, 0, resident.origin);
+    if (!arrivalsClear(cat, trajectory)) return null;
+    trajectory.memberId = resident.member.id;
+    scheduled.push(trajectory);
+  }
   for (const { member, path } of familyPaths) {
+    if (member.id === resident?.member.id) continue;
     const earliest = scheduled.at(-1).start + ARRIVAL_INTERVAL;
     const latest = Math.max(...scheduled.map((entry) => entry.start + entry.duration)) + ARRIVAL_INTERVAL;
     let trajectory = null;
@@ -127,6 +140,9 @@ export function scheduleBirthdayArrivals(catPath, familyPaths) {
     if (!trajectory) return null;
     trajectory.memberId = member.id;
     family.push(trajectory); scheduled.push(trajectory);
+  }
+  if (resident) {
+    family.splice(familyPaths.indexOf(resident), 0, scheduled.find((entry) => entry.memberId === resident.member.id));
   }
   const settlements = [];
   for (const [index, guest] of familyPaths.entries()) {
@@ -140,7 +156,7 @@ export function scheduleBirthdayArrivals(catPath, familyPaths) {
   return { cat, family, settlements, duration: Math.max(...scheduled.map((entry) => entry.start + entry.duration)) };
 }
 
-export function birthdayFamilyPaths(player, loveDestination, collision) {
+export function birthdayFamilyPaths(player, loveDestination, collision, dogOrigin = null) {
   const positions = [{ x: player.x, y: player.z }, loveDestination], destinations = new Map();
   const placementOrder = [...BIRTHDAY_FAMILY].sort((a, b) => Number(b.kind === 'dog') - Number(a.kind === 'dog'));
   for (const member of placementOrder) {
@@ -178,10 +194,12 @@ export function birthdayFamilyPaths(player, loveDestination, collision) {
   const occupied = [{ x: player.x, y: player.z }, loveDestination], paths = [];
   for (const member of arrivalOrder) {
     const destination = destinations.get(member.id);
+    const origin = member.kind === 'dog' && dogOrigin ? dogOrigin : BIRTHDAY_ENTRANCE;
     const routeCollision = withGuestObstacles(collision, occupied, GUEST_CLEARANCE);
     let target = destination, path = null;
     if (member !== arrivalOrder.at(-1)
-      && Math.hypot(destination.x - BIRTHDAY_ENTRANCE.x, destination.y - BIRTHDAY_ENTRANCE.y) < GUEST_CLEARANCE + 2) {
+      && Math.hypot(destination.x - origin.x, destination.y - origin.y) < GUEST_CLEARANCE + 2
+      && !(member.kind === 'dog' && dogOrigin)) {
       const reserved = [...destinations.entries()].filter(([id]) => id !== member.id).map(([, point]) => point);
       for (const radius of [50, 60, 75, 90]) {
         for (let i = 0; i < 16 && !path; i += 1) {
@@ -198,12 +216,12 @@ export function birthdayFamilyPaths(player, loveDestination, collision) {
         if (path) break;
       }
     } else {
-      const route = findWorldPath(BIRTHDAY_ENTRANCE, target, routeCollision);
+      const route = findWorldPath(origin, target, routeCollision);
       if (route?.at(-1) && Math.hypot(route.at(-1).x - target.x, route.at(-1).y - target.y) < 1) path = route;
     }
     if (!path) return null;
     occupied.push(target);
-    paths.push({ member, path, destination });
+    paths.push({ member, path, destination, ...(member.kind === 'dog' && dogOrigin ? { origin } : {}) });
   }
   for (const guest of paths) {
     const start = guest.path.at(-1);

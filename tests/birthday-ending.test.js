@@ -1,17 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BIRTHDAY_DIALOGUE, BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, birthdayArrivalPath, birthdayArrivalPose, birthdayDogFacing, birthdayFamilyPaths, birthdayGuestObstacles, birthdayGuestPlayerCollision, createBirthdayEnding, scheduleBirthdayArrivals } from '../js/games/birthday-ending.js';
+import { BIRTHDAY_DIALOGUE, BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, VINNIE_HOME, birthdayArrivalPath, birthdayArrivalPose, birthdayDogFacing, birthdayFamilyPaths, birthdayGuestObstacles, birthdayGuestPlayerCollision, createBirthdayEnding, scheduleBirthdayArrivals } from '../js/games/birthday-ending.js';
 import { createCollision, findWorldPath } from '../js/world/world-collision.js';
 import { HALL_BOOKCASE_WIDTH, HALL_BOOKCASE_X, HALL_BOOKCASE_Z, HALL_PEDESTAL_DEPTH, HALL_PEDESTAL_WIDTH, HALL_PLANTER_X, HALL_TABLE_X } from '../js/games/castle-interior-art.js';
 import { HALL_CENTER, HALL_WIDTH } from '../js/games/trophy-logic.js';
 
-test('visible birthday guests block walking only after the scripted celebration', () => {
+test('Vinnie blocks walking before the celebration and all visible guests block it afterwards', () => {
   const love = { x: 400, y: 440 };
   const family = BIRTHDAY_FAMILY.map((member, index) => ({
     member, visible: index !== 0, position: { x: 200 + index * 50, y: 300 }
   }));
   for (const phase of ['idle', 'positioning', 'arriving', 'dialogue']) {
-    assert.deepEqual(birthdayGuestObstacles(phase, love, family), []);
+    assert.deepEqual(birthdayGuestObstacles(phase, love, family), [{ x: 550, y: 300, radius: 16 }]);
   }
   const obstacles = birthdayGuestObstacles('finished', love, family);
   assert.equal(obstacles.length, 8);
@@ -143,6 +143,29 @@ test('every side of the present has a safe route to the same spacious celebratio
     if (!scheduleChecked) {
       const schedule = scheduleBirthdayArrivals(path, guests);
       assert.ok(schedule);
+      const residentPaths = birthdayFamilyPaths(BIRTHDAY_PLAYER_POSITION, previous, collision, VINNIE_HOME);
+      const residentSchedule = scheduleBirthdayArrivals(path, residentPaths);
+      assert.ok(residentSchedule, 'Vinnie can join the celebration from inside the hall');
+      const dogTrajectory = residentSchedule.family.find((entry) => entry.memberId === 'dog');
+      assert.deepEqual(birthdayArrivalPose(dogTrajectory, 0).position, VINNIE_HOME);
+      assert.deepEqual(birthdayArrivalPose(dogTrajectory, residentSchedule.duration).position,
+        residentPaths.find((guest) => guest.member.id === 'dog').destination);
+      assert.ok(Math.hypot(dogTrajectory.points.at(-1).x - target.x, dogTrajectory.points.at(-1).y - target.y) <= 70);
+      for (let time = 0; time <= residentSchedule.duration; time += 0.02) {
+        const people = [birthdayArrivalPose(residentSchedule.cat, time).position];
+        for (const entry of residentSchedule.family) {
+          if (time < entry.start) continue;
+          const position = birthdayArrivalPose(entry, time).position;
+          assert.ok(people.every((person) => Math.hypot(person.x - position.x, person.y - position.y) >= 38 - 1e-7),
+            'Vinnie and the arriving family keep clear of one another');
+          people.push(position);
+        }
+      }
+      const replayPaths = birthdayFamilyPaths(BIRTHDAY_PLAYER_POSITION, previous, collision, dogTrajectory.points.at(-1));
+      const replaySchedule = scheduleBirthdayArrivals(path, replayPaths);
+      assert.ok(replaySchedule, 'the celebration can replay with Vinnie already at the player’s side');
+      assert.deepEqual(birthdayArrivalPose(replaySchedule.family.find((entry) => entry.memberId === 'dog'), 0).position,
+        dogTrajectory.points.at(-1));
       assert.deepEqual(guests.map((guest) => guest.member.id),
         ['gran', 'cousin', 'grandad', 'nephew-1', 'dog', 'mum', 'sister', 'nephew-2']);
       assert.deepEqual(schedule.family.map((entry) => entry.memberId), guests.map((guest) => guest.member.id));
