@@ -18,6 +18,7 @@ import { freshGameProgress, normalizeQuestProgress, questGuideSpeech, removeQues
 import { questJournalSteps, trophyJournalSteps } from './quest-journal.js';
 import { BIRTHDAY_TICKET_MARKUP } from './games/birthday-ending.js';
 import { SIDE_QUESTS, restoreSideQuestProgress } from './side-quests.js';
+import { carriedKeepsakes, explodeChomp, recoverStatue, restoreEncounters } from './world/chimychomps.js';
 
 export function startGame(characterName) {
   const STORAGE_KEY = 'rs3-birthday-adventure-progress';
@@ -110,7 +111,8 @@ export function startGame(characterName) {
         const trophyQuest = restoreTrophyQuest(saved.trophyQuest, trophyDisplays);
         if (!presentAvailable(trophyDisplays, state.completed)) trophyQuest.completed = false;
         const birthdayGuestsPresent = restoreBirthdayGuests(saved.birthdayGuestsPresent, trophyQuest, trophyDisplays, state.completed);
-        return { ...state, gameSaves, trophyDisplays, trophyQuest, birthdayGuestsPresent, sideQuestCompleted: restoreSideQuestProgress(saved.sideQuestCompleted) };
+        const encounters = restoreEncounters(saved.encounters, state.completed, trophyDisplays);
+        return { ...state, gameSaves, trophyDisplays, trophyQuest, birthdayGuestsPresent, encounters, sideQuestCompleted: restoreSideQuestProgress(saved.sideQuestCompleted) };
       }
     } catch (error) {
       console.error('Could not restore birthday quest progress.', error);
@@ -126,6 +128,7 @@ export function startGame(characterName) {
   let trophyQuest = progress.trophyQuest;
   let birthdayGuestsPresent = progress.birthdayGuestsPresent;
   let sideQuestCompleted = progress.sideQuestCompleted;
+  let encounters = progress.encounters;
   let inTrophyRoom = false;
   let suppressGameSaves = false;
   let inventorySignature = null, frightInventoryIcons;
@@ -194,7 +197,7 @@ export function startGame(characterName) {
 
   function saveProgress(progressToSave = { completed, accepted, gameSaves, trophyDisplays, trophyQuest }) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sideQuestCompleted, birthdayGuestsPresent, ...progressToSave }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sideQuestCompleted, birthdayGuestsPresent, encounters, ...progressToSave }));
       document.querySelector('#saveNotice').hidden = true;
       return true;
     } catch (error) {
@@ -208,22 +211,25 @@ export function startGame(characterName) {
   function renderInventory() {
     const grid = document.querySelector('#inventoryGrid');
     grid.replaceChildren();
+    const dropped = new Set(encounters.statues.flatMap((statue) => statue.keepsakes));
 
     memories.forEach((memory, index) => {
+      const available = completed[index] && !dropped.has(index);
       const slot = document.createElement('button');
       slot.type = 'button';
-      slot.className = `inventory-slot ${completed[index] ? 'inventory-slot--collected' : 'inventory-slot--locked'}`;
-      if (completed[index]) {
+      slot.className = `inventory-slot ${available ? 'inventory-slot--collected' : 'inventory-slot--locked'}`;
+      if (available) {
         const image = document.createElement('img');
         image.src = keepsakeImages[index];
         image.alt = '';
         slot.append(image);
       } else slot.textContent = String(index + 1);
-      slot.disabled = !completed[index];
-      slot.setAttribute('aria-label', completed[index]
+      slot.disabled = !available;
+      slot.setAttribute('aria-label', available
         ? `Open keepsake ${index + 1}: ${memory.title}`
-        : `Keepsake ${index + 1} not yet collected`);
-      if (completed[index]) slot.dataset.memory = String(index);
+        : dropped.has(index) ? `Keepsake ${index + 1} awaits recovery at an angel statue`
+          : `Keepsake ${index + 1} not yet collected`);
+      if (available) slot.dataset.memory = String(index);
       grid.append(slot);
     });
     const slot = document.createElement('button');
@@ -547,7 +553,7 @@ export function startGame(characterName) {
     worldQuestIndex = null;
     audio.setArea(overworldRegion);
     obscuredWorldControls.forEach((element) => { element.inert = false; });
-    document.querySelector('.world-map-hint').textContent = 'Tap a marker to travel. The house marks Lumbridge Castle.';
+    document.querySelector('.world-map-hint').textContent = 'Tap a marker to travel. The house marks the castle; red diamonds mark death angels.';
     world.setPaused(false);
     stageTitle.textContent = `Journey to ${QUEST_LOCATIONS[activeChapter].name}`;
     setStageStatus('Exploring', '');
@@ -560,7 +566,7 @@ export function startGame(characterName) {
     abigailRoot.replaceChildren(); abigailRoot.hidden = true; inTrophyRoom = false;
     audio.setArea(overworldRegion);
     obscuredWorldControls.forEach((element) => { element.inert = false; });
-    document.querySelector('.world-map-hint').textContent = 'Tap a marker to travel. The house marks Lumbridge Castle.';
+    document.querySelector('.world-map-hint').textContent = 'Tap a marker to travel. The house marks the castle; red diamonds mark death angels.';
     world.setPaused(false);
     stageTitle.textContent = 'Birthday adventure';
     setStageStatus('Exploring', '');
@@ -583,7 +589,10 @@ export function startGame(characterName) {
     setStageStatus('Trophy room', '');
     world.setPaused(true);
     disposeGame = mountTrophyRoom(abigailRoot, {
-      characterName, memories, images: keepsakeImages, completed, displays: trophyDisplays, guestsPresent: birthdayGuestsPresent,
+      characterName, memories, images: keepsakeImages,
+      completed: completed.map((done, index) => done && (trophyDisplays[index] || carriedKeepsakes(completed, trophyDisplays, encounters)[index])),
+      droppedKeepsakes: encounters.statues.flatMap((statue) => statue.keepsakes),
+      displays: trophyDisplays, guestsPresent: birthdayGuestsPresent,
       onDisplays: (displays) => { trophyDisplays = displays; saveProgress(); renderTrophySteps(); },
       onPresent: () => {
         if (!presentAvailable(trophyDisplays, completed)) return false;
@@ -660,7 +669,7 @@ export function startGame(characterName) {
 
   function showMemory(index) {
     const memory = memories[index];
-    if (!memory || !completed[index]) return;
+    if (!memory || !completed[index] || encounters.statues.some((statue) => statue.keepsakes.includes(index))) return;
     const image = document.createElement('img');
     image.src = keepsakeImages[index];
     image.alt = '';
@@ -727,6 +736,7 @@ export function startGame(characterName) {
     const updated = { ...removeQuestProgress({ completed, accepted }, index), gameSaves: [...gameSaves], trophyDisplays: [...trophyDisplays], trophyQuest: { ...trophyQuest, completed: false }, birthdayGuestsPresent: false };
     updated.gameSaves[index] = null;
     updated.trophyDisplays[index] = false;
+    updated.encounters = restoreEncounters(encounters, updated.completed, updated.trophyDisplays);
     if (!saveProgress(updated)) {
       document.querySelector('#removeQuestDescription').textContent = 'The quest could not be removed because your browser could not save progress. Your quest is unchanged; please try again.';
       return;
@@ -744,6 +754,8 @@ export function startGame(characterName) {
     gameSaves = updated.gameSaves;
     trophyDisplays = updated.trophyDisplays;
     trophyQuest = updated.trophyQuest;
+    encounters = updated.encounters;
+    world.setEncounters(encounters);
     birthdayGuestsPresent = false;
     document.querySelector(`#qentry-${index + 1} .quest-steps`).open = false;
     world.clearQuestSelection(index);
@@ -795,12 +807,14 @@ export function startGame(characterName) {
     suppressGameSaves = true;
     completed = fresh.completed; accepted = fresh.accepted; gameSaves = fresh.gameSaves;
     trophyDisplays = fresh.trophyDisplays; trophyQuest = fresh.trophyQuest; birthdayGuestsPresent = false; sideQuestCompleted = fresh.sideQuestCompleted;
+    encounters = fresh.encounters;
     settingsDialog.close();
     leaveWorldQuest(); leaveTrophyRoom();
     if (questDialog.open) closeQuestDialog();
     suppressGameSaves = false;
     activeChapter = null;
     document.querySelectorAll('.quest-steps').forEach((details) => { details.open = false; });
+    world.setEncounters(encounters);
     world.reset();
     world.setQuestStates(completed, accepted, false);
     world.setPaused(false);
@@ -814,6 +828,21 @@ export function startGame(characterName) {
 
   const world = mountOverworld({
     characterName,
+    encounters,
+    onChomp: (creature, position) => {
+      const next = explodeChomp(encounters, creature, position, completed, trophyDisplays);
+      if (!saveProgress({ completed, accepted, gameSaves, trophyDisplays, trophyQuest, encounters: next })) return null;
+      encounters = next;
+      renderInventory();
+      return next;
+    },
+    onRecoverStatue: (index) => {
+      const next = recoverStatue(encounters, index);
+      if (!saveProgress({ completed, accepted, gameSaves, trophyDisplays, trophyQuest, encounters: next })) return null;
+      encounters = next;
+      renderInventory();
+      return next;
+    },
     worldCanvas: document.querySelector('#worldCanvas'),
     mapCanvas: document.querySelector('#worldMapCanvas'),
     interactButton: document.querySelector('#worldInteract'),

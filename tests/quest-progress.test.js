@@ -11,7 +11,8 @@ test('a fresh game has no quest progress, items, displays or finale', () => {
     trophyDisplays: [false, false, false, false, false],
     trophyQuest: { accepted: false, completed: false },
     birthdayGuestsPresent: false,
-    sideQuestCompleted: [false, false, false, false, false]
+    sideQuestCompleted: [false, false, false, false, false],
+    encounters: { defeated: [], statues: [] }
   });
   fresh.completed[0] = true;
   assert.equal(freshGameProgress(5).completed[0], false);

@@ -14,7 +14,7 @@ test('side quests preserve the requested titles, scenes and dialogue', () => {
     'I am not going to touch that, you will have to do it!',
     'I thought you were never going to kiss me.',
     '£50 for a cup seems a bit excessive!',
-    'Little girl.... little grave!',
+    'Little girl.... little grave for David White! ',
     'We had fast track this whole time...'
   ]);
   SIDE_QUESTS.forEach((quest, index) => {

@@ -31,6 +31,7 @@ import { ENTRANCE_MARKER_RADIUS, entranceMarkerHit } from './entrance-marker.js'
 import { createCanopyDeckTexture } from './canopy-platform.js';
 import { PARK_FLAG_COLORS, PARK_PALETTE } from './park-style.js';
 import { createParkBushLeavesGeometry, PARK_BUSH_SHAPES, parkBushes } from './park-bushes.js';
+import { createChimychompArt } from './chimychomp-art.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -64,6 +65,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#a9bec0');
+  const encounterArt = createChimychompArt(scene);
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 6000);
   const ambient = new THREE.HemisphereLight('#e5e9d3', '#3d4937', 1.65);
   scene.add(ambient);
@@ -1284,7 +1286,9 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(w, h, false);
     },
-    draw(position, selected, completed, moving, time) {
+    draw(position, selected, completed, moving, time, encounters = { defeated: [], statues: [] }, explosion = null, creatures) {
+      encounterArt.update(encounters, explosion, time, creatures);
+      player.visible = !explosion;
       player.position.set(position.x, 0, position.y);
       if (previousPosition && (position.x !== previousPosition.x || position.y !== previousPosition.y)) {
         player.rotation.y = Math.atan2(position.x - previousPosition.x, position.y - previousPosition.y);
@@ -1333,6 +1337,9 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     screenToWorld(point) {
       return groundPointAt(camera, width, height, point);
     },
+    statueAt(point) {
+      return encounterArt.statueAt(point, camera, width, height);
+    },
     npcSpeechAnchor(index) {
       const projected = townsfolk[index].localToWorld(new THREE.Vector3(0, 120, 0)).project(camera);
       if (projected.z < -1 || projected.z > 1) return null;
@@ -1368,6 +1375,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       });
     },
     dispose() {
+      encounterArt.dispose();
       scene.traverse((object) => {
         if (object.isSprite) object.material.dispose();
         if (object.isMesh && object.material.isMeshBasicMaterial) object.material.dispose();

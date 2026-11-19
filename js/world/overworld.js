@@ -10,8 +10,11 @@ import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, CHARACTER_HEAD_SCALE, GUIDE_HAIR
 import { TATTOO_ACCENT, TATTOO_INK } from '../character-body.js';
 import { sideQuestPosition } from '../side-quests.js';
 import { ENTRANCE_MARKER_RADIUS, entranceMarkerHit } from './entrance-marker.js';
+import { STATUE_INTERACTION_RANGE } from './chimychomps.js';
+import { drawAngelStatue, drawChimychomp } from './chimychomp-art.js';
+import { deathMarkerContains, drawDeathMarker } from './death-marker.js';
+import { CHOMPY_CONTACT_RADIUS, CHOMPY_DETECTION_RADIUS, CHOMPY_RADIUS, PLAYER_WALK_SPEED, chompyContact, createChompyStates, encounterCollision, safeRespawn, stepChompy } from './chimy-chase.js';
 
-const WALK_SPEED = 220;
 const PLAYER_RADIUS = 12;
 const DIRECTIONS = {
   ArrowUp: { x: 0, y: -1 }, w: { x: 0, y: -1 },
@@ -69,7 +72,7 @@ function drawPerson(ctx, color, moving, time, longHair = false, hair = CHARACTER
   ctx.restore();
 }
 
-export function mountOverworld({ characterName, worldCanvas, mapCanvas, interactButton, messageElement, locationElement, targetElement, onGuide, onAcceptQuest, onEntrance, onCastle, onTrophyGuide, onAcceptTrophy, onSideQuest, onMessage, onQuestSelected, onRegionChange }) {
+export function mountOverworld({ characterName, worldCanvas, mapCanvas, interactButton, messageElement, locationElement, targetElement, encounters = { defeated: [], statues: [] }, onChomp, onRecoverStatue, onGuide, onAcceptQuest, onEntrance, onCastle, onTrophyGuide, onAcceptTrophy, onSideQuest, onMessage, onQuestSelected, onRegionChange }) {
   const mapContext = mapCanvas.getContext('2d');
   if (!mapContext) throw new Error('The browser could not initialize the game world map.');
   const art = createWorldArt();
@@ -91,11 +94,13 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     player: { ...WORLD_SPAWN }, target: null, questIndex: null, destinationKind: 'guide', pendingEntrance: null,
     completed: Array(QUEST_LOCATIONS.length).fill(false), accepted: Array(QUEST_LOCATIONS.length).fill(false), finaleCompleted: false, paused: false,
     npcIndex: null, npcDialogue: Array(WORLD_NPCS.length).fill(0), speaker: null,
-    frame: 0, lastFrame: 0, keys: new Set(), heldDirections: new Set(), disposed: false, path: []
+    frame: 0, lastFrame: 0, keys: new Set(), heldDirections: new Set(), disposed: false, path: [],
+    encounters, explosion: null, pendingStatue: null, ignoredChomp: null, chompies: createChompyStates(), blockedTime: 0
   };
   const obstacles = worldObstacles();
   const collision = createCollision(obstacles, PLAYER_RADIUS);
   const routeClearance = createCollision(obstacles, PLAYER_RADIUS + 2);
+  const chompCollision = createCollision(obstacles, CHOMPY_RADIUS);
   let canvasWidth = 0;
   let canvasHeight = 0;
   let zoom = 1;
@@ -104,6 +109,21 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   let currentRegion = null;
   const npcPosition = (npc) => npc.sideQuest === undefined ? npc : { ...npc, ...sideQuestPosition(npc, state.frame) };
   const npcPositions = () => WORLD_NPCS.map(npcPosition);
+  const activeChompies = () => state.chompies.filter((chomp) => !state.encounters.defeated.includes(chomp.id));
+  const playerCollision = () => encounterCollision(collision, activeChompies(), state.encounters.statues, PLAYER_RADIUS);
+  const playerRouteClearance = () => encounterCollision(routeClearance, activeChompies(), state.encounters.statues, PLAYER_RADIUS + 2);
+
+  function resetChompies() {
+    state.chompies = createChompyStates();
+    const navigation = encounterCollision(chompCollision, [], state.encounters.statues, CHOMPY_RADIUS);
+    for (const chomp of activeChompies()) {
+      if (!navigation.blocked(chomp)) continue;
+      const position = safeRespawn(chomp.home, navigation);
+      chomp.x = position.x; chomp.y = position.y; chomp.mode = 'return';
+    }
+  }
+  resetChompies();
+  state.player = safeRespawn(WORLD_SPAWN, playerCollision());
 
   function say(message) {
     if (messageElement) messageElement.textContent = message;
@@ -111,27 +131,31 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   }
 
   function setDestination(destination) {
+    state.pendingStatue = null;
     const target = constrainToWorld(destination, PLAYER_RADIUS);
-    const path = findWorldPath(state.player, target, collision);
+    const navigation = playerCollision();
+    const path = findWorldPath(state.player, target, navigation);
     if (!path) {
       state.target = null; state.path = []; state.pendingEntrance = null;
       say('There is no clear route to that destination. Choose another spot.');
       return false;
     }
     state.target = path.at(-1) || { ...state.player };
-    state.path = smoothWorldPath(state.player, path, collision, routeClearance);
+    state.path = smoothWorldPath(state.player, path, navigation, playerRouteClearance());
     return true;
   }
 
   function setCharacterDestination(character) {
-    const path = findCharacterApproach(state.player, character, collision);
+    state.pendingStatue = null;
+    const navigation = playerCollision();
+    const path = findCharacterApproach(state.player, character, navigation);
     if (!path) {
       state.target = null; state.path = []; state.pendingEntrance = null;
       say(`There is no clear route to ${character.guide || character.name}. Choose another spot.`);
       return false;
     }
     state.target = path.at(-1) || { ...state.player };
-    state.path = smoothWorldPath(state.player, path, collision, routeClearance);
+    state.path = smoothWorldPath(state.player, path, navigation, playerRouteClearance());
     return true;
   }
 
@@ -214,6 +238,15 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   }
 
   function updateInteraction() {
+    if (state.explosion) {
+      interactButton.disabled = true;
+      interactButton.textContent = 'Returning to the castle...';
+      interactButton.setAttribute('aria-label', 'Returning to the castle');
+      interactButton.classList.remove('world-interact--ready');
+      targetElement.textContent = 'RETURNING TO CASTLE';
+      return;
+    }
+    const statueIndex = state.encounters.statues.findIndex((statue) => distanceBetween(state.player, statue) <= STATUE_INTERACTION_RANGE);
     const nearby = nearbyQuest();
     const nearCastle = distanceBetween(state.player, CASTLE_ENTRANCE) < INTERACTION_RANGE;
     const quest = nearby ? QUEST_LOCATIONS[nearby.index] : QUEST_LOCATIONS[state.questIndex];
@@ -230,7 +263,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       onRegionChange?.(region.id);
     }
     interactButton.disabled = false;
-    const buttonText = npc
+    const buttonText = statueIndex !== -1 ? 'Recover keepsakes from angel statue' : npc
       ? `${nearNpc ? 'Speak to' : 'Walk to'} ${npc.name}`
       : nearCastle ? 'Enter castle trophy room'
         : nearby ? nearby.kind === 'guide' ? `Speak to ${quest.guide}` : `Enter ${quest.entrance.name}`
@@ -238,8 +271,8 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     if (interactButton.textContent !== buttonText) interactButton.textContent = buttonText;
     const buttonLabel = buttonText;
     if (interactButton.getAttribute('aria-label') !== buttonLabel) interactButton.setAttribute('aria-label', buttonLabel);
-    interactButton.classList.toggle('world-interact--ready', Boolean(npc ? nearNpc : nearby || nearCastle));
-    const target = npc && state.npcIndex !== null ? `SPEAK TO · ${npc.name.toUpperCase()}`
+    interactButton.classList.toggle('world-interact--ready', Boolean(statueIndex !== -1 || (npc ? nearNpc : nearby || nearCastle)));
+    const target = statueIndex !== -1 ? 'ANGEL STATUE · READY' : npc && state.npcIndex !== null ? `SPEAK TO · ${npc.name.toUpperCase()}`
       : nearCastle ? 'CASTLE TROPHY ROOM · READY'
         : nearby ? `${nearby.kind === 'guide' ? 'QUEST GUIDE' : 'ENTRANCE'} · READY`
         : quest ? `DESTINATION · ${quest.name.toUpperCase()}` : 'EXPLORE · FIND QUEST GIVERS';
@@ -274,7 +307,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     if (state.disposed || !canvasWidth || !canvasHeight) return;
     if (world3d) {
       world3d.draw(state.player, state.questIndex, state.completed,
-        Boolean(state.target || state.keys.size || state.heldDirections.size), state.frame);
+        Boolean(state.target || state.keys.size || state.heldDirections.size), state.frame, state.encounters, state.explosion, state.chompies);
       updateSpeechBubble();
       return;
     }
@@ -340,7 +373,19 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
         }
       }
     }));
-    actors.push({
+    activeChompies().forEach((chomp) => actors.push({
+      ...chomp, draw: (ctx) => drawChimychomp(ctx, chomp)
+    }));
+    state.encounters.statues.forEach((statue) => actors.push({ ...statue, draw: drawAngelStatue }));
+    if (state.explosion) actors.push({
+      ...state.explosion,
+      draw(ctx) {
+        const progress = Math.min(1, (state.frame - state.explosion.started) / 800);
+        ctx.fillStyle = '#f18b39'; ctx.beginPath(); ctx.arc(0, -18, 12 + progress * 35, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffdf83'; ctx.beginPath(); ctx.arc(0, -18, 7 + progress * 20, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+    if (!state.explosion) actors.push({
       ...state.player,
       draw(ctx) {
         drawPerson(ctx, PLAYER_OUTFIT, Boolean(state.target || state.keys.size || state.heldDirections.size), state.frame, true, CHARACTER_HAIR, PLAYER_STYLE.belt);
@@ -367,7 +412,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     const px = (x) => x / WORLD_SIZE.width * width;
     const py = (y) => y / WORLD_SIZE.height * height;
     const active = QUEST_LOCATIONS[state.questIndex];
-    if (active) {
+    if (active && !state.explosion) {
       const target = state.destinationKind === 'entrance' ? active.entrance : active;
       mapContext.beginPath(); mapContext.moveTo(px(state.player.x), py(state.player.y));
       mapContext.lineTo(px(target.x), py(target.y)); mapContext.setLineDash([4, 4]);
@@ -385,8 +430,18 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       mapContext.fillStyle = state.completed[index] ? '#9bcc86' : questIsAvailable(index) ? '#edcf82' : '#829093';
       mapContext.fill(); mapContext.strokeStyle = '#17231d'; mapContext.lineWidth = 2; mapContext.stroke();
     });
-    mapContext.beginPath(); mapContext.arc(px(state.player.x), py(state.player.y), 4, 0, Math.PI * 2);
-    mapContext.fillStyle = '#fff8e4'; mapContext.fill(); mapContext.strokeStyle = '#273c33'; mapContext.stroke();
+    state.encounters.statues.forEach((statue) => {
+      const x = px(statue.x), y = py(statue.y);
+      drawDeathMarker(mapContext, x, y);
+    });
+    const statueRegions = state.encounters.statues.map((statue) => regionBlendAt(statue).region.name);
+    const mapLabel = `World map showing Lumbridge Castle, quest destinations${state.explosion ? '' : " and your character's position"}. ${
+      statueRegions.length ? `Angel statues to recover: ${statueRegions.join(', ')}.` : 'No angel statues to recover.'}`;
+    if (mapCanvas.getAttribute('aria-label') !== mapLabel) mapCanvas.setAttribute('aria-label', mapLabel);
+    if (!state.explosion) {
+      mapContext.beginPath(); mapContext.arc(px(state.player.x), py(state.player.y), 4, 0, Math.PI * 2);
+      mapContext.fillStyle = '#fff8e4'; mapContext.fill(); mapContext.strokeStyle = '#273c33'; mapContext.stroke();
+    }
   }
 
   function chooseQuest(index, walk = true, destinationKind = state.accepted[index] ? 'entrance' : 'guide') {
@@ -411,8 +466,19 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     return true;
   }
 
+  function collectStatue(index) {
+    const next = onRecoverStatue?.(index);
+    state.pendingStatue = null; state.target = null; state.path = [];
+    if (next) {
+      state.encounters = next;
+      say('Your keepsakes have been recovered from the angel statue.');
+    } else say('Your keepsakes could not be saved. Please try again.');
+  }
+
   function interact() {
-    if (state.paused) return;
+    if (state.paused || state.explosion) return;
+    const statueIndex = state.encounters.statues.findIndex((statue) => distanceBetween(state.player, statue) <= STATUE_INTERACTION_RANGE);
+    if (statueIndex !== -1) return void collectStatue(statueIndex);
     const nearby = nearbyQuest();
     const nearCastle = distanceBetween(state.player, CASTLE_ENTRANCE) < INTERACTION_RANGE;
     const npcs = npcPositions();
@@ -475,9 +541,21 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   }
 
   function handleWorldClick(event) {
-    if (state.paused) return;
+    if (state.paused || state.explosion) return;
     worldCanvas.focus();
     const screen = { x: event.clientX - worldCanvas.getBoundingClientRect().left, y: event.clientY - worldCanvas.getBoundingClientRect().top };
+    const statueIndex = world3d ? world3d.statueAt(screen) : state.encounters.statues.findIndex((statue) => {
+      const position = projectWorld(statue, camera, zoom);
+      return Math.hypot(screen.x - position.x, screen.y - (position.y - 35 * zoom)) <= 35 * zoom;
+    });
+    if (statueIndex !== -1) {
+      const statue = state.encounters.statues[statueIndex];
+      if (distanceBetween(state.player, statue) <= STATUE_INTERACTION_RANGE) return void collectStatue(statueIndex);
+      if (!setCharacterDestination({ ...statue, name: 'the angel statue' })) return;
+      state.pendingStatue = statueIndex; state.pendingEntrance = null; state.npcIndex = null; clearSpeech();
+      say('Walking to the angel statue to recover your keepsakes.');
+      return;
+    }
     const entranceIndex = world3d ? world3d.entranceAt(screen) : QUEST_LOCATIONS.findIndex((quest) => {
       const position = projectWorld(quest.entrance, camera, zoom);
       return entranceMarkerHit(screen, position, zoom);
@@ -518,16 +596,26 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       return;
     }
     if (!setDestination(position)) return;
-    state.pendingEntrance = null;
+    state.pendingEntrance = null; state.pendingStatue = null;
     clearSpeech();
     state.npcIndex = null;
     say(`Destination set. ${characterName} is on the move.`);
   }
 
   function handleMapClick(event) {
-    if (state.paused) return;
+    if (state.paused || state.explosion) return;
     const rect = mapCanvas.getBoundingClientRect();
     const point = pointerWorldPosition(event, mapCanvas);
+    const statueIndex = state.encounters.statues.findIndex((statue) => deathMarkerContains(
+      (point.x - statue.x) / WORLD_SIZE.width * rect.width, (point.y - statue.y) / WORLD_SIZE.height * rect.height
+    ));
+    if (statueIndex !== -1) {
+      if (distanceBetween(state.player, state.encounters.statues[statueIndex]) <= STATUE_INTERACTION_RANGE) return void collectStatue(statueIndex);
+      if (!setCharacterDestination({ ...state.encounters.statues[statueIndex], name: 'the angel statue' })) return;
+      state.pendingStatue = statueIndex; state.pendingEntrance = null; state.npcIndex = null; clearSpeech();
+      say('Walking to the angel statue to recover your keepsakes.');
+      return;
+    }
     if (Math.hypot((point.x - WORLD_SPAWN.x) / WORLD_SIZE.width * rect.width,
       (point.y - WORLD_SPAWN.y) / WORLD_SIZE.height * rect.height) <= 10) {
       if (!setDestination(CASTLE_ENTRANCE)) return;
@@ -541,14 +629,14 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     ) <= 10);
     if (markerIndex !== -1) return void chooseQuest(markerIndex, true, 'guide');
     if (!setDestination(point)) return;
-    state.pendingEntrance = null;
+    state.pendingEntrance = null; state.pendingStatue = null;
     clearSpeech();
     state.npcIndex = null;
     say('Destination set from the world map.');
   }
 
   function handleKeyDown(event) {
-    if (state.paused || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (state.paused || state.explosion || event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.key === 'Escape') {
       if (state.speaker) { event.preventDefault(); clearSpeech(); }
       return;
@@ -565,6 +653,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       state.keys.add(event.key.length === 1 ? event.key.toLowerCase() : event.key);
       state.target = null;
       state.pendingEntrance = null;
+      state.pendingStatue = null;
       state.npcIndex = null;
     } else if (event.key === 'e' || event.key === 'E' || event.key === ' ') {
       event.preventDefault(); interact();
@@ -576,7 +665,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   }
 
   function handleTouchStart(event) {
-    if (state.paused) return;
+    if (state.paused || state.explosion) return;
     const button = event.target.closest('[data-world-direction]');
     if (!button) return;
     event.preventDefault();
@@ -584,6 +673,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     state.heldDirections.add(button.dataset.worldDirection);
     state.target = null;
     state.pendingEntrance = null;
+    state.pendingStatue = null;
     state.npcIndex = null;
   }
 
@@ -601,7 +691,19 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     if (state.disposed) return;
     const delta = state.lastFrame ? Math.min((timestamp - state.lastFrame) / 1000, 0.05) : 0;
     state.lastFrame = timestamp; state.frame = timestamp;
-    if (!state.paused) {
+    if (!state.paused && state.explosion && timestamp - state.explosion.started >= 800) {
+      state.explosion = null;
+      resetChompies();
+      state.player = safeRespawn(WORLD_SPAWN, playerCollision());
+      say(state.encounters.statues.length
+        ? 'You returned to the castle. Find the angel statue on the map and click it to recover your keepsakes.'
+        : 'You returned to the castle. The ChimyChompChomp will not return.');
+    }
+    if (!state.paused && !state.explosion) {
+      const previous = { ...state.player };
+      const active = activeChompies();
+      const previousChompies = active.map((chomp) => ({ x: chomp.x, y: chomp.y }));
+      const movement = playerCollision();
       let dx = 0;
       let dy = 0;
       [...state.keys, ...state.heldDirections].forEach((key) => {
@@ -610,19 +712,60 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       });
       if (dx || dy) {
         const magnitude = Math.hypot(dx, dy);
-        state.player = collision.move(state.player, dx / magnitude * WALK_SPEED * delta, dy / magnitude * WALK_SPEED * delta);
+        state.player = movement.move(state.player, dx / magnitude * PLAYER_WALK_SPEED * delta, dy / magnitude * PLAYER_WALK_SPEED * delta);
       } else if (state.target) {
         const waypoint = state.path[0];
         if (waypoint) {
-          const next = moveToward(state.player, waypoint, WALK_SPEED * delta);
-          state.player = collision.move(state.player, next.x - state.player.x, next.y - state.player.y);
+          const next = moveToward(state.player, waypoint, PLAYER_WALK_SPEED * delta);
+          state.player = movement.move(state.player, next.x - state.player.x, next.y - state.player.y);
           if (state.player.x === waypoint.x && state.player.y === waypoint.y) state.path.shift();
         }
-        if (state.pendingEntrance !== null && isNearQuest(state.player, QUEST_LOCATIONS[state.pendingEntrance].entrance)) {
-          const index = state.pendingEntrance;
-          state.pendingEntrance = null; state.target = null;
-          onEntrance(index);
-        } else if (!state.path.length) { state.target = null; state.pendingEntrance = null; }
+      }
+      active.forEach((chomp) => {
+        if (chomp.mode === 'idle' && distanceBetween(chomp, state.player) >= CHOMPY_DETECTION_RADIUS) return;
+        const navigation = encounterCollision(chompCollision, active.filter((other) => other !== chomp), state.encounters.statues, CHOMPY_RADIUS);
+        const wasChasing = chomp.mode === 'chase';
+        stepChompy(chomp, state.player, delta, timestamp, navigation);
+        if (!wasChasing && chomp.mode === 'chase') say('A ChimyChompChomp spotted you and is chasing you!');
+      });
+      if (state.ignoredChomp && distanceBetween(state.player, state.ignoredChomp) >= CHOMPY_CONTACT_RADIUS + 5) state.ignoredChomp = null;
+      const chomp = active.find((creature, index) => creature !== state.ignoredChomp
+        && chompyContact(previous, state.player, previousChompies[index], creature));
+      if (chomp) {
+        const next = onChomp?.(chomp, { ...state.player });
+        if (next) {
+          state.encounters = next;
+          state.explosion = { x: chomp.x, y: chomp.y, started: timestamp };
+          state.target = null; state.path = []; state.pendingEntrance = null; state.pendingStatue = null; state.npcIndex = null;
+          clearMovement(); clearSpeech();
+          say('A ChimyChompChomp exploded! Returning to the castle...');
+        } else {
+          state.ignoredChomp = chomp;
+          say('The encounter could not be saved. Move away and try again.');
+        }
+      } else if (state.pendingStatue !== null && state.encounters.statues[state.pendingStatue]
+        && distanceBetween(state.player, state.encounters.statues[state.pendingStatue]) <= STATUE_INTERACTION_RANGE) {
+        collectStatue(state.pendingStatue);
+      } else if (state.pendingEntrance !== null && isNearQuest(state.player, QUEST_LOCATIONS[state.pendingEntrance].entrance)) {
+        const index = state.pendingEntrance;
+        state.pendingEntrance = null; state.target = null;
+        onEntrance(index);
+      } else if (state.target && !state.path.length) {
+        state.target = null; state.pendingEntrance = null; state.pendingStatue = null;
+      } else if (state.target && !dx && !dy && previous.x === state.player.x && previous.y === state.player.y) {
+        state.blockedTime += delta;
+        if (state.blockedTime >= 0.6) {
+          state.blockedTime = 0;
+          const navigation = playerCollision();
+          const path = findWorldPath(state.player, state.target, navigation);
+          if (path) state.path = smoothWorldPath(state.player, path, navigation, playerRouteClearance());
+          else {
+            state.target = null; state.path = []; state.pendingEntrance = null; state.pendingStatue = null;
+            say('There is no clear route to that destination. Choose another spot.');
+          }
+        }
+      } else {
+        state.blockedTime = 0;
       }
     }
     updateInteraction(); drawWorld(); drawMinimap();
@@ -653,6 +796,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       state.finaleCompleted = finaleCompleted;
       updateInteraction(); drawWorld(); drawMinimap();
     },
+    setEncounters(next) { state.encounters = next; state.pendingStatue = null; drawWorld(); drawMinimap(); },
     selectQuest: chooseQuest,
     selectSideQuest(index) {
       const npcIndex = WORLD_NPCS.findIndex((npc) => npc.sideQuest === index);
@@ -685,6 +829,10 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       state.player = { ...WORLD_SPAWN };
       state.target = null; state.path = []; state.questIndex = null;
       state.destinationKind = 'guide'; state.pendingEntrance = null; state.npcIndex = null;
+      state.pendingStatue = null; state.explosion = null; state.ignoredChomp = null;
+      resetChompies();
+      state.player = safeRespawn(WORLD_SPAWN, playerCollision());
+      state.blockedTime = 0;
       state.npcDialogue.fill(0);
       updateInteraction(); drawWorld(); drawMinimap();
     },

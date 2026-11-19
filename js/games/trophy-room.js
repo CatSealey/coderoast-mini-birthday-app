@@ -20,7 +20,7 @@ const directions = {
 };
 const padDirections = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
-export function mountTrophyRoom(root, { characterName, memories, images, completed, displays, guestsPresent = false, onDisplays, onPresent, onLeave, onMessage, onCakeArrives, onBirthdayFinished, onBirthdayEnd }) {
+export function mountTrophyRoom(root, { characterName, memories, images, completed, displays, droppedKeepsakes = [], guestsPresent = false, onDisplays, onPresent, onLeave, onMessage, onCakeArrives, onBirthdayFinished, onBirthdayEnd }) {
   let placed = [...displays], player = { x: HALL_CENTER, z: 490 }, disposed = false, frame = 0, last = 0;
   let width = 1, height = 1, target = null, path = [], pendingExit = false, walkPhase = 0, facing = 0, playerStride = 0;
   let endingPhase = 'idle', endingLine = null, lovePosition = { ...BIRTHDAY_ENTRANCE }, loveFacing = 0, loveWalk = 0, loveMoving = false;
@@ -511,7 +511,12 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     }
     if (nearby.distance > 85) { say('Walk closer to a pedestal to place a keepsake.'); return; }
     const index = nearby.index;
-    if (!completed[index]) { say(`This pedestal awaits the ${memories[index].title}. Complete its quest first.`); return; }
+    if (!completed[index]) {
+      say(droppedKeepsakes.includes(index)
+        ? `Recover the ${memories[index].title} from its angel statue before placing it here.`
+        : `This pedestal awaits the ${memories[index].title}. Complete its quest first.`);
+      return;
+    }
     if (placed[index]) { say(`${memories[index].title} is proudly displayed here.`); return; }
     placed = placeKeepsake(placed, completed, index); onDisplays(placed);
     say(presentAvailable(placed, completed) ? 'All five memories are displayed! A birthday present has appeared.' : `You display the ${memories[index].title}.`);

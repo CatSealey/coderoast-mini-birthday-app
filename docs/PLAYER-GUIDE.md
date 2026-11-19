@@ -29,6 +29,17 @@ list is long.
 The side-quest list offers optional encounters with Cat. Select an entry to
 find her, then speak to her to begin.
 
+Watch out for ChimyChompChomps in the outdoor regions: they chase faster than
+you when you get close. Those in Abigail's area have a spectral blue glow but
+are just as dangerous. Escape far enough and they return to their starting
+spot. If they reach you, they explode and send you back to the castle. Your
+carried keepsakes remain at a hooded stone death-angel statue where you fell,
+marked by a red skull-and-crossbones shield on the map. Click
+or tap the statue (or approach it and press **E**) to recover them. Keepsakes
+already displayed in the castle are safe, and quest completion and XP remain
+intact. Each creature only explodes once per adventure; statues remain until
+their keepsakes are recovered, even if you encounter another creature.
+
 Characters have faceted, fantasy-inspired designs. The player and Cat keep
 their distinctive outfits, hairstyles and tattoos throughout their adventures.
 

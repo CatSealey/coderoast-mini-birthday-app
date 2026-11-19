@@ -101,9 +101,10 @@ changing a quest.
 
 `js/app.js` stores the shared game save in browser `localStorage` under
 `rs3-birthday-adventure-progress`. It contains main quest acceptance and
-completion, individual quest saves, trophy displays and hall progress, and
-side-quest completion. XP and level are derived from completion rather than
-being an independent authoritative save.
+completion, individual quest saves, trophy displays and hall progress,
+side-quest completion, and defeated ChimyChompChomps and unrecovered angel
+statues. XP and level are derived from completion rather than being an
+independent authoritative save.
 
 - Progress is shared by names on the same browser and device, not synced
   between devices or different site origins.
@@ -115,6 +116,13 @@ being an independent authoritative save.
   relevant quest restore functions and trophy/side-quest restore helpers.
   Preserve old identifiers and test older saves when changing saved shapes or
   quest state.
+- `world/chimychomps.js` defines stable creature IDs and validates encounter
+  saves. Unrecovered keepsakes are separate from quest completion and cannot
+  be placed in the hall until recovered; displayed keepsakes never drop.
+  Removing a quest prunes its keepsake from any statue.
+- `world/chimy-chase.js` handles the creatures' pursuit, escape distance and
+  solid footprints. Their temporary positions reset after a death; defeated
+  IDs and statues remain in the save. Both world renderers use those positions.
 - Saving can fail if browser storage is unavailable or full. The app reports
   save failures; do not assume progress was saved after an error.
 - Browser data clearing and private browsing can remove saves. Test destructive

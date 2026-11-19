@@ -13,7 +13,8 @@ export function freshGameProgress(count) {
     trophyDisplays: Array(count).fill(false),
     trophyQuest: { accepted: false, completed: false },
     birthdayGuestsPresent: false,
-    sideQuestCompleted: restoreSideQuestProgress(null)
+    sideQuestCompleted: restoreSideQuestProgress(null),
+    encounters: { defeated: [], statues: [] }
   };
 }
 
