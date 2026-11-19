@@ -3,7 +3,7 @@ import { HALL_CENTER, HALL_EXIT_MAT, HALL_WIDTH, hallExitMatIntersectsFoot, isOn
 import { createTrophyModel } from './trophy-models.js';
 import { createCollision, findWorldPath } from '../world/world-collision.js';
 import { createCharacterLegs, createFootSupportSurface, createPlayerLegs, supportCharacterFeet, swingCharacterLegs } from './character-legs.js';
-import { BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, VINNIE_HOME, birthdayArrivalPath, birthdayArrivalPose, birthdayDogFacing, birthdayFamilyPaths, birthdayGuestObstacles, createBirthdayEnding, scheduleBirthdayArrivals } from './birthday-ending.js';
+import { BIRTHDAY_CAKE_OFFSET, BIRTHDAY_CAKE_RADIUS, BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, VINNIE_HOME, birthdayArrivalPath, birthdayArrivalPose, birthdayCakePosition, birthdayDogFacing, birthdayFamilyPaths, birthdayGuestObstacles, createBirthdayEnding, scheduleBirthdayArrivals } from './birthday-ending.js';
 import { VINNIE_PET_RANGE, createBirthdayDogModel, drawBirthdayDog, findVinnieApproach } from './birthday-dog.js';
 import { addHallBookcase, addHallPedestal, addHallPlanter, addHallPresent, addHallSconce, addHallTable, createHallBannerGeometry, createHallExitMatGeometry, createHallPedestalGeometry, drawHallDisplay, drawHallFurniture, drawHallPresent, HALL_BANNER_HEIGHT, HALL_BOOKCASE_WIDTH, HALL_BOOKCASE_X, HALL_BOOKCASE_Z, HALL_PEDESTAL_DEPTH, HALL_PEDESTAL_WIDTH, HALL_PILLAR_X, HALL_RUG, HALL_SCONCE_X, HALL_PLANTER_X, HALL_TABLE_X, HALL_TROPHY_ACCENTS, paintHallBanner, paintHallExitMat, paintHallFloor, paintHallRug, paintHallStone } from './castle-interior-art.js';
 import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker } from '../character-appearance.js';
@@ -295,12 +295,12 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
       }
     } else guestArms = createCharacterArms(model, box, { offset: 15, shoulderY: 54 + CHARACTER_RISE, length: 28, width: 7, depth: 8, color: member.outfit, skin: '#dfb38c', limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry });
     if (member.id === 'gran') {
-      round(cylinder, 0, 40 + CHARACTER_RISE, 25, 36, 3, 36, '#e1cda8', model);
-      round(cylinder, 0, 47 + CHARACTER_RISE, 25, 30, 12, 30, '#b77964', model);
-      round(cylinder, 0, 54 + CHARACTER_RISE, 25, 31, 3, 31, '#f3debd', model);
+      round(cylinder, 0, 40 + CHARACTER_RISE, BIRTHDAY_CAKE_OFFSET, BIRTHDAY_CAKE_RADIUS * 2, 3, BIRTHDAY_CAKE_RADIUS * 2, '#e1cda8', model);
+      round(cylinder, 0, 47 + CHARACTER_RISE, BIRTHDAY_CAKE_OFFSET, 30, 12, 30, '#b77964', model);
+      round(cylinder, 0, 54 + CHARACTER_RISE, BIRTHDAY_CAKE_OFFSET, 31, 3, 31, '#f3debd', model);
       for (const x of [-7, 0, 7]) {
-        round(cylinder, x, 59 + CHARACTER_RISE, 25, 2, 8, 2, '#e9b86c', model);
-        round(cone, x, 65 + CHARACTER_RISE, 25, 4, 6, 4, '#ffe1a0', model, true);
+        round(cylinder, x, 59 + CHARACTER_RISE, BIRTHDAY_CAKE_OFFSET, 2, 8, 2, '#e9b86c', model);
+        round(cone, x, 65 + CHARACTER_RISE, BIRTHDAY_CAKE_OFFSET, 4, 6, 4, '#ffe1a0', model, true);
       }
     }
     return {
@@ -436,9 +436,10 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
           { scale: guest.member.size, hair: guest.member.hair, hairLength: ['gran', 'mum', 'sister'].includes(guest.member.id) ? 'long' : 'short',
             stride: guest.member.id === 'gran' ? 0 : guest.legs[0].rotation.x, facing: guest.facing });
         if (guest.member.id === 'gran') {
-          ctx.fillStyle = '#f3debd'; ctx.beginPath(); ctx.arc(guest.position.x, guest.position.y + 13, 10, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = '#b77964'; ctx.beginPath(); ctx.arc(guest.position.x, guest.position.y + 13, 7, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = '#ffe1a0'; ctx.fillRect(guest.position.x - 1, guest.position.y + 9, 2, 4);
+          const cake = birthdayCakePosition(guest);
+          ctx.fillStyle = '#f3debd'; ctx.beginPath(); ctx.arc(cake.x, cake.y, BIRTHDAY_CAKE_RADIUS * guest.member.size, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#b77964'; ctx.beginPath(); ctx.arc(cake.x, cake.y, 15 * guest.member.size, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffe1a0'; ctx.fillRect(cake.x - 1, cake.y - 4, 2, 4);
         }
       });
       ctx.restore();

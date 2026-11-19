@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BIRTHDAY_DIALOGUE, BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, VINNIE_HOME, birthdayArrivalPath, birthdayArrivalPose, birthdayDogFacing, birthdayFamilyPaths, birthdayGuestObstacles, birthdayGuestPlayerCollision, createBirthdayEnding, scheduleBirthdayArrivals } from '../js/games/birthday-ending.js';
+import { BIRTHDAY_CAKE_OFFSET, BIRTHDAY_CAKE_RADIUS, BIRTHDAY_DIALOGUE, BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, VINNIE_HOME, birthdayArrivalPath, birthdayArrivalPose, birthdayCakePosition, birthdayDogFacing, birthdayFamilyPaths, birthdayGuestObstacles, birthdayGuestPlayerCollision, createBirthdayEnding, scheduleBirthdayArrivals } from '../js/games/birthday-ending.js';
 import { createCollision, findWorldPath } from '../js/world/world-collision.js';
 import { HALL_BOOKCASE_WIDTH, HALL_BOOKCASE_X, HALL_BOOKCASE_Z, HALL_PEDESTAL_DEPTH, HALL_PEDESTAL_WIDTH, HALL_PLANTER_X, HALL_TABLE_X } from '../js/games/castle-interior-art.js';
 import { HALL_CENTER, HALL_WIDTH } from '../js/games/trophy-logic.js';
@@ -27,6 +27,38 @@ test('Vinnie blocks walking before the celebration and all visible guests block 
     const playerCollision = birthdayGuestPlayerCollision({ x: 400, z: 390 }, member);
     assert.ok(playerCollision.blocked({ x: 400, y: 390 }));
     assert.ok(!playerCollision.clearSegment({ x: 400, y: 350 }, { x: 400, y: 430 }));
+  }
+});
+
+test('Gran’s cake blocks walking and pathfinding at its rotated position after the celebration', () => {
+  const member = BIRTHDAY_FAMILY.find((entry) => entry.id === 'gran');
+  for (const facing of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+    const gran = { member, visible: true, position: { x: 400, y: 300 }, facing };
+    const cake = birthdayCakePosition(gran);
+    assert.ok(Math.abs(Math.hypot(cake.x - gran.position.x, cake.y - gran.position.y) - BIRTHDAY_CAKE_OFFSET * member.size) < 1e-8);
+    const obstacles = birthdayGuestObstacles('finished', { x: 100, y: 100 }, [gran]);
+    assert.deepEqual(obstacles.at(-1), { ...cake, radius: BIRTHDAY_CAKE_RADIUS * member.size });
+    const collision = createCollision(obstacles, 10);
+    const direction = { x: Math.sin(facing), y: Math.cos(facing) };
+    const start = { x: cake.x + direction.x * 40, y: cake.y + direction.y * 40 };
+    const end = { x: cake.x - direction.x * 40, y: cake.y - direction.y * 40 };
+    assert.equal(collision.blocked(cake), true);
+    assert.equal(collision.clearSegment(start, end), false);
+    assert.notDeepEqual(collision.move(start, -direction.x * 40, -direction.y * 40), cake);
+    const destination = { x: cake.x + direction.x * 5, y: cake.y + direction.y * 5 };
+    assert.equal(collision.blocked(destination), true);
+    const path = findWorldPath(start, destination, collision);
+    if (path?.length) {
+      assert.equal(collision.blocked(path.at(-1)), false);
+      assert.notDeepEqual(path.at(-1), destination);
+      let previous = start;
+      for (const point of path) {
+        assert.equal(collision.clearSegment(previous, point), true);
+        previous = point;
+      }
+    }
+    gran.visible = false;
+    assert.equal(birthdayGuestObstacles('finished', { x: 100, y: 100 }, [gran]).length, 1);
   }
 });
 
@@ -186,7 +218,8 @@ test('every side of the present has a safe route to the same spacious celebratio
         { x: target.x, y: target.y + 125 }, 'the mustard-clothed child is at the centre of the semicircle');
       assert.ok(guests.every((guest) => guest.path.length === 1), 'each guest takes a direct route without detouring');
       const restoredGuests = birthdayGuestObstacles('finished', previous, guests.map((guest) => ({
-        member: guest.member, position: guest.destination, visible: true
+        member: guest.member, position: guest.destination, visible: true,
+        facing: Math.atan2(target.x - guest.destination.x, target.y - guest.destination.y)
       })));
       const guestCollision = createCollision(restoredGuests, 10);
       const restoredCollision = {
@@ -195,6 +228,7 @@ test('every side of the present has a safe route to the same spacious celebratio
       };
       const returnSpawn = { x: HALL_CENTER + 50, y: 550 };
       assert.equal(restoredCollision.blocked(returnSpawn), false, 'the returning player does not spawn inside a guest');
+      assert.equal(restoredCollision.blocked(target), false, 'the cake does not overlap the player after the celebration');
       const replayPath = findWorldPath(returnSpawn, target, restoredCollision);
       assert.deepEqual(replayPath?.at(-1), target, 'the present remains reachable through the restored family');
       assert.equal(guests.find((guest) => guest.member.id === 'mum').destination.x, target.x - 62.5);

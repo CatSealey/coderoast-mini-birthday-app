@@ -4,6 +4,8 @@ import { HALL_CENTER, TROPHY_EXIT } from './trophy-logic.js';
 export const BIRTHDAY_ENTRANCE = Object.freeze({ x: TROPHY_EXIT.x, y: TROPHY_EXIT.z - 20 });
 export const BIRTHDAY_PLAYER_POSITION = Object.freeze({ x: HALL_CENTER, z: 390 });
 export const VINNIE_HOME = Object.freeze({ x: HALL_CENTER + 180, y: 450 });
+export const BIRTHDAY_CAKE_OFFSET = 25;
+export const BIRTHDAY_CAKE_RADIUS = 18;
 const GUEST_CLEARANCE = 38;
 const ARRIVAL_SPEED = 120;
 const ARRIVAL_INTERVAL = 0.1;
@@ -59,6 +61,14 @@ export const BIRTHDAY_FAMILY = Object.freeze([
   Object.freeze({ id: 'dog', kind: 'dog', size: 1 })
 ]);
 
+export function birthdayCakePosition(guest) {
+  const offset = BIRTHDAY_CAKE_OFFSET * guest.member.size;
+  return {
+    x: guest.position.x + Math.sin(guest.facing) * offset,
+    y: guest.position.y + Math.cos(guest.facing) * offset
+  };
+}
+
 export function birthdayGuestObstacles(phase, lovePosition, family) {
   if (phase !== 'finished') {
     return family.filter((guest) => guest.visible && guest.member.kind === 'dog').map((guest) => ({
@@ -69,6 +79,9 @@ export function birthdayGuestObstacles(phase, lovePosition, family) {
     { x: lovePosition.x, y: lovePosition.y, radius: 16 },
     ...family.filter((guest) => guest.visible).map((guest) => ({
       x: guest.position.x, y: guest.position.y, radius: 16 * guest.member.size
+    })),
+    ...family.filter((guest) => guest.visible && guest.member.id === 'gran').map((guest) => ({
+      ...birthdayCakePosition(guest), radius: BIRTHDAY_CAKE_RADIUS * guest.member.size
     }))
   ];
 }
