@@ -11,8 +11,11 @@ export function createCharacterLegs(parent, box, offset, shoeColor, trouserColor
     shapeCharacterLimb(trouser, limbGeometry, width, height, depth);
     const shoe = box(0, -height + 2, 2, width + 1, 4, depth + 3, shoeColor, leg);
     shapeCharacterLimb(shoe, limbGeometry, width + 1, 4, depth + 3);
-    box(0, -height * 0.45, depth / 2 + 0.2, width * 0.75, 1, 0.5, '#465047', leg);
-    box(0, -height * 0.38, depth * 0.45, width * 0.45, 0.5, 0.4, '#697569', leg);
+    const trouserSeam = `#${new THREE.Color(trouserColor).offsetHSL(0, 0, 0.08).getHexString()}`;
+    box(0, -height * 0.45, depth * 0.46, width * 0.58, 0.7, 0.4, trouserSeam, leg);
+    const bootHeight = height * 0.3;
+    const boot = box(0, -height + bootHeight / 2 + 2, 0, width * 0.94, bootHeight, depth * 0.92, shoeColor, leg);
+    shapeCharacterLimb(boot, limbGeometry, width * 0.94, bootHeight, depth * 0.92);
     const cuff = box(0, -height + 5, 0, width + 0.5, 3, depth + 0.5, '#3c3832', leg);
     shapeCharacterLimb(cuff, limbGeometry, width + 0.5, 3, depth + 0.5);
     const sole = box(0, -height + 0.4, 2, width + 1.2, 0.8, depth + 3.2, '#302925', leg);

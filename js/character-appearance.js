@@ -35,13 +35,19 @@ export function addCharacterHeadDetails(box, round, options) {
   box(0, headY - height * 0.52, 0, width * 0.35, height * 0.35, depth * 0.35, skin);
   round(0, headY - height * (long ? 0.28 : shoulder ? 0.12 : 0), -front * 0.5,
     width + 2, height * (long ? 2 : shoulder ? 1.5 : 1.05), depth * 0.9, hair);
-  round(0, headY, 0, width, height, depth, skin);
+  (options.face || round)(0, headY, 0, width, height, depth, skin);
   round(0, headY + height * 0.39, -front * 0.08, width + 1, height * 0.36, depth + 1, hair);
   for (const side of [-1, 1]) {
-    round(side * width * 0.48, headY + height * (long ? -0.3 : shoulder ? -0.16 : 0.25), 0,
-      width * (long || shoulder ? 0.26 : 0.16), height * (long ? 1.65 : shoulder ? 1.25 : 0.4), depth * 0.95, hair);
+    const sideLock = round(side * width * 0.48, headY + height * (long ? -0.3 : shoulder ? -0.16 : 0.25), 0,
+      width * (long || shoulder ? 0.23 : 0.16), height * (long ? 1.65 : shoulder ? 1.25 : 0.4), depth * 0.95, hair);
+    if (sideLock?.rotation && (long || shoulder)) sideLock.rotation.z = side * 0.06;
     if (long || shoulder) box(side * width * 0.57, headY - height * (long ? 0.35 : 0.16), -front * 0.3,
       width * 0.035, height * (long ? 0.85 : 0.55), depth * 0.25, hairHighlight);
+    if (long || shoulder) {
+      const strand = round(side * width * 0.38, headY - height * (long ? 0.56 : 0.34), -front * 0.35,
+        width * 0.2, height * (long ? 1.05 : 0.7), depth * 0.6, hairLock);
+      if (strand?.rotation) strand.rotation.z = side * 0.12;
+    }
     round(side * width * 0.46, headY - height * 0.03, 0, width * 0.15, height * 0.25, depth * 0.25, skin);
     box(side * width * 0.22, headY + height * 0.05, front * 0.9, width * 0.11, height * 0.08, 1.2, '#49382f');
     box(side * width * 0.205, headY + height * 0.065, front * 0.9 + 0.62,
@@ -54,12 +60,12 @@ export function addCharacterHeadDetails(box, round, options) {
   if (long || shoulder) {
     for (const side of [-1, 1]) {
       const lockHeight = height * (long ? 1.1 : 0.7);
-      round(side * width * 0.33, headY - height * (long ? 0.52 : 0.27), -front * 1.3,
+      round(side * width * 0.33, headY - height * (long ? 0.52 : 0.27), -front * 1.12,
         width * 0.12, lockHeight, depth * 0.14, hairLock);
     }
   }
   box(-width * 0.13, headY + height * 0.47, 0, width * 0.4, height * 0.025, depth * 0.4, hairHighlight);
-  round(0, headY - height * 0.08, front * 0.95, width * 0.14, height * 0.18, depth * 0.14, skin);
+  round(0, headY - height * 0.08, front * 0.93, width * 0.11, height * 0.14, depth * 0.12, skin);
   box(0, headY - height * 0.23, front * 0.96, width * 0.18, height * 0.06, 1.2, '#a66f67');
 }
 

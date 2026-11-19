@@ -4,7 +4,7 @@ import { COASTER_PLATFORM, COASTER_RAIL_OFFSET, COASTER_REJOIN_PROGRESS, COASTER
 import { COASTER_ITEM_SCALE, drawCoasterItem } from './coaster-art.js';
 import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
 import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
-import { addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
+import { CHARACTER_RISE, addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 import { createFirCanopy, createFirTrunk, createNeedleTexture, createPlatformFirTrunk } from '../world/fir-tree.js';
 import { createTreeBarkTexture } from '../world/tree-geometry.js';
 import { CANOPY_EDGE_TREES, CANOPY_FOREST_TREES } from './canopy-scenery.js';
@@ -43,6 +43,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
   const torsoGeometry = createCharacterTorsoGeometry();
   const characterHeadGeometry = createCharacterHeadGeometry();
+  const characterFaceGeometry = createCharacterFaceGeometry();
   const characterLimbGeometry = createCharacterLimbGeometry();
   const characterSkinGeometry = createCharacterSkinGeometry();
   const sphereGeometry = new THREE.SphereGeometry(0.5, 12, 8);
@@ -102,22 +103,23 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   }
   function person(color, name, x, z, parent = scene, style = {}) {
     const group = new THREE.Group(); group.position.set(x, 0, z); parent.add(group);
-    round(torsoGeometry, 0, 39, 0, 26, 38, 17, color, group);
+    round(torsoGeometry, 0, 39 + CHARACTER_RISE, 0, 26, 38, 17, color, group);
     addCharacterClothingDetails((px, py, pz, w, h, d, shade) => box(px, py, pz, w, h, d, shade, group),
-      { width: 26, height: 38, depth: 17, centerY: 39, color, kind: style.shorts ? 'player' : style.tattoo ? 'cat' : 'npc', limbGeometry: characterLimbGeometry });
+      { width: 26, height: 38, depth: 17, centerY: 39 + CHARACTER_RISE, color, kind: style.shorts ? 'player' : style.tattoo ? 'cat' : 'npc', limbGeometry: characterLimbGeometry, torsoGeometry });
     addCharacterHeadDetails((px, py, pz, w, h, d, shade) => box(px, py, pz, w, h, d, shade, group),
       (px, py, pz, w, h, d, shade) => round(characterHeadGeometry, px, py, pz, w, h, d, shade, group),
-      { headY: 70, width: 19, height: 20, depth: 19, skin: '#dfb38c', hairLength: style.hairLength });
+      { headY: 70 + CHARACTER_RISE, width: 19, height: 20, depth: 19, skin: '#dfb38c', hairLength: style.hairLength,
+        face: (px, py, pz, w, h, d, shade) => round(characterFaceGeometry, px, py, pz, w, h, d, shade, group) });
     group.userData.legs = style.shorts
-      ? createPlayerLegs(group, box, { offset: 7, shoeColor: '#594336', shortsColor: style.shorts, skin: '#dfb38c', limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry })
-      : createCharacterLegs(group, box, 7, '#594336', style.trousers, characterLimbGeometry);
+      ? createPlayerLegs(group, box, { offset: 7, height: 22 + CHARACTER_RISE, shoeColor: '#594336', shortsColor: style.shorts, skin: '#dfb38c', limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry })
+      : createCharacterLegs(group, box, 7, '#594336', style.trousers, characterLimbGeometry, { height: 22 + CHARACTER_RISE });
     addCharacterBelt((px, py, pz, w, h, d, shade) => box(px, py, pz, w, h, d, shade, group),
-      { width: 26, depth: 17, y: 27, color: style.belt || '#a98e60', buckle: style.buckle || (!style.shorts && !style.tattoo ? '#d3b47a' : undefined), limbGeometry: characterLimbGeometry });
+      { width: 26, depth: 17, y: 27 + CHARACTER_RISE, color: style.belt || '#a98e60', buckle: style.buckle || (!style.shorts && !style.tattoo ? '#d3b47a' : undefined), limbGeometry: characterLimbGeometry });
     group.userData.arms = createCharacterArms(group, box, {
-      offset: 16, shoulderY: 54, length: 28, width: 7, depth: 8, color, skin: '#dfb38c',
+      offset: 16, shoulderY: 54 + CHARACTER_RISE, length: 28, width: 7, depth: 8, color, skin: '#dfb38c',
       shortSleeves: style.shortSleeves, tattoo: style.tattoo, limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry
     });
-    if (name) group.userData.label = label(name, x, 103, z);
+    if (name) group.userData.label = label(name, x, 103 + CHARACTER_RISE, z);
     return group;
   }
   function carriage(withRiders = false) {
@@ -202,7 +204,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       if (bartender) {
         // A raised service floor keeps the bartender visible behind the counter.
         mesh.position.y = 50;
-        mesh.userData.label.position.y = 153;
+        mesh.userData.label.position.y = 153 + CHARACTER_RISE;
       }
       if (object.id === 'amor') platformAmor = mesh;
       if (index === 1 && object.id === 'love') {
@@ -591,7 +593,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     OBJECTS[index].forEach(makeObject);
     player = person(PLAYER_OUTFIT, null, 0, 0, scene, PLAYER_STYLE);
     if (index === 3) zipRide = createZipRide({
-      box, round, cylinder: cylinderGeometry, sphere: sphereGeometry, player, scene, cableHeight: CANOPY_ZIPLINE.cableHeight
+      box, round, cylinder: cylinderGeometry, sphere: sphereGeometry, player, scene, cableHeight: CANOPY_ZIPLINE.cableHeight, bodyRise: CHARACTER_RISE
     });
     const nameLabel = label(characterName, 0, 105, 0);
     player.userData.label = nameLabel;
@@ -613,7 +615,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     if (state) draw(state);
   }
   function positionJoinedHands(position, partner, angle) {
-    joinedHands.position.set((position.x + partner.x) / 2, 27, (position.y + partner.y) / 2);
+    joinedHands.position.set((position.x + partner.x) / 2, 27 + CHARACTER_RISE, (position.y + partner.y) / 2);
     joinedHands.rotation.y = angle;
     joinedHands.scale.x = Math.max(10, Math.abs(PUB_PARTNER_OFFSET) - 32);
   }
@@ -662,7 +664,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         const amorY = state.pubTogether ? partner.y : OBJECTS[2].find((item) => item.id === 'amor').y;
         platformAmor.position.set(amorX, 0, amorY);
         platformAmor.rotation.y = state.pubTogether ? facing : 0;
-        platformAmor.userData.label.position.set(amorX, 103, amorY);
+        platformAmor.userData.label.position.set(amorX, 103 + CHARACTER_RISE, amorY);
         platformAmor.userData.legs.forEach((leg, i) => { leg.rotation.x = state.pubTogether ? player.userData.legs[i].rotation.x : 0; });
         swingCharacterArms(platformAmor.userData.arms, state.pubTogether ? swing : 0, state.pubTogether ? catHeldArm : -1);
         joinedHands.visible = Boolean(state.pubTogether);
@@ -679,7 +681,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         pubLove.position.set(loveX, 0, loveY);
         pubLove.rotation.y = together ? facing : 0;
         pubLove.userData.label.visible = !together;
-        pubLove.userData.label.position.set(loveX, 103, loveY);
+        pubLove.userData.label.position.set(loveX, 103 + CHARACTER_RISE, loveY);
         pubLove.userData.legs.forEach((leg, i) => { leg.rotation.x = together ? player.userData.legs[i].rotation.x : 0; });
         swingCharacterArms(pubLove.userData.arms, together ? swing : 0, together ? catHeldArm : -1);
         joinedHands.visible = together;
@@ -687,7 +689,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         pubExitMarker.visible = state.pubEnding === 'ready';
       }
       player.userData.label.position.set(state.player.x,
-        state.player.height + (index === 3 ? (state.zipline ? 155 : 185) : state.pubTogether ? 145 : 105), state.player.y);
+        state.player.height + (index === 3 ? (state.zipline ? 155 : 185) : state.pubTogether ? 145 : 105) + CHARACTER_RISE, state.player.y);
       if (index === 1) camera.position.set(targetX + PUB_CAMERA_OFFSET.x, PUB_CAMERA_OFFSET.y, targetY + PUB_CAMERA_OFFSET.z);
       else {
         const focusHeight = index === 3 && state.zipline ? state.player.height + 50 : 0;
@@ -1009,7 +1011,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     return { x: width / 2 + (object.x - targetXForClick()) * scale, y: height / 2 + (object.y - 350) * scale - 30 };
   }
   return { draw, resize, objectPosition, dispose() {
-    canvas.removeEventListener('click', click); boxGeometry.dispose(); torsoGeometry.dispose(); characterHeadGeometry.dispose(); characterLimbGeometry.dispose(); characterSkinGeometry.dispose(); sphereGeometry.dispose(); cylinderGeometry.dispose(); coneGeometry.dispose(); triangleGeometry.dispose(); materials.forEach((m) => m.dispose());
+    canvas.removeEventListener('click', click); boxGeometry.dispose(); torsoGeometry.dispose(); characterHeadGeometry.dispose(); characterFaceGeometry.dispose(); characterLimbGeometry.dispose(); characterSkinGeometry.dispose(); sphereGeometry.dispose(); cylinderGeometry.dispose(); coneGeometry.dispose(); triangleGeometry.dispose(); materials.forEach((m) => m.dispose());
     sceneryGeometries.forEach((geometry) => geometry.dispose());
     canopyRopes?.dispose();
     textures.forEach((t) => t.dispose()); renderer?.dispose();

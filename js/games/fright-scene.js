@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CELL, FRIGHT_MAZE, FRIGHT_OBJECTS, FRIGHT_OBJECT_SCALE, FRIGHT_SCENERY, FRIGHT_THEMES, SIZE, frightAreaAt, frightExitReady, frightRandom, frightTeleportPosition } from './fright-logic.js';
 import { PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
-import { addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
+import { CHARACTER_RISE, addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 import { createPlayerLegs } from './character-legs.js';
 import { FRIGHT_PALETTES, drawFrightTileDetail, frightWallSegments, paintFrightConsole, paintFrightDocument, paintFrightFloor, paintFrightWall } from './fright-scenery.js';
 import { createFrightMarker, createFrightMarkerGeometries, createFrightMaterial, frightMarkerVisible } from './fright-markers.js';
@@ -22,6 +22,7 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
   const { box: geometry, cylinder: cylinderGeometry, cone: coneGeometry, sphere: sphereGeometry, ring: ringGeometry } = markerGeometries;
   const torsoGeometry = createCharacterTorsoGeometry();
   const characterHeadGeometry = createCharacterHeadGeometry();
+  const characterFaceGeometry = createCharacterFaceGeometry();
   const characterLimbGeometry = createCharacterLimbGeometry();
   const characterSkinGeometry = createCharacterSkinGeometry();
   const materials = new Map(), markers = new Map(), textures = [], animations = [], lights = [];
@@ -597,25 +598,29 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
       return mesh;
     };
     const torso = new THREE.Mesh(torsoGeometry, material(PLAYER_OUTFIT));
-    torso.position.set(0, 42, 0); torso.scale.set(25, 36, 17); player.add(torso);
+    torso.position.set(0, 42 + CHARACTER_RISE, 0); torso.scale.set(25, 36, 17); player.add(torso);
     addCharacterClothingDetails((x, y, z, w, h, d, color) => person(w, h, d, color, x, y, z),
-      { width: 25, height: 36, depth: 17, centerY: 42, color: PLAYER_OUTFIT, kind: 'player', limbGeometry: characterLimbGeometry });
+      { width: 25, height: 36, depth: 17, centerY: 42 + CHARACTER_RISE, color: PLAYER_OUTFIT, kind: 'player', limbGeometry: characterLimbGeometry, torsoGeometry });
     addCharacterBelt((x, y, z, w, h, d, color) => person(w, h, d, color, x, y, z),
-      { width: 25, depth: 17, y: 26, color: PLAYER_STYLE.belt, limbGeometry: characterLimbGeometry });
+      { width: 25, depth: 17, y: 26 + CHARACTER_RISE, color: PLAYER_STYLE.belt, limbGeometry: characterLimbGeometry });
     addCharacterHeadDetails((x, y, z, w, h, d, color) => person(w, h, d, color, x, y, z),
       (x, y, z, w, h, d, color) => {
         const part = new THREE.Mesh(characterHeadGeometry, material(color));
         part.position.set(x, y, z); part.scale.set(w, h, d); player.add(part);
-      }, { headY: 70, width: 18, height: 19, depth: 18, skin: '#dfb38c', longHair: true });
+      }, { headY: 70 + CHARACTER_RISE, width: 18, height: 19, depth: 18, skin: '#dfb38c', longHair: true,
+        face: (x, y, z, w, h, d, color) => {
+          const part = new THREE.Mesh(characterFaceGeometry, material(color));
+          part.position.set(x, y, z); part.scale.set(w, h, d); player.add(part);
+        } });
     const bodyBox = (x, y, z, w, h, d, color, parent) => {
       const mesh = new THREE.Mesh(geometry, material(color));
       mesh.scale.set(w, h, d); mesh.position.set(x, y, z); parent.add(mesh);
       return mesh;
     };
-    player.userData.legs = createPlayerLegs(player, bodyBox, { offset: 7, height: 24,
+    player.userData.legs = createPlayerLegs(player, bodyBox, { offset: 7, height: 24 + CHARACTER_RISE,
       shoeColor: '#5a4434', shortsColor: PLAYER_STYLE.shorts, skin: '#dfb38c', limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry });
     player.userData.arms = createCharacterArms(player, bodyBox, {
-      offset: 15, shoulderY: 57, length: 28, width: 7, depth: 8, color: PLAYER_OUTFIT, skin: '#dfb38c',
+      offset: 15, shoulderY: 57 + CHARACTER_RISE, length: 28, width: 7, depth: 8, color: PLAYER_OUTFIT, skin: '#dfb38c',
       limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry
     });
     scene.add(player);
@@ -690,7 +695,7 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
       player.userData.legs[1].rotation.x = -stride;
       swingCharacterArms(player.userData.arms, stride);
       previousPosition = { ...state.player };
-      playerLabel.position.set(state.player.x, 108, state.player.y);
+      playerLabel.position.set(state.player.x, 108 + CHARACTER_RISE, state.player.y);
       teleportCircle.visible = showTeleport;
       if (teleportPosition) teleportCircle.position.set(teleportPosition.x, 0, teleportPosition.y);
       camera.position.set(state.player.x + 400, 900, state.player.y + 600);
@@ -780,7 +785,7 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
     dispose() {
       canvas.removeEventListener('click', handleClick);
       cancelAnimationFrame(animationFrame);
-      [geometry, torsoGeometry, characterHeadGeometry, characterLimbGeometry, characterSkinGeometry, cylinderGeometry, coneGeometry, sphereGeometry, ringGeometry].forEach((entry) => entry.dispose()); materials.forEach((entry) => entry.dispose()); textures.forEach((entry) => entry.dispose()); renderer?.dispose();
+      [geometry, torsoGeometry, characterHeadGeometry, characterFaceGeometry, characterLimbGeometry, characterSkinGeometry, cylinderGeometry, coneGeometry, sphereGeometry, ringGeometry].forEach((entry) => entry.dispose()); materials.forEach((entry) => entry.dispose()); textures.forEach((entry) => entry.dispose()); renderer?.dispose();
     }
   };
 }

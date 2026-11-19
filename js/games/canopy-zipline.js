@@ -27,8 +27,9 @@ export function addZipCable({ round, cylinder, parent }, start, end) {
   return cable;
 }
 
-export function createZipRide({ box, round, cylinder, sphere, player, scene, cableHeight }) {
+export function createZipRide({ box, round, cylinder, sphere, player, scene, cableHeight, bodyRise = 0 }) {
   const harness = new THREE.Group();
+  harness.position.y = bodyRise;
   player.add(harness);
   const strap = (start, end, width, color = STRAP) => {
     const from = new THREE.Vector3(...start), to = new THREE.Vector3(...end);
@@ -72,13 +73,13 @@ export function setZipRiderPose(player, ride, active, anchor, direction) {
   ride.trolley.visible = active;
   ride.clip.visible = !active;
   for (const [index, arm] of player.userData.arms.entries()) {
-    arm.rotation.z = active ? (index === 0 ? 1 : -1) * (Math.PI - 0.48) : 0;
+    arm.rotation.z = active ? (index === 0 ? 1 : -1) * (Math.PI - 0.48) : arm.userData.restRotation ?? 0;
     if (active) arm.rotation.x = 0.5;
   }
   const target = new THREE.Vector3(anchor.x, anchor.height, anchor.y);
   ride.clip.position.copy(target);
   player.updateWorldMatrix(true, false);
-  const localTarget = player.worldToLocal(target.clone()), from = new THREE.Vector3(0, 98, 13);
+  const localTarget = ride.harness.worldToLocal(target.clone()), from = new THREE.Vector3(0, 98, 13);
   const tetherDirection = localTarget.clone().sub(from);
   ride.tether.position.copy(from).add(localTarget).multiplyScalar(0.5);
   ride.tether.scale.y = tetherDirection.length();

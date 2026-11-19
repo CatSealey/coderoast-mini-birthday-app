@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 
+export const CHARACTER_RISE = 9;
+
 export function createCharacterHeadGeometry() {
   return new THREE.IcosahedronGeometry(0.5, 1);
 }
@@ -7,22 +9,24 @@ export function createCharacterHeadGeometry() {
 function facetedBodyGeometry(profile) {
   const positions = [];
   const ring = ({ y, width, depth }) => [
-    [-width * 0.62, y, depth], [width * 0.62, y, depth],
-    [width, y, depth * 0.56], [width, y, -depth * 0.56],
-    [width * 0.62, y, -depth], [-width * 0.62, y, -depth],
-    [-width, y, -depth * 0.56], [-width, y, depth * 0.56]
+    [-width * 0.52, y, depth], [width * 0.52, y, depth],
+    [width * 0.82, y, depth * 0.84], [width, y, depth * 0.56],
+    [width, y, -depth * 0.56], [width * 0.82, y, -depth * 0.84],
+    [width * 0.52, y, -depth], [-width * 0.52, y, -depth],
+    [-width * 0.82, y, -depth * 0.84], [-width, y, -depth * 0.56],
+    [-width, y, depth * 0.56], [-width * 0.82, y, depth * 0.84]
   ];
   const rings = profile.map(ring);
   const triangle = (a, b, c) => positions.push(...a, ...b, ...c);
   for (let layer = 0; layer < rings.length - 1; layer += 1) {
-    for (let i = 0; i < 8; i += 1) {
-      const next = (i + 1) % 8;
+    for (let i = 0; i < rings[layer].length; i += 1) {
+      const next = (i + 1) % rings[layer].length;
       triangle(rings[layer][i], rings[layer][next], rings[layer + 1][next]);
       triangle(rings[layer][i], rings[layer + 1][next], rings[layer + 1][i]);
     }
   }
-  for (let i = 0; i < 8; i += 1) {
-    const next = (i + 1) % 8;
+  for (let i = 0; i < rings[0].length; i += 1) {
+    const next = (i + 1) % rings[0].length;
     triangle([0, profile[0].y, 0], rings[0][next], rings[0][i]);
     triangle([0, profile.at(-1).y, 0], rings.at(-1)[i], rings.at(-1)[next]);
   }
@@ -32,12 +36,24 @@ function facetedBodyGeometry(profile) {
   return geometry;
 }
 
+export function createCharacterFaceGeometry() {
+  return facetedBodyGeometry([
+    { y: -0.5, width: 0.2, depth: 0.24 },
+    { y: -0.38, width: 0.34, depth: 0.38 },
+    { y: -0.12, width: 0.44, depth: 0.46 },
+    { y: 0.22, width: 0.45, depth: 0.46 },
+    { y: 0.4, width: 0.37, depth: 0.4 },
+    { y: 0.5, width: 0.25, depth: 0.28 }
+  ]);
+}
+
 export function createCharacterLimbGeometry() {
   return facetedBodyGeometry([
     { y: -0.5, width: 0.36, depth: 0.4 },
     { y: -0.22, width: 0.4, depth: 0.44 },
-    { y: 0.22, width: 0.48, depth: 0.48 },
-    { y: 0.5, width: 0.42, depth: 0.43 }
+    { y: 0.08, width: 0.43, depth: 0.46 },
+    { y: 0.3, width: 0.47, depth: 0.46 },
+    { y: 0.5, width: 0.3, depth: 0.34 }
   ]);
 }
 
@@ -90,7 +106,7 @@ export function addCharacterBelt(box, { width, depth, y, color, buckle, limbGeom
   }
 }
 
-export function addCharacterClothingDetails(box, { width, height, depth, centerY, color, kind = 'npc', variant = 0, limbGeometry }) {
+export function addCharacterClothingDetails(box, { width, height, depth, centerY, color, kind = 'npc', variant = 0, limbGeometry, torsoGeometry }) {
   const surface = (offset) => torsoFront(offset, depth) + 0.3;
   const front = surface(0);
   const trim = shade(color, kind === 'npc' ? 0.13 : 0.07);
@@ -98,21 +114,28 @@ export function addCharacterClothingDetails(box, { width, height, depth, centerY
   const leather = kind === 'npc' ? '#70513a' : '#181b1c';
   const metal = kind === 'npc' ? '#d3b47a' : '#969b96';
 
+  const innerColor = kind === 'npc'
+    ? ['#d3c5a6', '#a7b8ab', '#c4b39b'][variant % 3]
+    : shade(color, kind === 'player' ? 0.045 : 0.025);
+  const innerWidth = width * 0.82, innerHeight = height * 0.9, innerDepth = depth * 1.08;
+  const inner = box(0, centerY + height * 0.015, depth * 0.07, innerWidth, innerHeight, innerDepth, innerColor);
+  shapeCharacterLimb(inner, torsoGeometry, innerWidth, innerHeight, innerDepth);
+
   for (const side of [-1, 1]) {
-    const collar = box(side * width * 0.12, centerY + height * 0.32, surface(0.32) + 0.25,
-      width * 0.2, height * 0.07, 0.7, trim);
-    collar.rotation.z = side * 0.6;
+    const collarWidth = width * 0.16, collarHeight = height * 0.16;
+    const collar = box(side * width * 0.16, centerY + height * 0.28, surface(0.28) + 0.5,
+      collarWidth, collarHeight, 1.5, trim);
+    shapeCharacterLimb(collar, limbGeometry, collarWidth, collarHeight, 1.5);
+    collar.rotation.z = side * 0.48;
     box(side * width * 0.19, centerY - height * 0.18, surface(-0.18) + 0.2,
       width * 0.15, height * 0.09, 0.5, shadow);
     box(side * width * 0.19, centerY - height * 0.13, surface(-0.13) + 0.4,
       width * 0.15, height * 0.018, 0.5, trim);
     box(side * width * 0.19, centerY - height * 0.18, surface(-0.18) + 0.55,
       width * 0.035, height * 0.025, 0.3, metal);
-    for (const offset of [-0.08, 0.06, 0.2]) {
-      const fold = box(side * width * 0.24, centerY + height * offset, surface(offset),
-        width * 0.1, height * 0.025, 0.35, trim);
-      fold.rotation.z = side * 0.18;
-    }
+    const seam = box(side * width * 0.28, centerY + height * 0.01, front + 0.3,
+      width * 0.035, height * 0.38, 0.45, shadow);
+    seam.rotation.z = side * 0.1;
   }
   box(0, centerY, front + 0.2, width * 0.02, height * 0.36, 0.5, trim);
   if (kind === 'npc') {
@@ -137,13 +160,23 @@ export function addCharacterClothingDetails(box, { width, height, depth, centerY
       box(side * width * 0.24, centerY - height * 0.6, front * 0.65 + 0.8,
         width * 0.19, height * 0.025, 0.5, trim);
     }
-    const apronWidth = width * 0.27, apronHeight = height * 0.32;
-    const apronColor = variant % 3 === 0 ? '#b7a788' : variant % 3 === 1 ? shade(color, -0.12) : '#a79270';
-    const apron = box(0, centerY - height * 0.52, front * 0.69, apronWidth, apronHeight, 1.1, apronColor);
-    shapeCharacterLimb(apron, limbGeometry, apronWidth, apronHeight, 1.1);
-    box(0, centerY - height * 0.63, front * 0.69 + 0.7,
-      apronWidth * 0.62, height * 0.025, 0.35, trim);
+    if (variant % 3 !== 1) {
+      const apronWidth = width * (variant % 3 === 0 ? 0.42 : 0.34), apronHeight = height * 0.42;
+      const apronColor = variant % 3 === 0 ? '#b7a788' : '#a79270';
+      const apronX = variant % 3 === 0 ? 0 : width * 0.07;
+      const apron = box(apronX, centerY - height * 0.54, front * 0.69, apronWidth, apronHeight, 1.1, apronColor);
+      shapeCharacterLimb(apron, limbGeometry, apronWidth, apronHeight, 1.1);
+      box(apronX, centerY - height * 0.69, front * 0.69 + 0.7,
+        apronWidth * 0.62, height * 0.025, 0.35, trim);
+    }
     if (variant % 3 === 1) {
+      for (const side of [-1, 1]) {
+        const coatWidth = width * 0.27, coatHeight = height * 0.4, coatDepth = depth * 0.83;
+        const coat = box(side * width * 0.27, centerY - height * 0.43, 0,
+          coatWidth, coatHeight, coatDepth, shadow);
+        shapeCharacterLimb(coat, limbGeometry, coatWidth, coatHeight, coatDepth);
+        coat.rotation.z = side * 0.08;
+      }
       box(0, centerY + height * 0.28, -front * 0.85, width * 0.82, height * 0.18, 1.2, shadow);
       box(0, centerY + height * 0.24, front + 0.8, width * 0.18, height * 0.08, 1.2, metal);
     } else if (variant % 3 === 2) {
@@ -192,12 +225,14 @@ export function createCharacterArms(parent, box, { offset, shoulderY, length, wi
   return [-offset, offset].map((x) => {
     const arm = new THREE.Group();
     arm.position.set(Math.sign(x) * characterArmOffset(offset, width), shoulderY, 0);
+    arm.userData.restRotation = Math.sign(x) * 0.08;
+    arm.rotation.z = arm.userData.restRotation;
     parent.add(arm);
     const sleeveLength = shortSleeves ? length / 2 : length;
     const sleeve = box(0, -sleeveLength / 2, 0, width, sleeveLength, depth, color, arm);
     shapeCharacterLimb(sleeve, limbGeometry, width, sleeveLength, depth);
     const shoulderWidth = width * 1.2, shoulderHeight = sleeveLength * 0.28, shoulderDepth = depth * 1.02;
-    const shoulder = box(x < 0 ? width * 0.42 : -width * 0.42, -sleeveLength * 0.14, 0,
+    const shoulder = box(x < 0 ? width * 0.51 : -width * 0.51, -sleeveLength * 0.14, 0,
       shoulderWidth, shoulderHeight, shoulderDepth, color, arm);
     shapeCharacterLimb(shoulder, limbGeometry, shoulderWidth, shoulderHeight, shoulderDepth);
     const seam = shade(color, 0.09);

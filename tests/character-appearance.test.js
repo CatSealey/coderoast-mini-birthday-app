@@ -4,7 +4,7 @@ import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, PLAYER_OUTFIT, PLAYER_STYLE, add
 import { newHouseState } from '../js/games/abigail-house.js';
 import { createAbigailScene } from '../js/games/abigail-scene.js';
 import { createCharacterLegs, createPlayerLegs } from '../js/games/character-legs.js';
-import { TATTOO_ACCENT, TATTOO_INK, addCharacterBelt, addCharacterClothingDetails, addJapaneseSleeve, createCharacterArms, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../js/character-body.js';
+import { CHARACTER_RISE, TATTOO_ACCENT, TATTOO_INK, addCharacterBelt, addCharacterClothingDetails, addJapaneseSleeve, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../js/character-body.js';
 import * as THREE from 'three';
 
 test('Abigail walking stride follows distance instead of frame rate and rests when stopped', () => {
@@ -340,6 +340,46 @@ test('faceted torso narrows at the waist and slopes at the shoulders', () => {
   const normals = geometry.getAttribute('normal');
   assert.ok(Array.from({ length: normals.count }, (_, i) => normals.getY(i)).some((y) => Math.abs(y) > 0.1 && Math.abs(y) < 0.95));
   geometry.dispose();
+});
+
+test('face geometry has a shaped jaw and layered clothing follows the torso', () => {
+  const face = createCharacterFaceGeometry(), positions = face.getAttribute('position');
+  const halfWidthAt = (height) => {
+    let result = 0;
+    for (let i = 0; i < positions.count; i += 1) {
+      if (Math.abs(positions.getY(i) - height) < 0.0001) result = Math.max(result, Math.abs(positions.getX(i)));
+    }
+    return result;
+  };
+  assert.ok(halfWidthAt(-0.5) < halfWidthAt(0.22) * 0.5);
+  assert.ok(halfWidthAt(-0.38) < halfWidthAt(-0.12));
+  assert.ok(positions.count > 200);
+
+  const parent = new THREE.Group(), cube = new THREE.BoxGeometry(), torso = createCharacterTorsoGeometry();
+  const limb = createCharacterLimbGeometry(), material = new THREE.MeshBasicMaterial();
+  const box = (x, y, z, width, height, depth, color) => {
+    const part = new THREE.Mesh(cube, material);
+    part.position.set(x, y, z); part.scale.set(width, height, depth); part.userData.color = color;
+    parent.add(part); return part;
+  };
+  addCharacterClothingDetails(box, { width: 26, height: 38, depth: 17, centerY: 39 + CHARACTER_RISE,
+    color: '#789164', kind: 'npc', limbGeometry: limb, torsoGeometry: torso });
+  const shirt = parent.children.find((part) => part.userData.color === '#d3c5a6');
+  assert.equal(shirt.geometry, torso);
+  assert.ok(shirt.scale.x < 26 && shirt.scale.y < 38 && shirt.scale.z > 17);
+  assert.ok(shirt.position.z > 0);
+  const body = new THREE.Mesh(torso, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+  body.position.y = 39 + CHARACTER_RISE; body.scale.set(26, 38, 17); parent.add(body);
+  material.side = THREE.DoubleSide;
+  parent.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster(new THREE.Vector3(0, body.position.y, -100), new THREE.Vector3(0, 0, 1));
+  const torsoHits = ray.intersectObject(body).map((hit) => hit.point.z);
+  const shirtHits = ray.intersectObject(shirt).map((hit) => hit.point.z);
+  assert.ok(Math.min(...shirtHits) > Math.min(...torsoHits));
+  assert.ok(Math.max(...shirtHits) > Math.max(...torsoHits));
+  const collars = parent.children.filter((part) => part.geometry === limb && part.position.y > 39 + CHARACTER_RISE);
+  assert.ok(collars.length >= 2 && collars.some((part) => part.rotation.z > 0) && collars.some((part) => part.rotation.z < 0));
+  face.dispose(); cube.dispose(); torso.dispose(); limb.dispose(); material.dispose(); body.material.dispose();
 });
 
 test('belts follow the narrowed torso and tattooed skin stays faceted', () => {

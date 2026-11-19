@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createCharacterArms, swingCharacterArms } from '../js/character-body.js';
+import { CHARACTER_RISE, createCharacterArms, swingCharacterArms } from '../js/character-body.js';
 import { CANOPY_CROSSINGS, CANOPY_PLATFORMS, CANOPY_ZIPLINE, LEGACY_CANOPY_ZIPLINE, canopyZipPosition, interactAdventure, newAdventureState, restoreAdventureState } from '../js/games/adventure-logic.js';
 import { CANOPY_SAFETY_WIRE, ZIP_CABLE_SCREEN_OFFSET, addZipCable, canopySafetyAnchor, createZipRide, drawZipCable, drawZipHarness, drawZipTether, setZipRiderPose } from '../js/games/canopy-zipline.js';
 
@@ -66,7 +66,7 @@ test('zip rider grips the tether and returns to a normal walking pose after the 
   assert.equal(ride.trolley.visible, false);
   assert.equal(ride.clip.visible, true);
   assert.ok(ride.tether.localToWorld(new THREE.Vector3(0, 0.5, 0)).distanceTo(new THREE.Vector3(anchor.x, anchor.height, anchor.y)) < 1e-8);
-  assert.deepEqual(player.userData.arms.map((arm) => arm.rotation.z), [0, 0]);
+  assert.deepEqual(player.userData.arms.map((arm) => arm.rotation.z), [-0.08, 0.08]);
   assert.deepEqual(player.userData.arms.map((arm) => arm.rotation.x), [-0.3, 0.3]);
   for (const platform of CANOPY_PLATFORMS) {
     for (const z of [platform.top + 20, platform.bottom - 20]) {
@@ -80,6 +80,34 @@ test('zip rider grips the tether and returns to a normal walking pose after the 
         assert.ok(ride.tether.localToWorld(new THREE.Vector3(0, 0.5, 0)).distanceTo(expected) < 1e-8);
         assert.ok(ride.clip.position.distanceTo(expected) < 1e-8);
       }
+    }
+  }
+});
+
+test('raised character harness and tether stay attached during and after a zip-line ride', () => {
+  const scene = new THREE.Group(), player = new THREE.Group();
+  scene.add(player);
+  player.userData.arms = createCharacterArms(player, box, {
+    offset: 16, shoulderY: 54 + CHARACTER_RISE, length: 28, width: 7, depth: 8, color: '#263d30', skin: '#dfb38c'
+  });
+  const ride = createZipRide({ box, round, cylinder: {}, sphere: {}, player, scene,
+    cableHeight: CANOPY_ZIPLINE.cableHeight, bodyRise: CHARACTER_RISE });
+  assert.equal(ride.harness.position.y, CHARACTER_RISE);
+  player.position.set(200, 130, 350);
+  player.rotation.y = Math.PI / 3;
+  for (const active of [true, false]) {
+    const anchor = { x: 200, y: 350, height: 130 + CANOPY_ZIPLINE.cableHeight };
+    setZipRiderPose(player, ride, active, anchor, new THREE.Vector3(1, -0.2, 0));
+    scene.updateMatrixWorld(true);
+    assert.ok(ride.tether.localToWorld(new THREE.Vector3(0, 0.5, 0))
+      .distanceTo(new THREE.Vector3(anchor.x, anchor.height, anchor.y)) < 1e-8);
+    if (active) {
+      for (const arm of player.userData.arms) {
+        const hand = player.worldToLocal(arm.localToWorld(new THREE.Vector3(0, -30, 0)));
+        assert.ok(Math.abs(hand.x) < 3 && hand.y > 75 + CHARACTER_RISE && hand.y < 80 + CHARACTER_RISE);
+      }
+    } else {
+      assert.deepEqual(player.userData.arms.map((arm) => arm.rotation.z), [-0.08, 0.08]);
     }
   }
 });
