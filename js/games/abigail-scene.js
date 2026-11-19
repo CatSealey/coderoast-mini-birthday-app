@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { HOUSE_BOUNDS, HOUSE_OBJECTS, HOUSE_WALLS } from './abigail-house.js';
 import { PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
-import { addCharacterClothingDetails, createCharacterArms, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
+import { addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
 
 export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer') {
@@ -109,11 +109,12 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     shadow(group, 66, 45);
     if (!geometries.has('character-torso')) geometries.set('character-torso', createCharacterTorsoGeometry());
     if (!geometries.has('character-limb')) geometries.set('character-limb', createCharacterLimbGeometry());
+    if (!geometries.has('character-skin')) geometries.set('character-skin', createCharacterSkinGeometry());
     if (!materials.has(color)) materials.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.9 }));
     const torso = new THREE.Mesh(geometries.get('character-torso'), materials.get(color));
     torso.position.set(0, 40, 0); torso.scale.set(25, 38, 15); group.add(torso);
     addCharacterClothingDetails((px, py, pz, w, h, d, shade) => box(group, w, h, d, shade, px, py, pz),
-      { width: 25, height: 38, depth: 15, centerY: 40, color, kind: playerStyle ? 'player' : 'npc' });
+      { width: 25, height: 38, depth: 15, centerY: 40, color, kind: playerStyle ? 'player' : 'npc', limbGeometry: geometries.get('character-limb') });
     if (!geometries.has('character-head')) geometries.set('character-head', createCharacterHeadGeometry());
     addCharacterHeadDetails((px, py, pz, w, h, d, shade) => box(group, w, h, d, shade, px, py, pz),
       (px, py, pz, w, h, d, shade) => {
@@ -122,18 +123,19 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
         part.position.set(px, py, pz); part.scale.set(w, h, d); group.add(part);
       }, { headY: 68, width: 17, height: 18, depth: 17, skin: '#dfb38c', longHair });
     if (!longHair) box(group, 18, 30, 3, '#725443', 0, 40, -8);
-    box(group, 25, 4, 17, belt, 0, 25, 0);
+    addCharacterBelt((px, py, pz, w, h, d, shade) => box(group, w, h, d, shade, px, py, pz),
+      { width: 25, depth: 15, y: 25, color: belt, buckle: playerStyle ? undefined : '#d3b47a', limbGeometry: geometries.get('character-limb') });
     const bodyBox = (px, py, pz, w, h, d, shade, owner) => box(owner, w, h, d, shade, px, py, pz);
     if (playerStyle) {
       group.userData.legs = createPlayerLegs(group, bodyBox, { offset: 7, height: 21,
-        shoeColor: '#5a4434', shortsColor: playerStyle.shorts, skin: '#dfb38c', limbGeometry: geometries.get('character-limb') });
+        shoeColor: '#5a4434', shortsColor: playerStyle.shorts, skin: '#dfb38c', limbGeometry: geometries.get('character-limb'), skinGeometry: geometries.get('character-skin') });
     } else {
       group.userData.legs = createCharacterLegs(group, bodyBox, 7, '#5a4434', '#342f2b',
         geometries.get('character-limb'), { height: 21 });
     }
     group.userData.arms = createCharacterArms(group, bodyBox, {
       offset: 15.5, shoulderY: 57, length: 30, width: 7, depth: 8, color, skin: '#dfb38c',
-      limbGeometry: geometries.get('character-limb')
+      limbGeometry: geometries.get('character-limb'), skinGeometry: geometries.get('character-skin')
     });
     parent.add(group);
     return group;

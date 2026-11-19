@@ -287,7 +287,8 @@ test('fallback exit shows the pair side by side with a hand link', () => {
   const previousDocument = globalThis.document, previousWindow = globalThis.window;
   const labels = [], lines = [], characters = [];
   const ctx = {
-    setTransform() { }, fillRect() { }, beginPath() { }, arc() { }, ellipse(x, y) { characters.push({ x, y }); }, fill() { },
+    setTransform() { }, fillRect() { }, beginPath() { }, arc() { },
+    ellipse(x, y, radiusX) { if (radiusX === 8) characters.push({ x, y }); }, fill() { },
     fillText(text, x, y) { labels.push({ text, x, y }); },
     moveTo(x, y) { lines.push({ x, y }); }, lineTo(x, y) { lines.push({ x, y }); }, stroke() { }
   };

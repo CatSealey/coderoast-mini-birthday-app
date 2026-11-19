@@ -7,7 +7,7 @@ import { BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_
 import { createBirthdayDogModel, drawBirthdayDog } from './birthday-dog.js';
 import { addHallBookcase, addHallPedestal, addHallPlanter, addHallPresent, addHallSconce, addHallTable, createHallBannerGeometry, createHallExitMatGeometry, createHallPedestalGeometry, drawHallDisplay, drawHallFurniture, drawHallPresent, HALL_BANNER_HEIGHT, HALL_BOOKCASE_WIDTH, HALL_BOOKCASE_X, HALL_BOOKCASE_Z, HALL_PEDESTAL_DEPTH, HALL_PEDESTAL_WIDTH, HALL_PILLAR_X, HALL_RUG, HALL_SCONCE_X, HALL_PLANTER_X, HALL_TABLE_X, HALL_TROPHY_ACCENTS, paintHallBanner, paintHallExitMat, paintHallFloor, paintHallRug, paintHallStone } from './castle-interior-art.js';
 import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker } from '../character-appearance.js';
-import { addCharacterClothingDetails, addJapaneseSleeve, createCharacterArms, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterTorsoGeometry, shapeCharacterLimb, swingCharacterArms } from '../character-body.js';
+import { addCharacterBelt, addCharacterClothingDetails, addJapaneseSleeve, characterArmOffset, createCharacterArms, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, shapeCharacterLimb, swingCharacterArms } from '../character-body.js';
 
 const slots = [
   { x: 230, z: 120 }, { x: 375, z: 120 }, { x: 520, z: 120 },
@@ -76,6 +76,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   const torsoGeometry = createCharacterTorsoGeometry();
   const characterHeadGeometry = createCharacterHeadGeometry();
   const characterLimbGeometry = createCharacterLimbGeometry();
+  const characterSkinGeometry = createCharacterSkinGeometry();
   const cylinder = new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
   const orb = new THREE.SphereGeometry(0.5, 16, 10);
   const cone = new THREE.ConeGeometry(0.5, 1, 8);
@@ -218,34 +219,37 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   addShadow(person, 0, 2, 65, 45);
   round(torsoGeometry, 0, 37, 0, 24, 36, 17, PLAYER_OUTFIT, person);
   addCharacterClothingDetails((x, y, z, w, h, d, color) => box(x, y, z, w, h, d, color, person),
-    { width: 24, height: 36, depth: 17, centerY: 37, color: PLAYER_OUTFIT, kind: 'player' });
-  box(0, 24, 1, 25, 4, 19, PLAYER_STYLE.belt, person);
+    { width: 24, height: 36, depth: 17, centerY: 37, color: PLAYER_OUTFIT, kind: 'player', limbGeometry: characterLimbGeometry });
+  addCharacterBelt((x, y, z, w, h, d, color) => box(x, y, z, w, h, d, color, person),
+    { width: 24, depth: 17, y: 24, color: PLAYER_STYLE.belt, limbGeometry: characterLimbGeometry });
   addCharacterHeadDetails((x, y, z, w, h, d, shade) => box(x, y, z, w, h, d, shade, person),
     (x, y, z, w, h, d, shade) => round(characterHeadGeometry, x, y, z, w, h, d, shade, person),
     { headY: 66, width: 18, height: 18, depth: 18, skin: '#dfb38c', hairLength: PLAYER_STYLE.hairLength });
-  const arms = createCharacterArms(person, box, { offset: 15, shoulderY: 54, length: 28, width: 7, depth: 8, color: PLAYER_OUTFIT, skin: '#dfb38c', limbGeometry: characterLimbGeometry });
-  const legs = createPlayerLegs(person, box, { offset: 6, shoeColor: '#5a4434', shortsColor: PLAYER_STYLE.shorts, skin: '#dfb38c', limbGeometry: characterLimbGeometry });
+  const arms = createCharacterArms(person, box, { offset: 15, shoulderY: 54, length: 28, width: 7, depth: 8, color: PLAYER_OUTFIT, skin: '#dfb38c', limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry });
+  const legs = createPlayerLegs(person, box, { offset: 6, shoeColor: '#5a4434', shortsColor: PLAYER_STYLE.shorts, skin: '#dfb38c', limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry });
   const love = new THREE.Group(); scene.add(love);
   addShadow(love, 0, 2, 65, 45);
   round(torsoGeometry, 0, 37, 0, 24, 36, 17, CAT_OUTFIT, love);
   addCharacterClothingDetails((x, y, z, w, h, d, color) => box(x, y, z, w, h, d, color, love),
-    { width: 24, height: 36, depth: 17, centerY: 37, color: CAT_OUTFIT, kind: 'cat' });
-  box(0, 24, 1, 25, 4, 19, CAT_STYLE.belt, love);
-  box(0, 24, 11, 5, 3, 2, CAT_STYLE.buckle, love);
+    { width: 24, height: 36, depth: 17, centerY: 37, color: CAT_OUTFIT, kind: 'cat', limbGeometry: characterLimbGeometry });
+  addCharacterBelt((x, y, z, w, h, d, color) => box(x, y, z, w, h, d, color, love),
+    { width: 24, depth: 17, y: 24, color: CAT_STYLE.belt, buckle: CAT_STYLE.buckle, limbGeometry: characterLimbGeometry });
   addCharacterHeadDetails((x, y, z, w, h, d, shade) => box(x, y, z, w, h, d, shade, love),
     (x, y, z, w, h, d, shade) => round(characterHeadGeometry, x, y, z, w, h, d, shade, love),
     { headY: 66, width: 18, height: 18, depth: 18, skin: '#dfb38c', hairLength: CAT_STYLE.hairLength });
-  for (const x of [-15, 15]) {
+  const posedArmOffset = characterArmOffset(15, 7);
+  for (const x of [-posedArmOffset, posedArmOffset]) {
     const sleeve = box(x, 45, 4, 7, 14, 8, CAT_OUTFIT, love);
     shapeCharacterLimb(sleeve, characterLimbGeometry, 7, 14, 8);
-    box(x, 35, 4, 7, 7, 8, '#dfb38c', love);
+    const upperArm = box(x, 35, 4, 7, 7, 8, '#dfb38c', love);
+    shapeCharacterLimb(upperArm, characterSkinGeometry, 7, 7, 8);
     box(x / 2, 30, 14, 17, 7, 7, '#dfb38c', love);
     box(x / 2, 30, 19, 7, 6, 6, '#dfb38c', love);
   }
   addJapaneseSleeve((...args) => box(...args, love),
-    { x: -15, y: 35, z: 4, width: 7, height: 7, depth: 8 });
+    { x: -posedArmOffset, y: 35, z: 4, width: 7, height: 7, depth: 8 });
   addJapaneseSleeve((...args) => box(...args, love),
-    { x: -7.5, y: 30, z: 14, width: 17, height: 7, depth: 7 });
+    { x: -posedArmOffset / 2, y: 30, z: 14, width: 17, height: 7, depth: 7 });
   const loveLegs = createCharacterLegs(love, box, 6, '#5a4434', CAT_STYLE.trousers, characterLimbGeometry);
   const ticket = new THREE.Group(); love.add(ticket);
   box(0, 0, 0, 30, 20, 2, '#f2c56b', ticket);
@@ -262,21 +266,22 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     addShadow(model, 0, 2, 65, 45);
     round(torsoGeometry, 0, 37, 0, 24, 36, 17, member.outfit, model);
     addCharacterClothingDetails((x, y, z, w, h, d, color) => box(x, y, z, w, h, d, color, model),
-      { width: 24, height: 36, depth: 17, centerY: 37, color: member.outfit, kind: 'guest' });
-    box(0, 24, 1, 25, 4, 19, '#bd9e68', model);
+      { width: 24, height: 36, depth: 17, centerY: 37, color: member.outfit, kind: 'guest', limbGeometry: characterLimbGeometry });
+    addCharacterBelt((x, y, z, w, h, d, color) => box(x, y, z, w, h, d, color, model),
+      { width: 24, depth: 17, y: 24, color: '#bd9e68', limbGeometry: characterLimbGeometry });
     addCharacterHeadDetails((x, y, z, w, h, d, shade) => box(x, y, z, w, h, d, shade, model),
       (x, y, z, w, h, d, shade) => round(characterHeadGeometry, x, y, z, w, h, d, shade, model),
       { headY: 66, width: 18, height: 18, depth: 18, skin: '#dfb38c', hair: member.hair,
         longHair: ['gran', 'mum', 'sister'].includes(member.id) });
     let guestArms = null;
     if (member.id === 'gran') {
-      for (const x of [-15, 15]) {
+      for (const x of [-posedArmOffset, posedArmOffset]) {
         const sleeve = box(x, 40, 0, 7, 28, 8, member.outfit, model);
         shapeCharacterLimb(sleeve, characterLimbGeometry, 7, 28, 8);
         box(x, 35, 12, 7, 7, 24, member.outfit, model);
         box(x, 35, 25, 7, 6, 8, '#dfb38c', model);
       }
-    } else guestArms = createCharacterArms(model, box, { offset: 15, shoulderY: 54, length: 28, width: 7, depth: 8, color: member.outfit, skin: '#dfb38c', limbGeometry: characterLimbGeometry });
+    } else guestArms = createCharacterArms(model, box, { offset: 15, shoulderY: 54, length: 28, width: 7, depth: 8, color: member.outfit, skin: '#dfb38c', limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry });
     if (member.id === 'gran') {
       round(cylinder, 0, 40, 25, 36, 3, 36, '#e1cda8', model);
       round(cylinder, 0, 47, 25, 30, 12, 30, '#b77964', model);
@@ -640,9 +645,9 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     root.removeEventListener('pointerup', pointerUp); root.removeEventListener('pointercancel', pointerUp);
     document.removeEventListener('keydown', keydown); document.removeEventListener('keyup', keyup); window.removeEventListener('blur', clearInput);
     scene.traverse((object) => {
-      if (object.isMesh && ![geometry, pedestalGeometry, torsoGeometry, characterHeadGeometry, characterLimbGeometry, cylinder, orb, cone, shadowGeometry].includes(object.geometry)) object.geometry.dispose();
+      if (object.isMesh && ![geometry, pedestalGeometry, torsoGeometry, characterHeadGeometry, characterLimbGeometry, characterSkinGeometry, cylinder, orb, cone, shadowGeometry].includes(object.geometry)) object.geometry.dispose();
     });
-    [geometry, pedestalGeometry, torsoGeometry, characterHeadGeometry, characterLimbGeometry, cylinder, orb, cone, shadowGeometry].forEach((shape) => shape.dispose());
+    [geometry, pedestalGeometry, torsoGeometry, characterHeadGeometry, characterLimbGeometry, characterSkinGeometry, cylinder, orb, cone, shadowGeometry].forEach((shape) => shape.dispose());
     textures.forEach((texture) => texture.dispose()); materials.forEach((mat) => mat.dispose()); renderer?.dispose();
   };
 }

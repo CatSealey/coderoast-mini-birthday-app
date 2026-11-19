@@ -4,7 +4,7 @@ import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, PLAYER_OUTFIT, PLAYER_STYLE, add
 import { newHouseState } from '../js/games/abigail-house.js';
 import { createAbigailScene } from '../js/games/abigail-scene.js';
 import { createCharacterLegs, createPlayerLegs } from '../js/games/character-legs.js';
-import { TATTOO_ACCENT, TATTOO_INK, addCharacterClothingDetails, addJapaneseSleeve, createCharacterArms, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../js/character-body.js';
+import { TATTOO_ACCENT, TATTOO_INK, addCharacterBelt, addCharacterClothingDetails, addJapaneseSleeve, createCharacterArms, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../js/character-body.js';
 import * as THREE from 'three';
 
 test('Abigail walking stride follows distance instead of frame rate and rests when stopped', () => {
@@ -108,6 +108,9 @@ test('heads are proportionate and the player has longer hair than Cat', () => {
   const eyes = parts.filter((part) => part.color === '#49382f');
   assert.equal(eyes.length, 2);
   assert.ok(eyes.every((eye) => Math.abs(eye.x) < head.width / 2 && eye.z > 0));
+  assert.equal(parts.filter((part) => part.color === '#e3d2ba' && part.z > eyes[0].z).length, 2);
+  const lockColor = `#${new THREE.Color(CHARACTER_HAIR).offsetHSL(0, 0, 0.025).getHexString()}`;
+  assert.equal(parts.filter((part) => part.color === lockColor && part.kind === 'round' && part.z < -head.depth / 2).length, 2);
   const fringe = parts.filter((part) => part.color === CHARACTER_HAIR && part.z > 0);
   assert.ok(fringe.every((part) => part.y - part.height / 2 > eyes[0].y + eyes[0].height / 2));
   const playerBottom = sideLocks[0].y - sideLocks[0].height / 2;
@@ -259,6 +262,43 @@ test('faceted limbs remain attached to animated arms and preserve Cat’s tattoo
   cube.dispose(); limb.dispose(); material.dispose();
 });
 
+test('shoulders are compact and remain joined to each scene’s torso', () => {
+  const limb = createCharacterLimbGeometry(), torsoGeometry = createCharacterTorsoGeometry();
+  const cube = new THREE.BoxGeometry(), material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+  const box = (x, y, z, width, height, depth, color, owner) => {
+    const part = new THREE.Mesh(cube, material);
+    part.position.set(x, y, z); part.scale.set(width, height, depth); owner.add(part); return part;
+  };
+  for (const [torsoWidth, torsoHeight, torsoY, offset, shoulderY, length, armWidth] of [
+    [20, 30, 37, 12.5, 48.5, 25, 6],
+    [26, 38, 39, 16, 54, 28, 7],
+    [25, 38, 40, 15.5, 57, 30, 7],
+    [25, 36, 42, 15, 57, 28, 7],
+    [24, 36, 37, 15, 54, 28, 7]
+  ]) {
+    for (const shortSleeves of [false, true]) {
+      const parent = new THREE.Group();
+      const torso = new THREE.Mesh(torsoGeometry, material);
+      torso.position.y = torsoY; torso.scale.set(torsoWidth, torsoHeight, 17); parent.add(torso);
+      const arms = createCharacterArms(parent, box, { offset, shoulderY, length, width: armWidth, depth: 8,
+        color: CAT_OUTFIT, skin: '#dfb38c', shortSleeves, limbGeometry: limb });
+      const shoulder = arms[1].children[1];
+      assert.equal(shoulder.scale.x, armWidth * 1.2);
+      assert.equal(shoulder.scale.y, length * (shortSleeves ? 0.5 : 1) * 0.28);
+      assert.ok(arms[1].position.x + armWidth * 0.48 < offset + armWidth * 0.48);
+      parent.updateMatrixWorld(true);
+      const y = shoulderY + shoulder.position.y + shoulder.scale.y * 0.22;
+      const ray = new THREE.Raycaster(new THREE.Vector3(-100, y, 0), new THREE.Vector3(1, 0, 0));
+      const torsoHits = ray.intersectObject(torso), shoulderHits = ray.intersectObject(shoulder);
+      assert.ok(torsoHits.length > 0 && shoulderHits.length > 0);
+      const torsoEdge = Math.max(...torsoHits.map((hit) => hit.point.x));
+      const shoulderEdge = Math.min(...shoulderHits.map((hit) => hit.point.x));
+      assert.ok(torsoEdge >= shoulderEdge, `torso ${torsoWidth}x${torsoHeight}, short sleeves ${shortSleeves}: ${torsoEdge} < ${shoulderEdge}`);
+    }
+  }
+  cube.dispose(); limb.dispose(); torsoGeometry.dispose(); material.dispose();
+});
+
 test('character details distinguish fantasy NPC outfits from the player and Cat', () => {
   const collect = (kind, variant = 0) => {
     const parts = [];
@@ -272,12 +312,55 @@ test('character details distinguish fantasy NPC outfits from the player and Cat'
   assert.ok(first.some((part) => part.color === '#70513a' && part.rotation.z < 0));
   assert.ok(second.some((part) => part.color === '#70513a' && part.rotation.z > 0));
   assert.ok(third.length > first.length);
+  assert.ok(first.some((part) => part.color === '#b7a788'));
+  assert.ok(third.some((part) => part.color === '#a79270'));
   for (const kind of ['player', 'cat']) {
     const parts = collect(kind);
     assert.ok(parts.some((part) => part.color === '#969b96'));
-    assert.ok(!parts.some((part) => part.color === '#70513a'));
+    assert.ok(!parts.some((part) => ['#70513a', '#b7a788', '#a79270'].includes(part.color)));
   }
   const head = createCharacterHeadGeometry();
   assert.ok(head.getAttribute('position').count > 0);
   head.dispose();
+});
+
+test('faceted torso narrows at the waist and slopes at the shoulders', () => {
+  const geometry = createCharacterTorsoGeometry();
+  const positions = geometry.getAttribute('position');
+  const halfWidthAt = (height) => {
+    let result = 0;
+    for (let i = 0; i < positions.count; i += 1) {
+      if (Math.abs(positions.getY(i) - height) < 0.0001) result = Math.max(result, Math.abs(positions.getX(i)));
+    }
+    return result;
+  };
+  const waist = halfWidthAt(-0.25), chest = halfWidthAt(0.23), neck = halfWidthAt(0.47);
+  assert.ok(waist < chest * 0.7);
+  assert.ok(neck < chest * 0.6);
+  const normals = geometry.getAttribute('normal');
+  assert.ok(Array.from({ length: normals.count }, (_, i) => normals.getY(i)).some((y) => Math.abs(y) > 0.1 && Math.abs(y) < 0.95));
+  geometry.dispose();
+});
+
+test('belts follow the narrowed torso and tattooed skin stays faceted', () => {
+  const parent = new THREE.Group(), limb = createCharacterLimbGeometry(), skin = createCharacterSkinGeometry();
+  const cube = new THREE.BoxGeometry(), material = new THREE.MeshBasicMaterial();
+  const box = (x, y, z, width, height, depth, color, owner = parent) => {
+    const part = new THREE.Mesh(cube, material);
+    part.position.set(x, y, z); part.scale.set(width, height, depth);
+    part.userData.color = color; owner.add(part); return part;
+  };
+  addCharacterBelt(box, { width: 26, depth: 17, y: 27, color: CAT_STYLE.belt, buckle: CAT_STYLE.buckle, limbGeometry: limb });
+  const bounds = new THREE.Box3().setFromObject(parent.children[0]);
+  assert.ok(bounds.getSize(new THREE.Vector3()).x < 26 * 0.75);
+  assert.ok(parent.children.some((part) => part.userData.color === CAT_STYLE.buckle));
+  const arms = createCharacterArms(parent, box, { offset: 16, shoulderY: 54, length: 28, width: 7, depth: 8,
+    color: CAT_OUTFIT, skin: '#dfb38c', shortSleeves: true, tattoo: true, limbGeometry: limb, skinGeometry: skin });
+  assert.ok(arms[0].children.some((part) => part.geometry === skin && part.userData.color === '#dfb38c'));
+  assert.ok(arms[0].children.some((part) => part.userData.color === TATTOO_INK && part.position.z > 4));
+  const legs = createPlayerLegs(parent, box, { offset: 7, shoeColor: '#594336', shortsColor: PLAYER_STYLE.shorts,
+    skin: '#dfb38c', limbGeometry: limb, skinGeometry: skin });
+  assert.ok(legs[1].children.some((part) => part.geometry === skin && part.userData.color === '#dfb38c'));
+  assert.ok(legs[1].children.some((part) => part.userData.color === TATTOO_INK));
+  cube.dispose(); limb.dispose(); skin.dispose(); material.dispose();
 });

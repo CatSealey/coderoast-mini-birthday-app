@@ -4,7 +4,7 @@ import { COASTER_PLATFORM, COASTER_RAIL_OFFSET, COASTER_REJOIN_PROGRESS, COASTER
 import { COASTER_ITEM_SCALE, drawCoasterItem } from './coaster-art.js';
 import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
 import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
-import { addCharacterClothingDetails, createCharacterArms, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
+import { addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 import { createFirCanopy, createFirTrunk, createNeedleTexture, createPlatformFirTrunk } from '../world/fir-tree.js';
 import { createTreeBarkTexture } from '../world/tree-geometry.js';
 import { CANOPY_EDGE_TREES, CANOPY_FOREST_TREES } from './canopy-scenery.js';
@@ -44,6 +44,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
   const torsoGeometry = createCharacterTorsoGeometry();
   const characterHeadGeometry = createCharacterHeadGeometry();
   const characterLimbGeometry = createCharacterLimbGeometry();
+  const characterSkinGeometry = createCharacterSkinGeometry();
   const sphereGeometry = new THREE.SphereGeometry(0.5, 12, 8);
   const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
   const coneGeometry = new THREE.ConeGeometry(0.5, 1, 8);
@@ -103,18 +104,18 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     const group = new THREE.Group(); group.position.set(x, 0, z); parent.add(group);
     round(torsoGeometry, 0, 39, 0, 26, 38, 17, color, group);
     addCharacterClothingDetails((px, py, pz, w, h, d, shade) => box(px, py, pz, w, h, d, shade, group),
-      { width: 26, height: 38, depth: 17, centerY: 39, color, kind: style.shorts ? 'player' : style.tattoo ? 'cat' : 'npc' });
+      { width: 26, height: 38, depth: 17, centerY: 39, color, kind: style.shorts ? 'player' : style.tattoo ? 'cat' : 'npc', limbGeometry: characterLimbGeometry });
     addCharacterHeadDetails((px, py, pz, w, h, d, shade) => box(px, py, pz, w, h, d, shade, group),
       (px, py, pz, w, h, d, shade) => round(characterHeadGeometry, px, py, pz, w, h, d, shade, group),
       { headY: 70, width: 19, height: 20, depth: 19, skin: '#dfb38c', hairLength: style.hairLength });
     group.userData.legs = style.shorts
-      ? createPlayerLegs(group, box, { offset: 7, shoeColor: '#594336', shortsColor: style.shorts, skin: '#dfb38c', limbGeometry: characterLimbGeometry })
+      ? createPlayerLegs(group, box, { offset: 7, shoeColor: '#594336', shortsColor: style.shorts, skin: '#dfb38c', limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry })
       : createCharacterLegs(group, box, 7, '#594336', style.trousers, characterLimbGeometry);
-    box(0, 27, 9, 26, 4, 2, style.belt || '#a98e60', group);
-    if (style.buckle) box(0, 27, 10.5, 5, 3, 1, style.buckle, group);
+    addCharacterBelt((px, py, pz, w, h, d, shade) => box(px, py, pz, w, h, d, shade, group),
+      { width: 26, depth: 17, y: 27, color: style.belt || '#a98e60', buckle: style.buckle || (!style.shorts && !style.tattoo ? '#d3b47a' : undefined), limbGeometry: characterLimbGeometry });
     group.userData.arms = createCharacterArms(group, box, {
       offset: 16, shoulderY: 54, length: 28, width: 7, depth: 8, color, skin: '#dfb38c',
-      shortSleeves: style.shortSleeves, tattoo: style.tattoo, limbGeometry: characterLimbGeometry
+      shortSleeves: style.shortSleeves, tattoo: style.tattoo, limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry
     });
     if (name) group.userData.label = label(name, x, 103, z);
     return group;
@@ -1008,7 +1009,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     return { x: width / 2 + (object.x - targetXForClick()) * scale, y: height / 2 + (object.y - 350) * scale - 30 };
   }
   return { draw, resize, objectPosition, dispose() {
-    canvas.removeEventListener('click', click); boxGeometry.dispose(); torsoGeometry.dispose(); characterHeadGeometry.dispose(); characterLimbGeometry.dispose(); sphereGeometry.dispose(); cylinderGeometry.dispose(); coneGeometry.dispose(); triangleGeometry.dispose(); materials.forEach((m) => m.dispose());
+    canvas.removeEventListener('click', click); boxGeometry.dispose(); torsoGeometry.dispose(); characterHeadGeometry.dispose(); characterLimbGeometry.dispose(); characterSkinGeometry.dispose(); sphereGeometry.dispose(); cylinderGeometry.dispose(); coneGeometry.dispose(); triangleGeometry.dispose(); materials.forEach((m) => m.dispose());
     sceneryGeometries.forEach((geometry) => geometry.dispose());
     canopyRopes?.dispose();
     textures.forEach((t) => t.dispose()); renderer?.dispose();

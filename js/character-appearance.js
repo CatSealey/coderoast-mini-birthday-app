@@ -31,6 +31,7 @@ export function addCharacterHeadDetails(box, round, options) {
   const long = hairLength === 'long', shoulder = hairLength === 'shoulder';
   const front = depth / 2;
   const hairHighlight = `#${new Color(hair).offsetHSL(0, 0, 0.06).getHexString()}`;
+  const hairLock = `#${new Color(hair).offsetHSL(0, 0, 0.025).getHexString()}`;
   box(0, headY - height * 0.52, 0, width * 0.35, height * 0.35, depth * 0.35, skin);
   round(0, headY - height * (long ? 0.28 : shoulder ? 0.12 : 0), -front * 0.5,
     width + 2, height * (long ? 2 : shoulder ? 1.5 : 1.05), depth * 0.9, hair);
@@ -42,12 +43,21 @@ export function addCharacterHeadDetails(box, round, options) {
     if (long || shoulder) box(side * width * 0.57, headY - height * (long ? 0.35 : 0.16), -front * 0.3,
       width * 0.035, height * (long ? 0.85 : 0.55), depth * 0.25, hairHighlight);
     round(side * width * 0.46, headY - height * 0.03, 0, width * 0.15, height * 0.25, depth * 0.25, skin);
-    box(side * width * 0.22, headY + height * 0.05, front * 0.9, width * 0.12, height * 0.13, 1.2, '#49382f');
+    box(side * width * 0.22, headY + height * 0.05, front * 0.9, width * 0.11, height * 0.08, 1.2, '#49382f');
+    box(side * width * 0.205, headY + height * 0.065, front * 0.9 + 0.62,
+      width * 0.025, height * 0.025, 0.25, '#e3d2ba');
     const brow = box(side * width * 0.22, headY + height * 0.17, front * 0.86,
       width * 0.18, height * 0.045, 1, hair);
     if (brow?.rotation) brow.rotation.z = side * 0.12;
   }
   round(-width * 0.13, headY + height * 0.35, front * 0.55, width * 0.7, height * 0.23, depth * 0.4, hair);
+  if (long || shoulder) {
+    for (const side of [-1, 1]) {
+      const lockHeight = height * (long ? 1.1 : 0.7);
+      round(side * width * 0.33, headY - height * (long ? 0.52 : 0.27), -front * 1.3,
+        width * 0.12, lockHeight, depth * 0.14, hairLock);
+    }
+  }
   box(-width * 0.13, headY + height * 0.47, 0, width * 0.4, height * 0.025, depth * 0.4, hairHighlight);
   round(0, headY - height * 0.08, front * 0.95, width * 0.14, height * 0.18, depth * 0.14, skin);
   box(0, headY - height * 0.23, front * 0.96, width * 0.18, height * 0.06, 1.2, '#a66f67');
@@ -61,7 +71,8 @@ export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = C
   context.ellipse(x, y, 8 * scale, (hairLength === 'long' ? 12 : hairLength === 'shoulder' ? 10 : 7) * scale, 0, 0, Math.PI * 2);
   context.fill();
   context.fillStyle = outfit;
-  context.fillRect(x - 7 * scale, y + 6 * scale, 14 * scale, 10 * scale);
+  context.beginPath(); context.ellipse(x, y + 9 * scale, 7 * scale, 4 * scale, 0, 0, Math.PI * 2); context.fill();
+  context.beginPath(); context.ellipse(x, y + 12.5 * scale, 5.5 * scale, 4.5 * scale, 0, 0, Math.PI * 2); context.fill();
   for (const [index, side] of [-1, 1].entries()) {
     const armX = x + (side < 0 ? -10 : 7) * scale;
     const armY = y + (zipline ? -10 : 7 + (index === heldArm ? 0 : side * stride * 2)) * scale;
@@ -115,6 +126,17 @@ export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = C
     context.fillStyle = '#594336';
     context.fillRect(x - 7 * scale, y + (26 + stride * 2) * scale, 6 * scale, 2 * scale);
     context.fillRect(x + scale, y + (26 - stride * 2) * scale, 6 * scale, 2 * scale);
+  } else {
+    context.fillStyle = trousers || outfit;
+    for (const [index, side] of [-1, 1].entries()) {
+      const step = (index === 0 ? stride : -stride) * 2;
+      context.beginPath();
+      context.ellipse(x + side * 4 * scale, y + (23 + step) * scale, 3 * scale, 5 * scale, 0, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = '#594336';
+      context.fillRect(x + (side < 0 ? -7 : 1) * scale, y + (27 + step) * scale, 6 * scale, 2 * scale);
+      context.fillStyle = trousers || outfit;
+    }
   }
   if (belt) {
     context.fillStyle = belt;
