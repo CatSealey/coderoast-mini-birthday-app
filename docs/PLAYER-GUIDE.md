@@ -29,6 +29,9 @@ list is long.
 The side-quest list offers optional encounters with Cat. Select an entry to
 find her, then speak to her to begin.
 
+Characters have faceted, fantasy-inspired designs. The player and Cat keep
+their distinctive outfits, hairstyles and tattoos throughout their adventures.
+
 Your items and keepsakes appear in the inventory panels. Hover over, focus or
 tap an item to see its name. Fright Nights clues appear in your quest inventory
 as you find them, with the same colours as in the maze. Once you recover an

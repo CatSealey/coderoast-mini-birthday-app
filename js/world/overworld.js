@@ -42,7 +42,15 @@ function drawPerson(ctx, color, moving, time, longHair = false, hair = CHARACTER
   ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(-11, -41); ctx.lineTo(0, -36); ctx.lineTo(11, -41);
   ctx.lineTo(9, -16); ctx.lineTo(-10, -16); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = color === PLAYER_OUTFIT ? '#44474b' : '#dbbd79'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -36); ctx.lineTo(0, -19); ctx.stroke();
+  ctx.fillStyle = color === PLAYER_OUTFIT ? '#515450' : '#c3aa7a';
+  ctx.fillRect(-7, -39, 5, 2); ctx.fillRect(2, -39, 5, 2);
+  if (!isPlayer) {
+    ctx.strokeStyle = '#70513a'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(6, -40); ctx.lineTo(-5, -20); ctx.stroke();
+    ctx.fillStyle = '#d3b47a'; ctx.fillRect(0, -32, 4, 3);
+  }
   ctx.fillStyle = belt; ctx.fillRect(-10, -20, 20, 3);
+  if (!isPlayer) { ctx.fillStyle = '#d3b47a'; ctx.fillRect(-2, -20, 4, 3); }
   ctx.strokeStyle = color; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(-10, -37); ctx.lineTo(-15, -23 - stride * 0.5);
   ctx.moveTo(10, -37); ctx.lineTo(15, -23 + stride * 0.5); ctx.stroke();
   ctx.fillStyle = '#e1b58d'; ctx.beginPath(); ctx.arc(0, -50, 8, 0, Math.PI * 2); ctx.fill();

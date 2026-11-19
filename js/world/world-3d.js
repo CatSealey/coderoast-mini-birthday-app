@@ -7,7 +7,7 @@ import { WORLD_NPCS } from './world-npcs.js';
 import { CANOPY_LINKS, CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, harvestPumpkins, placeQuestDecorations } from './world-scenery-data.js';
 import { worldCornWalls, worldTrees } from './world-collision.js';
 import { CAT_OUTFIT, CAT_STYLE, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, addCharacterHeadDetails } from '../character-appearance.js';
-import { createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
+import { addCharacterClothingDetails, createCharacterArms, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 import { createCharacterLegs, createPlayerLegs } from '../games/character-legs.js';
 import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { sideQuestPosition } from '../side-quests.js';
@@ -76,6 +76,9 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   const textures = new Set();
   const boxGeometries = new Map();
   const headGeometry = new THREE.SphereGeometry(0.5, 16, 12);
+  const characterHeadGeometry = createCharacterHeadGeometry();
+  const characterLimbGeometry = createCharacterLimbGeometry();
+  geometries.add(characterLimbGeometry);
   const torsoGeometry = createCharacterTorsoGeometry();
   function material(color) {
     if (!materials.has(color)) materials.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.9 }));
@@ -436,12 +439,14 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     }
     box(g, 70, 5, 35, '#a6a18f', 0, 3, 82);
   }
-  function character(color, longHair = false, hair, belt = '#aa9160', style = null) {
+  function character(color, longHair = false, hair, belt = '#aa9160', style = null, variant = 0) {
     const g = new THREE.Group();
     const torso = mesh(torsoGeometry, color, g, 0, 37, 0); torso.scale.set(20, 30, 12);
+    addCharacterClothingDetails((x, y, z, w, h, d, shade) => box(g, w, h, d, shade, x, y, z),
+      { width: 20, height: 30, depth: 12, centerY: 37, color, kind: style?.shorts ? 'player' : style?.tattoo ? 'cat' : 'npc', variant });
     addCharacterHeadDetails((x, y, z, w, h, d, shade) => box(g, w, h, d, shade, x, y, z),
       (x, y, z, w, h, d, shade) => {
-        const part = mesh(headGeometry, shade, g, x, y, z); part.scale.set(w, h, d);
+        const part = mesh(characterHeadGeometry, shade, g, x, y, z); part.scale.set(w, h, d);
       }, { headY: 60, width: 14, height: 14, depth: 14, skin: '#d7aa83', hair, longHair, hairLength: style?.hairLength });
     if (!longHair && !style) box(g, 16, 25, 3, '#725443', 0, 37, -8);
     box(g, 20, 4, 14, belt, 0, 25, 0);
@@ -449,19 +454,16 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     const bodyBox = (x, y, z, w, h, d, shade, parent) => box(parent, w, h, d, shade, x, y, z);
     if (style?.shorts) {
       g.userData.legs = createPlayerLegs(g, bodyBox, { offset: 5, height: 23, width: 7, depth: 8,
-        shoeColor: '#5a4434', shortsColor: style.shorts, skin: '#d7aa83' });
+        shoeColor: '#5a4434', shortsColor: style.shorts, skin: '#d7aa83', limbGeometry: characterLimbGeometry });
     } else if (style?.trousers) {
-      g.userData.legs = createCharacterLegs(g, bodyBox, 5, '#5a4434', style.trousers);
+      g.userData.legs = createCharacterLegs(g, bodyBox, 5, '#5a4434', style.trousers, characterLimbGeometry);
     } else {
-      const left = box(g, 7, 23, 8, '#443e34', -5, 11, 0);
-      const right = box(g, 7, 23, 8, '#443e34', 5, 11, 0);
-      box(left, 8, 4, 12, '#5a4434', 0, -9, 2);
-      box(right, 8, 4, 12, '#5a4434', 0, -9, 2);
-      g.userData.legs = [left, right];
+      g.userData.legs = createCharacterLegs(g, bodyBox, 5, '#5a4434', '#443e34', characterLimbGeometry,
+        { height: 23, width: 7, depth: 8 });
     }
     g.userData.arms = createCharacterArms(g, bodyBox, {
       offset: 12.5, shoulderY: 48.5, length: 25, width: 6, depth: 8, color, skin: '#d7aa83',
-      shortSleeves: style?.shortSleeves, tattoo: style?.tattoo
+      shortSleeves: style?.shortSleeves, tattoo: style?.tattoo, limbGeometry: characterLimbGeometry
     });
     scene.add(g);
     return g;
@@ -472,7 +474,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   playerLabel.position.y = 95; player.add(playerLabel);
   const guides = QUEST_LOCATIONS.map((quest, index) => {
     const { longHair, hair } = GUIDE_HAIRSTYLES[index % GUIDE_HAIRSTYLES.length];
-    const guide = character('#876c51', longHair, hair);
+    const guide = character('#876c51', longHair, hair, undefined, null, index);
     guide.position.set(quest.x, 0, quest.y);
     const marker = mesh(new THREE.OctahedronGeometry(12), '#e6bf63', guide, 0, 93, 0);
     const label = textSprite(quest.guide.toUpperCase(), 'rgba(37, 39, 28, .9)', 384);
@@ -485,7 +487,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     const sideQuest = npc.sideQuest !== undefined;
     const person = sideQuest
       ? character(CAT_OUTFIT, false, undefined, CAT_STYLE.belt, CAT_STYLE)
-      : character(npc.color, longHair, hair);
+      : character(npc.color, longHair, hair, undefined, null, index);
     person.position.set(npc.x, 0, npc.y);
     if (npc.prop === 'doll') {
       person.rotation.y = Math.PI / 2;

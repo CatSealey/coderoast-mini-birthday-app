@@ -1,3 +1,4 @@
+import { Color } from 'three';
 import { TATTOO_ACCENT, TATTOO_INK } from './character-body.js';
 
 export const PLAYER_OUTFIT = '#25272b';
@@ -29,6 +30,7 @@ export function addCharacterHeadDetails(box, round, options) {
   const headY = options.headY - options.height * 0.06;
   const long = hairLength === 'long', shoulder = hairLength === 'shoulder';
   const front = depth / 2;
+  const hairHighlight = `#${new Color(hair).offsetHSL(0, 0, 0.06).getHexString()}`;
   box(0, headY - height * 0.52, 0, width * 0.35, height * 0.35, depth * 0.35, skin);
   round(0, headY - height * (long ? 0.28 : shoulder ? 0.12 : 0), -front * 0.5,
     width + 2, height * (long ? 2 : shoulder ? 1.5 : 1.05), depth * 0.9, hair);
@@ -36,10 +38,18 @@ export function addCharacterHeadDetails(box, round, options) {
   round(0, headY + height * 0.39, -front * 0.08, width + 1, height * 0.36, depth + 1, hair);
   for (const side of [-1, 1]) {
     round(side * width * 0.48, headY + height * (long ? -0.3 : shoulder ? -0.16 : 0.25), 0,
-      width * 0.26, height * (long ? 1.65 : shoulder ? 1.25 : 0.55), depth * 0.95, hair);
+      width * (long || shoulder ? 0.26 : 0.16), height * (long ? 1.65 : shoulder ? 1.25 : 0.4), depth * 0.95, hair);
+    if (long || shoulder) box(side * width * 0.57, headY - height * (long ? 0.35 : 0.16), -front * 0.3,
+      width * 0.035, height * (long ? 0.85 : 0.55), depth * 0.25, hairHighlight);
+    round(side * width * 0.46, headY - height * 0.03, 0, width * 0.15, height * 0.25, depth * 0.25, skin);
     box(side * width * 0.22, headY + height * 0.05, front * 0.9, width * 0.12, height * 0.13, 1.2, '#49382f');
+    const brow = box(side * width * 0.22, headY + height * 0.17, front * 0.86,
+      width * 0.18, height * 0.045, 1, hair);
+    if (brow?.rotation) brow.rotation.z = side * 0.12;
   }
   round(-width * 0.13, headY + height * 0.35, front * 0.55, width * 0.7, height * 0.23, depth * 0.4, hair);
+  box(-width * 0.13, headY + height * 0.47, 0, width * 0.4, height * 0.025, depth * 0.4, hairHighlight);
+  round(0, headY - height * 0.08, front * 0.95, width * 0.14, height * 0.18, depth * 0.14, skin);
   box(0, headY - height * 0.23, front * 0.96, width * 0.18, height * 0.06, 1.2, '#a66f67');
 }
 
@@ -80,6 +90,16 @@ export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = C
     context.fillRect(x - 8 * scale, y + 6 * scale, 2 * scale, 7 * scale);
     context.fillRect(x + 6 * scale, y + 6 * scale, 2 * scale, 7 * scale);
   }
+  context.fillStyle = shorts || tattoo ? '#505450' : '#c4ae80';
+  context.fillRect(x - 5 * scale, y + 7 * scale, 3 * scale, scale);
+  context.fillRect(x + 2 * scale, y + 7 * scale, 3 * scale, scale);
+  if (!shorts && !tattoo) {
+    context.fillStyle = '#70513a';
+    for (let step = 0; step < 5; step += 1) {
+      context.fillRect(x + (3 - step) * scale, y + (7 + step) * scale, 2 * scale, 2 * scale);
+    }
+    context.fillStyle = '#d3b47a'; context.fillRect(x + scale, y + 10 * scale, 2 * scale, scale);
+  }
   context.fillStyle = shorts || trousers || outfit;
   context.fillRect(x - 8 * scale, y + 16 * scale, 16 * scale, shorts ? 4 * scale : 6 * scale);
   if (shorts) {
@@ -115,5 +135,7 @@ export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = C
     context.fillStyle = '#49382f';
     if (!side || Math.sin(facing) < 0) context.fillRect(x - 3.5 * scale, y - scale, 1.5 * scale, 1.5 * scale);
     if (!side || Math.sin(facing) > 0) context.fillRect(x + 2 * scale, y - scale, 1.5 * scale, 1.5 * scale);
+    context.fillStyle = '#a66f67';
+    context.fillRect(x - scale, y + 3 * scale, 2 * scale, scale);
   }
 }

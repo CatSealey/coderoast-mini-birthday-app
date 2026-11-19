@@ -4,7 +4,7 @@ import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, PLAYER_OUTFIT, PLAYER_STYLE, add
 import { newHouseState } from '../js/games/abigail-house.js';
 import { createAbigailScene } from '../js/games/abigail-scene.js';
 import { createCharacterLegs, createPlayerLegs } from '../js/games/character-legs.js';
-import { TATTOO_ACCENT, TATTOO_INK, addJapaneseSleeve, createCharacterArms, createCharacterTorsoGeometry, swingCharacterArms } from '../js/character-body.js';
+import { TATTOO_ACCENT, TATTOO_INK, addCharacterClothingDetails, addJapaneseSleeve, createCharacterArms, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../js/character-body.js';
 import * as THREE from 'three';
 
 test('Abigail walking stride follows distance instead of frame rate and rests when stopped', () => {
@@ -237,4 +237,47 @@ test('Cat’s animated legs retain dark green trousers', () => {
   }, 6, '#594336', CAT_STYLE.trousers);
   assert.equal(legs.length, 2);
   assert.equal(colors.filter((color) => color === CAT_STYLE.trousers).length, 2);
+});
+
+test('faceted limbs remain attached to animated arms and preserve Cat’s tattoo', () => {
+  const parent = new THREE.Group(), limb = createCharacterLimbGeometry();
+  const cube = new THREE.BoxGeometry(), material = new THREE.MeshBasicMaterial();
+  const box = (x, y, z, width, height, depth, color, owner) => {
+    const part = new THREE.Mesh(cube, material);
+    part.position.set(x, y, z); part.scale.set(width, height, depth);
+    part.userData.color = color; owner.add(part); return part;
+  };
+  const arms = createCharacterArms(parent, box, { offset: 15, shoulderY: 54, length: 28, width: 7, depth: 8,
+    color: CAT_OUTFIT, skin: '#dfb38c', shortSleeves: true, tattoo: true, limbGeometry: limb });
+  assert.ok(arms.every((arm) => arm.children[0].geometry === limb));
+  assert.deepEqual(arms[0].children[0].scale.toArray(), [7, 14, 8]);
+  assert.ok(arms[0].children.some((part) => part.userData.color === TATTOO_INK));
+  swingCharacterArms(arms, 0.4);
+  assert.equal(arms[0].rotation.x, -0.4);
+  const legs = createCharacterLegs(parent, box, 6, '#594336', CAT_STYLE.trousers, limb);
+  assert.ok(legs.every((leg) => leg.children[0].geometry === limb && leg.children[0].userData.color === CAT_STYLE.trousers));
+  cube.dispose(); limb.dispose(); material.dispose();
+});
+
+test('character details distinguish fantasy NPC outfits from the player and Cat', () => {
+  const collect = (kind, variant = 0) => {
+    const parts = [];
+    addCharacterClothingDetails((x, y, z, width, height, depth, color) => {
+      const part = { x, y, z, width, height, depth, color, rotation: { z: 0 } };
+      parts.push(part); return part;
+    }, { width: 24, height: 36, depth: 17, centerY: 37, color: kind === 'npc' ? '#789164' : PLAYER_OUTFIT, kind, variant });
+    return parts;
+  };
+  const first = collect('npc'), second = collect('npc', 1), third = collect('npc', 2);
+  assert.ok(first.some((part) => part.color === '#70513a' && part.rotation.z < 0));
+  assert.ok(second.some((part) => part.color === '#70513a' && part.rotation.z > 0));
+  assert.ok(third.length > first.length);
+  for (const kind of ['player', 'cat']) {
+    const parts = collect(kind);
+    assert.ok(parts.some((part) => part.color === '#969b96'));
+    assert.ok(!parts.some((part) => part.color === '#70513a'));
+  }
+  const head = createCharacterHeadGeometry();
+  assert.ok(head.getAttribute('position').count > 0);
+  head.dispose();
 });
