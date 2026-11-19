@@ -6,6 +6,13 @@ import { createFootSupportSurface, createPlayerLegs, supportCharacterFeet, swing
 import { FRIGHT_PALETTES, drawFrightTileDetail, frightWallSegments, paintFrightConsole, paintFrightDocument, paintFrightFloor, paintFrightWall } from './fright-scenery.js';
 import { createFrightMarker, createFrightMarkerGeometries, createFrightMaterial, frightMarkerVisible } from './fright-markers.js';
 
+export const FRIGHT_TELEPORT_RADIUS = 21;
+export const FRIGHT_TELEPORT_INTERACT_RANGE = 65;
+
+export function frightTeleportRayHit(raycaster, portal) {
+  return raycaster.intersectObject(portal, true).length > 0;
+}
+
 export function createFrightScene(canvas, onSelect, characterName = 'Adventurer') {
   const probe = document.createElement('canvas').getContext('webgl2');
   const hasWebGL = Boolean(probe);
@@ -29,7 +36,6 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
   const footSurfaces = [];
   const documents = new Map(), consoles = new Map();
   let state, player, teleportCircle, teleportPosition, previousPosition, walkingPhase = 0, facing = 0, width = 1, height = 1, scale = 1, animationFrame = 0;
-  const teleportRadius = 21;
   const colors = Object.fromEntries(FRIGHT_THEMES.map((theme) => [theme.id, theme.color]));
   const palettes = FRIGHT_PALETTES;
   const areas = FRIGHT_MAZE.map((row, y) => [...row].map((_, x) => frightAreaAt((x + 0.5) * CELL, (y + 0.5) * CELL)));
@@ -636,20 +642,31 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
     inner.material = material('#e3ffff', true);
     inner.rotation.x = -Math.PI / 2; teleportCircle.add(inner);
     teleportCircle.add(cyl(0, 3, 0, 30, 1, 30, '#62d8ef', true, 0.3));
+    const beam = cyl(0, 40, 0, 30, 72, 30, '#72ddff', true, 0.24);
+    teleportCircle.add(beam);
+    const halo = ring(0, 63, 0, 28, '#83f1ff');
+    halo.rotation.x = -Math.PI / 2; teleportCircle.add(halo);
+    const beacon = ball(0, 88, 0, 10, '#e3ffff', true);
+    teleportCircle.add(beacon);
+    const sparks = [];
     for (let i = 0; i < 8; i += 1) {
       const angle = i * Math.PI / 4;
       const rune = box(Math.sin(angle) * 15, 6, Math.cos(angle) * 15, 3, 2, 5, '#d6ffff', true);
       rune.rotation.y = angle; teleportCircle.add(rune);
+      const spark = ball(Math.sin(angle) * 13, 12 + i * 5, Math.cos(angle) * 13, 3.5, '#d6ffff', true);
+      teleportCircle.add(spark); sparks.push(spark);
     }
-    const teleportLabel = label('Teleport out', 0, 60, 0);
-    teleportLabel.position.set(24, 55, -24);
-    teleportLabel.scale.set(100, 25, 1);
-    teleportCircle.add(teleportLabel);
     teleportCircle.visible = false;
     scene.add(teleportCircle);
     animations.push((t) => {
       inner.rotation.z = t * 0.7;
       outer.scale.setScalar(35 + Math.sin(t * 3) * 1.5);
+      halo.rotation.z = -t * 0.5;
+      beacon.position.y = 88 + Math.sin(t * 2.5) * 3;
+      sparks.forEach((spark, i) => {
+        const angle = i * Math.PI / 4 + t;
+        spark.position.set(Math.sin(angle) * 13, 10 + (t * 12 + i * 9) % 70, Math.cos(angle) * 13);
+      });
     });
     const start = performance.now();
     const animate = (now) => {
@@ -745,11 +762,17 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
     });
     if (showTeleport) {
       const p = screen(teleportPosition.x, teleportPosition.y);
+      context.fillStyle = 'rgba(98,216,239,0.12)';
+      context.beginPath(); context.arc(p.x, p.y, (FRIGHT_TELEPORT_RADIUS + 8) * scale, 0, Math.PI * 2); context.fill();
       context.fillStyle = 'rgba(98,216,239,0.3)';
-      context.beginPath(); context.arc(p.x, p.y, teleportRadius * scale, 0, Math.PI * 2); context.fill();
+      context.beginPath(); context.arc(p.x, p.y, FRIGHT_TELEPORT_RADIUS * scale, 0, Math.PI * 2); context.fill();
       context.strokeStyle = '#70edff'; context.lineWidth = Math.max(2, 3 * scale); context.stroke();
-      context.fillStyle = '#e3ffff'; context.font = `bold ${Math.max(10, 12 * scale)}px sans-serif`;
-      context.textAlign = 'center'; context.fillText('Teleport out', p.x, p.y - (teleportRadius + 8) * scale);
+      context.beginPath(); context.arc(p.x, p.y, 13 * scale, 0, Math.PI * 2); context.stroke();
+      context.fillStyle = '#e3ffff';
+      for (let i = 0; i < 8; i += 1) {
+        const angle = i * Math.PI / 4;
+        context.fillRect(p.x + Math.cos(angle) * 17 * scale - scale, p.y + Math.sin(angle) * 17 * scale - scale, 2 * scale, 2 * scale);
+      }
     }
     drawCharacterMarker(context, width / 2, height / 2, PLAYER_OUTFIT, { ...PLAYER_STYLE, scale, stride, facing });
     previousPosition = { ...state.player };
@@ -760,20 +783,26 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
     let target;
     if (renderer) {
       raycaster.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, 1 - (event.clientY - rect.top) / rect.height * 2), camera);
+      if (frightExitReady(state) && !state.puzzle && teleportPosition && frightTeleportRayHit(raycaster, teleportCircle)) {
+        onSelect({ teleport: true }); return;
+      }
       const hit = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
       if (!hit) return;
       target = { x: hit.x, y: hit.z };
       if (frightExitReady(state) && !state.puzzle && teleportPosition
-        && Math.hypot(target.x - teleportPosition.x, target.y - teleportPosition.y) <= teleportRadius + 4) {
+        && Math.hypot(target.x - teleportPosition.x, target.y - teleportPosition.y) <= FRIGHT_TELEPORT_RADIUS + 4) {
         onSelect({ teleport: true }); return;
       }
       const hitboxes = [...markers.values()].filter((marker) => marker.visible).map((marker) => marker.userData.hitbox);
       const marker = raycaster.intersectObjects(hitboxes)[0];
       if (marker) { onSelect({ objectId: marker.object.userData.objectId }); return; }
-    } else target = { x: state.player.x + (event.clientX - rect.left - width / 2) / scale,
-      y: state.player.y + (event.clientY - rect.top - height / 2) / scale };
+    } else {
+      const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      target = { x: state.player.x + (point.x - width / 2) / scale,
+        y: state.player.y + (point.y - height / 2) / scale };
+    }
     if (frightExitReady(state) && !state.puzzle && teleportPosition
-      && Math.hypot(target.x - teleportPosition.x, target.y - teleportPosition.y) <= teleportRadius + 4) {
+      && Math.hypot(target.x - teleportPosition.x, target.y - teleportPosition.y) <= FRIGHT_TELEPORT_RADIUS + 4) {
       onSelect({ teleport: true }); return;
     }
     const nearby = FRIGHT_OBJECTS.find((object) => Math.hypot(object.x - target.x, object.y - target.y) < 40);
@@ -782,6 +811,10 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
   canvas.addEventListener('click', handleClick);
   return {
     draw, resize,
+    nearTeleport(position) {
+      return Boolean(state && frightExitReady(state) && !state.puzzle && teleportPosition
+        && Math.hypot(position.x - teleportPosition.x, position.y - teleportPosition.y) <= FRIGHT_TELEPORT_INTERACT_RANGE);
+    },
     dispose() {
       canvas.removeEventListener('click', handleClick);
       cancelAnimationFrame(animationFrame);

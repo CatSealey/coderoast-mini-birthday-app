@@ -10,7 +10,7 @@ export function mountFrightWorld(root, { characterName, savedState, onProgress, 
   const vectors = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   root.innerHTML = `
     <div class="abigail-world fright-world">
-      <canvas class="abigail-world__canvas" tabindex="0" aria-label="Fright Nights maze. Use arrow keys or WASD to walk, and E to investigate nearby objects."></canvas>
+      <canvas class="abigail-world__canvas" tabindex="0" aria-label="Fright Nights maze. Use arrow keys or WASD to walk, and E to investigate nearby objects or use the escape teleport."></canvas>
       <div class="abigail-world__header"><strong>FRIGHT NIGHTS · THE MAZE</strong><span id="frightObjective"></span></div>
       <button type="button" class="rs3-btn abigail-world__leave" data-fright-leave>Leave maze</button>
       <details class="abigail-world__panel" style="z-index:4">
@@ -46,7 +46,7 @@ export function mountFrightWorld(root, { characterName, savedState, onProgress, 
 
   function render() {
     root.querySelector('#frightObjective').textContent = frightExitReady(state)
-      ? 'All seven objects found. Use the escape teleport or the entrance gate.'
+      ? 'All seven objects found. Click the escape teleport, press E nearby, or use the entrance gate.'
       : `Find 3 clues in each area, take its tool and solve its mechanism (${state.collected.length}/7 objects).`;
     root.querySelector('[data-fright-teleport]').hidden = !frightExitReady(state) || Boolean(state.puzzle);
     root.querySelector('#frightMessage').textContent = state.message;
@@ -115,6 +115,7 @@ export function mountFrightWorld(root, { characterName, savedState, onProgress, 
   }
   function investigate() {
     stopWalking();
+    if (scene.nearTeleport(state.player)) { clearInput(); update(teleportFright(state)); return; }
     const object = FRIGHT_OBJECTS.map((item) => ({ item, distance: Math.hypot(item.x - state.player.x, item.y - state.player.y) }))
       .filter((entry) => entry.distance <= 65).sort((a, b) => a.distance - b.distance)[0];
     update(object ? interactFright(state, object.item.id) : { ...state, message: 'Move closer to a sign, tool, mechanism or gate to investigate.' });

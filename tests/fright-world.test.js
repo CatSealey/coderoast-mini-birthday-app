@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 import { CELL, FRIGHT_CLUES, FRIGHT_MAZE, FRIGHT_OBJECTS, FRIGHT_OBSTACLES, FRIGHT_PLAYER_RADIUS, FRIGHT_SCENERY, FRIGHT_START, FRIGHT_THEMES, SIZE, answerFright, frightExitReady, frightPath, frightStage, frightTeleportPosition, frightThemeCluesFound, frightWalkable, interactFright, newFrightState, restoreFrightState, teleportFright, walkFright } from '../js/games/fright-logic.js';
-import { createFrightScene } from '../js/games/fright-scene.js';
+import { createFrightScene, frightTeleportRayHit } from '../js/games/fright-scene.js';
 import { questItems } from '../js/quest-items.js';
 import { discoveredFrightClues } from '../js/games/fright-clues.js';
 
@@ -324,10 +325,10 @@ test('fallback maze objects have no labels and remain selectable', () => {
 test('fallback teleport circle appears and is clickable only after all objects are recovered', () => {
   const previousDocument = globalThis.document, previousWindow = globalThis.window;
   const previousCancelAnimationFrame = globalThis.cancelAnimationFrame;
-  const arcs = [], selections = [];
+  const arcs = [], selections = [], texts = [];
   let click;
   const context = {
-    setTransform() {}, fillRect() {}, strokeRect() {}, fillText() {}, beginPath() {},
+    setTransform() {}, fillRect() {}, strokeRect() {}, fillText(text) { texts.push(text); }, beginPath() {},
     ellipse() {}, arc(x, y, radius) { arcs.push({ x, y, radius, color: this.fillStyle }); },
     fill() {}, stroke() {}
   };
@@ -348,11 +349,14 @@ test('fallback teleport circle appears and is clickable only after all objects a
     const scene = createFrightScene(canvas, (selection) => selections.push(selection));
     scene.resize(650, 650);
     scene.draw(state);
+    assert.equal(scene.nearTeleport(state.player), false);
     click(point);
     assert.notEqual(selections.at(-1)?.teleport, true);
     assert.ok(!arcs.some((arc) => arc.color === 'rgba(98,216,239,0.3)'));
     const ready = { ...state, collected: FRIGHT_THEMES.map(({ id }) => id) };
     scene.draw(ready);
+    assert.ok(!texts.some((text) => /teleport/i.test(text)), 'the portal has no floating label');
+    assert.equal(scene.nearTeleport(ready.player), true);
     assert.ok(arcs.some((arc) => arc.color === 'rgba(98,216,239,0.3)'
       && arc.x === point.clientX && arc.y === point.clientY && arc.radius === 21));
     click(point);
@@ -361,10 +365,15 @@ test('fallback teleport circle appears and is clickable only after all objects a
     scene.draw(moved);
     click({ clientX: point.clientX - 10, clientY: point.clientY });
     assert.deepEqual(selections.at(-1), { teleport: true });
+    const farAway = { ...ready, player: { x: state.player.x + 200, y: state.player.y } };
+    scene.draw(farAway);
+    assert.equal(scene.nearTeleport(farAway.player), false);
     scene.draw({ ...ready, puzzle: 'clowns' });
+    assert.equal(scene.nearTeleport(ready.player), false);
     click(point);
     assert.notEqual(selections.at(-1)?.teleport, true);
     scene.draw({ ...ready, complete: true });
+    assert.equal(scene.nearTeleport(ready.player), false);
     click(point);
     assert.notEqual(selections.at(-1)?.teleport, true);
     scene.dispose();
@@ -376,6 +385,24 @@ test('fallback teleport circle appears and is clickable only after all objects a
     if (previousCancelAnimationFrame === undefined) delete globalThis.cancelAnimationFrame;
     else globalThis.cancelAnimationFrame = previousCancelAnimationFrame;
   }
+});
+
+test('3D portal ray selection includes its glowing beam', () => {
+  const camera = new THREE.OrthographicCamera(-100, 100, 100, -100, 1, 1000);
+  camera.position.set(0, 100, 200); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
+  const portal = new THREE.Group();
+  const geometry = new THREE.CylinderGeometry(15, 15, 72, 16);
+  const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+  const beam = new THREE.Mesh(geometry, material);
+  beam.position.set(0, 40, 0); portal.add(beam);
+  portal.updateMatrixWorld(true);
+  const raycaster = new THREE.Raycaster();
+  const projected = beam.getWorldPosition(new THREE.Vector3()).project(camera);
+  raycaster.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera);
+  assert.equal(frightTeleportRayHit(raycaster, portal), true);
+  raycaster.setFromCamera(new THREE.Vector2(-0.95, -0.95), camera);
+  assert.equal(frightTeleportRayHit(raycaster, portal), false);
+  geometry.dispose(); material.dispose();
 });
 
 test('stepping away mid-mechanism restarts it from step one and saves never persist a puzzle', () => {
