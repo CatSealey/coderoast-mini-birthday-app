@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CELL, FRIGHT_MAZE, FRIGHT_OBJECTS, FRIGHT_OBJECT_SCALE, FRIGHT_SCENERY, FRIGHT_THEMES, SIZE, frightAreaAt, frightExitReady, frightRandom, frightTeleportPosition } from './fright-logic.js';
 import { PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
 import { CHARACTER_RISE, addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
-import { createPlayerLegs } from './character-legs.js';
+import { createPlayerLegs, swingCharacterLegs } from './character-legs.js';
 import { FRIGHT_PALETTES, drawFrightTileDetail, frightWallSegments, paintFrightConsole, paintFrightDocument, paintFrightFloor, paintFrightWall } from './fright-scenery.js';
 import { createFrightMarker, createFrightMarkerGeometries, createFrightMaterial, frightMarkerVisible } from './fright-markers.js';
 
@@ -691,9 +691,8 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
     if (renderer) {
       player.position.set(state.player.x, 0, state.player.y);
       player.rotation.y = facing;
-      player.userData.legs[0].rotation.x = stride;
-      player.userData.legs[1].rotation.x = -stride;
-      swingCharacterArms(player.userData.arms, stride);
+      swingCharacterLegs(player.userData.legs, walkingPhase, distance > 0.01);
+      swingCharacterArms(player.userData.arms, walkingPhase, distance > 0.01);
       previousPosition = { ...state.player };
       playerLabel.position.set(state.player.x, 108 + CHARACTER_RISE, state.player.y);
       teleportCircle.visible = showTeleport;

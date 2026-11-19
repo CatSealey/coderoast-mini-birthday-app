@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { OBJECTS, PUB_STOOLS, newAdventureState } from '../js/games/adventure-logic.js';
-import { PUB_CAMERA_OFFSET, PUB_FURNITURE_PALETTE, PUB_POOL_LIGHTS, PUB_RACK_CUES, PUB_RUG, PUB_SHORT_CUE_SCALE, PUB_STOOL_SEAT_COLOR, addPubCue, addPubFurnitureDetails, addPubStoolDetails, addPubWallDetails, drawPubHeldCue, drawPubInterior, drawPubObject, paintPubFloor, paintPubRug, positionPubCatCue, pubCameraFraming, pubCatHoldsCue, pubCuesTaken } from '../js/games/pub-interior-art.js';
+import { PUB_CAMERA_OFFSET, PUB_FURNITURE_PALETTE, PUB_POOL_LIGHTS, PUB_RACK_CUES, PUB_RUG, PUB_SHORT_CUE_SCALE, PUB_STOOL_SEAT_COLOR, addPubCue, addPubFurnitureDetails, addPubStoolDetails, addPubWallDetails, attachPubCatCue, drawPubHeldCue, drawPubInterior, drawPubObject, paintPubFloor, paintPubRug, pubCameraFraming, pubCatHoldsCue, pubCuesTaken } from '../js/games/pub-interior-art.js';
+import { createCharacterArms, swingCharacterArms } from '../js/character-body.js';
 
 function recordingContext() {
   const calls = [];
@@ -249,17 +250,31 @@ test('cues have detailed shafts, grips and tips in both orientations', () => {
 });
 
 test('Cat’s full-length cue tilts away from her head while staying at her hand', () => {
-  const cat = new THREE.Group(), arm = new THREE.Group(), cue = new THREE.Group();
-  arm.position.set(-16, 54, 0);
-  cat.add(arm); arm.add(cue);
-  positionPubCatCue(cue);
+  const cat = new THREE.Group(), cue = new THREE.Group();
+  const box = (x, y, z, width, height, depth, color, owner) => {
+    const part = new THREE.Object3D();
+    part.position.set(x, y, z); owner.add(part); return part;
+  };
+  const arms = createCharacterArms(cat, box, {
+    offset: 16, shoulderY: 54, length: 28, width: 7, depth: 8, color: '#263d30', skin: '#dfb38c'
+  });
+  const arm = arms[0];
+  attachPubCatCue(cue, arm);
   cat.updateMatrixWorld(true);
   const grip = cue.localToWorld(new THREE.Vector3(0, 0, 0));
-  assert.deepEqual(grip.toArray(), [-16, 24, 4]);
+  const expected = arm.localToWorld(new THREE.Vector3(0, -30, 4));
+  assert.ok(grip.distanceTo(expected) < 1e-10);
   assert.equal(cue.scale.y, 1);
   for (const height of [60, 70, 80]) {
     const cueX = grip.x - (height - grip.y) * Math.tan(cue.rotation.z);
     assert.ok(cueX + 2.1 < -12, `cue clears Cat's head at height ${height}`);
+  }
+  for (const phase of [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2]) {
+    swingCharacterArms(arms, phase, true);
+    cat.updateMatrixWorld(true);
+    const hand = arm.userData.hand.getWorldPosition(new THREE.Vector3());
+    const cueGrip = cue.getWorldPosition(new THREE.Vector3());
+    assert.ok(Math.abs(cueGrip.distanceTo(hand) - 4) < 1e-10);
   }
 });
 

@@ -38,19 +38,20 @@ export function addCharacterHeadDetails(box, round, options) {
     round(side * width * 0.43, headY + height * (long ? -0.25 : shoulder ? -0.12 : 0.25), -front * 0.16,
       width * (long || shoulder ? 0.25 : 0.16), height * (long ? 1.55 : shoulder ? 1.16 : 0.4), depth * 0.68, hair);
     round(side * width * 0.46, headY - height * 0.03, 0, width * 0.15, height * 0.25, depth * 0.25, skin);
-    box(side * width * 0.22, headY + height * 0.05, front * 0.9, width * 0.11, height * 0.08, 1.2, '#49382f');
-    box(side * width * 0.205, headY + height * 0.065, front * 0.9 + 0.62,
+    box(side * width * 0.22, headY + height * 0.05, front * 0.91, width * 0.11, height * 0.08, 0.7, '#49382f');
+    box(side * width * 0.205, headY + height * 0.065, front * 0.91 + 0.37,
       width * 0.025, height * 0.025, 0.25, '#e3d2ba');
-    const brow = box(side * width * 0.22, headY + height * 0.17, front * 0.86,
-      width * 0.18, height * 0.045, 1, hair);
+    const brow = box(side * width * 0.22, headY + height * 0.17, front * 0.92,
+      width * 0.18, height * 0.045, 0.6, hair);
     if (brow?.rotation) brow.rotation.z = side * 0.12;
   }
   round(-width * 0.13, headY + height * 0.35, front * 0.55, width * 0.7, height * 0.23, depth * 0.4, hair);
-  round(0, headY - height * 0.08, front * 0.93, width * 0.11, height * 0.14, depth * 0.12, skin);
-  box(0, headY - height * 0.23, front * 0.96, width * 0.15, height * 0.045, 0.7, '#a66f67');
+  if (!options.face) round(0, headY - height * 0.08, front * 0.93, width * 0.11, height * 0.14, depth * 0.12, skin);
+  round(0, headY - height * 0.225, front * 0.92, width * 0.15, height * 0.038, 0.55, '#a66f67');
+  round(0, headY - height * 0.245, front * 0.92, width * 0.105, height * 0.033, 0.55, '#bd8981');
 }
 
-export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = CHARACTER_HAIR, hairLength = 'long', trousers, shorts, legTattoo = false, belt, buckle, shortSleeves = false, tattoo = false, stride = 0, heldArm = -1, facing = 0, zipline = false } = {}) {
+export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = CHARACTER_HAIR, hairLength = 'long', trousers, shorts, legTattoo = false, belt, buckle, shortSleeves = false, tattoo = false, stride = 0, heldArm = -1, heldHand, facing = 0, zipline = false } = {}) {
   const back = Math.cos(facing) < -Math.SQRT1_2;
   const side = Math.abs(Math.sin(facing)) > Math.SQRT1_2;
   context.fillStyle = hair;
@@ -63,7 +64,30 @@ export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = C
   for (const [index, side] of [-1, 1].entries()) {
     const armX = x + (side < 0 ? -10 : 7) * scale;
     const armY = y + (zipline ? -10 : 7 + (index === heldArm ? 0 : side * stride * 2)) * scale;
-    context.fillRect(armX, armY, 3 * scale, (zipline ? 20 : shortSleeves ? 4 : 9) * scale);
+    if (heldHand && index === heldArm && !zipline) {
+      const start = { x: armX + 1.5 * scale, y: armY + 1.5 * scale };
+      const point = (fraction) => ({
+        x: start.x + (heldHand.x - start.x) * fraction,
+        y: start.y + (heldHand.y - start.y) * fraction
+      });
+      const sleeveEnd = point(shortSleeves ? 0.45 : 0.9), wrist = point(0.9);
+      context.lineWidth = 3 * scale;
+      context.strokeStyle = outfit;
+      context.beginPath(); context.moveTo(start.x, start.y); context.lineTo(sleeveEnd.x, sleeveEnd.y); context.stroke();
+      if (shortSleeves) {
+        context.strokeStyle = '#dfb38c';
+        context.beginPath(); context.moveTo(sleeveEnd.x, sleeveEnd.y); context.lineTo(wrist.x, wrist.y); context.stroke();
+        if (tattoo && index === (back ? 1 : 0)) {
+          const mark = point(0.68);
+          context.fillStyle = TATTOO_INK; context.fillRect(mark.x - scale, mark.y - scale, 2 * scale, 2 * scale);
+        }
+      }
+      context.fillStyle = '#dfb38c';
+      context.fillRect(heldHand.x - 1.5 * scale, heldHand.y - 1.5 * scale, 3 * scale, 3 * scale);
+      context.fillStyle = outfit;
+    } else {
+      context.fillRect(armX, armY, 3 * scale, (zipline ? 20 : shortSleeves ? 4 : 9) * scale);
+    }
   }
   if (zipline) {
     context.fillStyle = '#dfb38c';
@@ -73,9 +97,9 @@ export function drawCharacterMarker(context, x, y, outfit, { scale = 1, hair = C
     context.fillStyle = '#dfb38c';
     const rightArmStride = heldArm === 0 ? 0 : stride;
     const leftArmStride = heldArm === 1 ? 0 : stride;
-    context.fillRect(x - 10 * scale, y + (11 - rightArmStride * 2) * scale, 2 * scale, 6 * scale);
-    context.fillRect(x + 8 * scale, y + (11 + leftArmStride * 2) * scale, 2 * scale, 6 * scale);
-    if (tattoo) {
+    if (!heldHand || heldArm !== 0) context.fillRect(x - 10 * scale, y + (11 - rightArmStride * 2) * scale, 2 * scale, 6 * scale);
+    if (!heldHand || heldArm !== 1) context.fillRect(x + 8 * scale, y + (11 + leftArmStride * 2) * scale, 2 * scale, 6 * scale);
+    if (tattoo && (!heldHand || heldArm !== (back ? 1 : 0))) {
       const tattooOffset = back ? leftArmStride * 2 : -rightArmStride * 2;
       context.fillStyle = TATTOO_INK;
       context.fillRect(x + (back ? 8 : -10) * scale, y + (12 + tattooOffset) * scale, 2 * scale, 3 * scale);

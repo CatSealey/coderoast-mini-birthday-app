@@ -6,16 +6,25 @@ export function createCharacterHeadGeometry() {
   return new THREE.IcosahedronGeometry(0.5, 1);
 }
 
-function facetedBodyGeometry(profile) {
+function facetedBodyGeometry(profile, detailedFace = false) {
   const positions = [];
-  const ring = ({ y, width, depth, front = depth, back = depth }) => [
-    [-width * 0.52, y, front], [width * 0.52, y, front],
-    [width * 0.82, y, front * 0.84], [width, y, front * 0.56],
-    [width, y, -back * 0.56], [width * 0.82, y, -back * 0.84],
-    [width * 0.52, y, -back], [-width * 0.52, y, -back],
-    [-width * 0.82, y, -back * 0.84], [-width, y, -back * 0.56],
-    [-width, y, front * 0.56], [-width * 0.82, y, front * 0.84]
-  ];
+  const ring = ({ y, width, depth, front = depth, back = depth, nose = 0, cheek = 0, lip = 0, chin = 0 }) => {
+    const face = detailedFace ? [
+      [-width * 0.27, y, front + cheek + chin * 0.55],
+      [-width * 0.1, y, front + nose * 0.75 + lip * 0.8 + chin * 0.9],
+      [0, y, front + nose + lip + chin],
+      [width * 0.1, y, front + nose * 0.75 + lip * 0.8 + chin * 0.9],
+      [width * 0.27, y, front + cheek + chin * 0.55]
+    ] : [];
+    return [
+      [-width * 0.52, y, front], ...face, [width * 0.52, y, front],
+      [width * 0.82, y, front * 0.84], [width, y, front * 0.56],
+      [width, y, -back * 0.56], [width * 0.82, y, -back * 0.84],
+      [width * 0.52, y, -back], [-width * 0.52, y, -back],
+      [-width * 0.82, y, -back * 0.84], [-width, y, -back * 0.56],
+      [-width, y, front * 0.56], [-width * 0.82, y, front * 0.84]
+    ];
+  };
   const rings = profile.map(ring);
   const triangle = (a, b, c) => positions.push(...a, ...b, ...c);
   for (let layer = 0; layer < rings.length - 1; layer += 1) {
@@ -39,16 +48,41 @@ function facetedBodyGeometry(profile) {
 export function createCharacterFaceGeometry() {
   const geometry = facetedBodyGeometry([
     { y: -0.5, width: 0.24, depth: 0.36 },
-    { y: -0.38, width: 0.33, depth: 0.42 },
-    { y: -0.12, width: 0.42, depth: 0.45 },
-    { y: 0.22, width: 0.45, depth: 0.46 },
+    { y: -0.44, width: 0.29, depth: 0.39, chin: 0.012 },
+    { y: -0.38, width: 0.33, depth: 0.42, chin: 0.023 },
+    { y: -0.32, width: 0.355, depth: 0.425, chin: 0.03, cheek: 0.008 },
+    { y: -0.26, width: 0.38, depth: 0.435, cheek: 0.01 },
+    { y: -0.235, width: 0.385, depth: 0.436, lip: 0.018, cheek: 0.01 },
+    { y: -0.21, width: 0.39, depth: 0.438, lip: 0.009, cheek: 0.01 },
+    { y: -0.17, width: 0.4, depth: 0.44, nose: 0.025, cheek: 0.016 },
+    { y: -0.1, width: 0.42, depth: 0.45, nose: 0.11, cheek: 0.016 },
+    { y: -0.04, width: 0.43, depth: 0.455, nose: 0.105, cheek: 0.01 },
+    { y: 0.05, width: 0.44, depth: 0.455, nose: 0.055 },
+    { y: 0.16, width: 0.45, depth: 0.46, nose: 0.015, cheek: 0.006 },
+    { y: 0.22, width: 0.45, depth: 0.46, cheek: 0.008 },
     { y: 0.4, width: 0.37, depth: 0.4 },
     { y: 0.5, width: 0.25, depth: 0.28 }
-  ]);
+  ], true);
   const positions = geometry.getAttribute('position'), normals = geometry.getAttribute('normal');
   for (let i = 0; i < positions.count; i += 3) {
+    const centerX = (positions.getX(i) + positions.getX(i + 1) + positions.getX(i + 2)) / 3;
+    const centerY = (positions.getY(i) + positions.getY(i + 1) + positions.getY(i + 2)) / 3;
+    // Keep the faceted underside of the nose from shading like facial hair.
+    if (Math.abs(centerX) < 0.14 && centerY > -0.19 && centerY < -0.08
+      && normals.getZ(i) > 0.3 && normals.getY(i) < -0.2) {
+      const normal = new THREE.Vector3(normals.getX(i), 0, normals.getZ(i)).normalize();
+      for (let j = 0; j < 3; j += 1) normals.setXYZ(i + j, normal.x, normal.y, normal.z);
+    }
     if (normals.getZ(i) > 0.8 && normals.getY(i) < 0 && positions.getY(i) < -0.1) {
       for (let j = 0; j < 3; j += 1) normals.setXYZ(i + j, 0, 0, 1);
+    }
+    // Soften the steep central facets without changing the sculpted silhouette.
+    if (Math.abs(centerX) < 0.24 && centerY > -0.44 && centerY < 0.22 && normals.getZ(i) > 0.3) {
+      const normal = new THREE.Vector3(normals.getX(i) * 0.45, normals.getY(i) * 0.7, normals.getZ(i) + 0.55).normalize();
+      if (normal.z > 0.8 && Math.min(positions.getY(i), positions.getY(i + 1), positions.getY(i + 2)) < -0.1 && normal.y < 0) {
+        normal.setY(0).normalize();
+      }
+      for (let j = 0; j < 3; j += 1) normals.setXYZ(i + j, normal.x, normal.y, normal.z);
     }
   }
   normals.needsUpdate = true;
@@ -262,7 +296,7 @@ export function addJapaneseSleeve(box, { x, y, z, width, height, depth, outerSid
 }
 
 export function characterArmOffset(offset, width) {
-  return offset - width * 0.48;
+  return offset - width * 0.65;
 }
 
 export function createCharacterArms(parent, box, { offset, shoulderY, length, width, depth, color, skin, shortSleeves = false, tattoo = false, limbGeometry, skinGeometry }) {
@@ -275,7 +309,7 @@ export function createCharacterArms(parent, box, { offset, shoulderY, length, wi
     const sleeveLength = shortSleeves ? length * 0.46 : length * 0.54;
     const sleeve = box(0, -sleeveLength / 2, 0, width, sleeveLength, depth, color, arm);
     shapeCharacterLimb(sleeve, limbGeometry, width, sleeveLength, depth);
-    const shoulderWidth = width * 0.82, shoulderHeight = width * 0.8, shoulderDepth = depth * 0.85;
+    const shoulderWidth = width * 0.72, shoulderHeight = width * 0.8, shoulderDepth = depth * 0.85;
     const shoulder = box(x < 0 ? width * 0.42 : -width * 0.42, -shoulderHeight * 0.3, 0,
       shoulderWidth, shoulderHeight, shoulderDepth, color, arm);
     shapeCharacterLimb(shoulder, limbGeometry, shoulderWidth, shoulderHeight, shoulderDepth);
@@ -286,25 +320,39 @@ export function createCharacterArms(parent, box, { offset, shoulderY, length, wi
     const elbow = box(0, -sleeveLength, depth * 0.07, width * 0.78, length * 0.13, depth * 0.86,
       shortSleeves ? skin : color, arm);
     shapeCharacterLimb(elbow, limbGeometry, width * 0.78, length * 0.13, depth * 0.86);
+    const forearmJoint = new THREE.Group();
+    forearmJoint.position.y = -sleeveLength;
+    arm.add(forearmJoint);
+    arm.userData.elbow = forearmJoint;
     const lowerHeight = length - sleeveLength - 2;
     const forearmWidth = width * 0.78, forearmDepth = depth * 0.76;
-    const forearm = box(0, -sleeveLength - lowerHeight / 2, 0, forearmWidth, lowerHeight, forearmDepth, shortSleeves ? skin : color, arm);
+    const forearm = box(0, -lowerHeight / 2, 0, forearmWidth, lowerHeight, forearmDepth, shortSleeves ? skin : color, forearmJoint);
     shapeCharacterLimb(forearm, shortSleeves ? skinGeometry : limbGeometry, forearmWidth, lowerHeight, forearmDepth);
-    if (tattoo && shortSleeves && x < 0) addJapaneseSleeve((...args) => box(...args, arm),
-      { x: 0, y: -sleeveLength - lowerHeight / 2, z: 0, width: forearmWidth, height: lowerHeight, depth: forearmDepth, tapered: Boolean(skinGeometry) });
-    const wrist = box(0, -length + 0.8, 0, width * 0.52, 2.8, depth * 0.5, shortSleeves ? skin : color, arm);
+    if (tattoo && shortSleeves && x < 0) addJapaneseSleeve((...args) => box(...args, forearmJoint),
+      { x: 0, y: -lowerHeight / 2, z: 0, width: forearmWidth, height: lowerHeight, depth: forearmDepth, tapered: Boolean(skinGeometry) });
+    const wrist = box(0, -length + sleeveLength + 0.8, 0, width * 0.52, 2.8, depth * 0.5, shortSleeves ? skin : color, forearmJoint);
     shapeCharacterLimb(wrist, limbGeometry, width * 0.52, 2.8, depth * 0.5);
-    const hand = box(0, -length - 2, 0, width * 0.64, 4.2, depth * 0.55, skin, arm);
+    const hand = box(0, -length + sleeveLength - 2, 0, width * 0.64, 4.2, depth * 0.55, skin, forearmJoint);
     shapeCharacterLimb(hand, limbGeometry, width * 0.64, 4.2, depth * 0.55);
-    const thumb = box(x < 0 ? width * 0.26 : -width * 0.26, -length - 1.3, depth * 0.06,
-      width * 0.2, 2.3, depth * 0.24, skin, arm);
+    arm.userData.hand = hand;
+    const thumb = box(x < 0 ? width * 0.26 : -width * 0.26, -length + sleeveLength - 1.3, depth * 0.06,
+      width * 0.2, 2.3, depth * 0.24, skin, forearmJoint);
     shapeCharacterLimb(thumb, limbGeometry, width * 0.2, 2.3, depth * 0.24);
     return arm;
   });
 }
 
-export function swingCharacterArms(arms, stride, heldArm = -1) {
+export function swingCharacterArms(arms, phase, moving, heldArm = -1) {
   arms.forEach((arm, index) => {
-    arm.rotation.x = index === heldArm ? 0 : (index === 0 ? -stride : stride);
+    const swing = moving && index !== heldArm ? Math.sin(phase + index * Math.PI) : 0;
+    arm.rotation.x = -swing * 0.2;
+    arm.rotation.z = arm.userData.restRotation;
+    arm.userData.elbow.rotation.x = moving && index !== heldArm ? -(0.1 + (1 + swing) * 0.035) : 0;
   });
+}
+
+export function poseCharacterHoldingHand(arm, separation) {
+  const handY = arm.userData.elbow.position.y + arm.userData.hand.position.y;
+  const reach = separation / 2 - Math.abs(arm.position.x) - 1;
+  arm.rotation.z = Math.sign(arm.position.x) * Math.asin(reach / -handY);
 }

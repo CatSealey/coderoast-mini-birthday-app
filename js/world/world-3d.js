@@ -8,7 +8,7 @@ import { CANOPY_LINKS, CANOPY_OFFSET, CANOPY_PLATFORMS, COASTER_TRACKS, harvestP
 import { worldCornWalls, worldTrees } from './world-collision.js';
 import { CAT_OUTFIT, CAT_STYLE, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, addCharacterHeadDetails } from '../character-appearance.js';
 import { CHARACTER_RISE, addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, shapeCharacterLimb, swingCharacterArms } from '../character-body.js';
-import { createCharacterLegs, createPlayerLegs } from '../games/character-legs.js';
+import { createCharacterLegs, createPlayerLegs, swingCharacterLegs } from '../games/character-legs.js';
 import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
 import { sideQuestPosition } from '../side-quests.js';
 import { SURROUNDINGS_BOUNDS, surroundingTrees, treeType } from './world-surroundings.js';
@@ -1304,10 +1304,8 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
         player.rotation.y = Math.atan2(position.x - previousPosition.x, position.y - previousPosition.y);
       }
       previousPosition = { ...position };
-      const stride = moving ? Math.sin(time / 120) * 0.45 : 0;
-      player.userData.legs[0].rotation.x = stride;
-      player.userData.legs[1].rotation.x = -stride;
-      swingCharacterArms(player.userData.arms, stride);
+      swingCharacterLegs(player.userData.legs, time / 120, moving);
+      swingCharacterArms(player.userData.arms, time / 120, moving);
       guides.forEach(({ marker, label }, index) => {
         marker.material = material(completed[index] ? '#97c77c' : '#e6bf63');
         marker.rotation.y = time / 1000;
@@ -1319,10 +1317,8 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
           const position = sideQuestPosition(npc, time);
           person.position.x = position.x;
           person.rotation.y = Math.cos(time / 650) >= 0 ? Math.PI / 2 : -Math.PI / 2;
-          const step = Math.sin(time / 120) * 0.35;
-          person.userData.legs[0].rotation.x = step;
-          person.userData.legs[1].rotation.x = -step;
-          swingCharacterArms(person.userData.arms, step);
+          swingCharacterLegs(person.userData.legs, time / 120, true);
+          swingCharacterArms(person.userData.arms, time / 120, true);
         } else if (npc.sideQuest !== undefined) {
           const facing = npc.prop === 'doll' || npc.prop === 'grave' ? Math.PI / 2 : 0;
           person.rotation.y = facing + Math.sin(time / 1300) * 0.08;

@@ -74,7 +74,10 @@ export function setZipRiderPose(player, ride, active, anchor, direction) {
   ride.clip.visible = !active;
   for (const [index, arm] of player.userData.arms.entries()) {
     arm.rotation.z = active ? (index === 0 ? 1 : -1) * (Math.PI - 0.48) : arm.userData.restRotation ?? 0;
-    if (active) arm.rotation.x = 0.5;
+    if (active) {
+      arm.rotation.x = 0.5;
+      arm.userData.elbow.rotation.x = 0;
+    }
   }
   const target = new THREE.Vector3(anchor.x, anchor.height, anchor.y);
   ride.clip.position.copy(target);

@@ -49,16 +49,18 @@ test('zip rider grips the tether and returns to a normal walking pose after the 
   for (const progress of [0, 0.15, 0.5, 1]) {
     const point = canopyZipPosition(progress);
     player.position.set(point.x, point.height, point.y);
+    swingCharacterArms(player.userData.arms, 0.4, true);
     setZipRiderPose(player, ride, true, { ...point, height: point.height + CANOPY_ZIPLINE.cableHeight }, direction);
     scene.updateMatrixWorld(true);
     assert.equal(ride.harness.visible, true);
     assert.deepEqual(ride.trolley.position.toArray(), [point.x, point.height + CANOPY_ZIPLINE.cableHeight, point.y]);
     for (const arm of player.userData.arms) {
-      const hand = player.worldToLocal(arm.localToWorld(new THREE.Vector3(0, -30, 0)));
+      const hand = player.worldToLocal(arm.userData.hand.getWorldPosition(new THREE.Vector3()));
       assert.ok(Math.abs(hand.x) < 3 && hand.y > 75 && hand.y < 80 && Math.abs(hand.z - 13) < 1);
+      assert.equal(arm.userData.elbow.rotation.x, 0);
     }
   }
-  swingCharacterArms(player.userData.arms, 0.3);
+  swingCharacterArms(player.userData.arms, 0.3, true);
   const anchor = canopySafetyAnchor(player.position.x);
   setZipRiderPose(player, ride, false, anchor, direction);
   scene.updateMatrixWorld(true);
@@ -67,7 +69,9 @@ test('zip rider grips the tether and returns to a normal walking pose after the 
   assert.equal(ride.clip.visible, true);
   assert.ok(ride.tether.localToWorld(new THREE.Vector3(0, 0.5, 0)).distanceTo(new THREE.Vector3(anchor.x, anchor.height, anchor.y)) < 1e-8);
   assert.deepEqual(player.userData.arms.map((arm) => arm.rotation.z), [-0.08, 0.08]);
-  assert.deepEqual(player.userData.arms.map((arm) => arm.rotation.x), [-0.3, 0.3]);
+  assert.ok(Math.abs(player.userData.arms[0].rotation.x + Math.sin(0.3) * 0.2) < 1e-10);
+  assert.ok(Math.abs(player.userData.arms[1].rotation.x - Math.sin(0.3) * 0.2) < 1e-10);
+  assert.ok(player.userData.arms[1].userData.elbow.rotation.x < 0);
   for (const platform of CANOPY_PLATFORMS) {
     for (const z of [platform.top + 20, platform.bottom - 20]) {
       player.position.set((platform.left + platform.right) / 2, platform.height, z);
@@ -103,7 +107,7 @@ test('raised character harness and tether stay attached during and after a zip-l
       .distanceTo(new THREE.Vector3(anchor.x, anchor.height, anchor.y)) < 1e-8);
     if (active) {
       for (const arm of player.userData.arms) {
-        const hand = player.worldToLocal(arm.localToWorld(new THREE.Vector3(0, -30, 0)));
+        const hand = player.worldToLocal(arm.userData.hand.getWorldPosition(new THREE.Vector3()));
         assert.ok(Math.abs(hand.x) < 3 && hand.y > 75 + CHARACTER_RISE && hand.y < 80 + CHARACTER_RISE);
       }
     } else {

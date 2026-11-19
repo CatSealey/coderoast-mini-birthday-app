@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { HOUSE_BOUNDS, HOUSE_OBJECTS, HOUSE_WALLS } from './abigail-house.js';
 import { PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
 import { CHARACTER_RISE, addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
-import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
+import { createCharacterLegs, createPlayerLegs, swingCharacterLegs } from './character-legs.js';
 
 export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer') {
   const probe = document.createElement('canvas').getContext('webgl2');
@@ -461,9 +461,8 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     if (renderer) {
       if (!roomGroup) buildRoom();
       player.rotation.y = facing;
-      player.userData.legs[0].rotation.x = stride;
-      player.userData.legs[1].rotation.x = -stride;
-      swingCharacterArms(player.userData.arms, stride);
+      swingCharacterLegs(player.userData.legs, walkingPhase, distance > 0.01);
+      swingCharacterArms(player.userData.arms, walkingPhase, distance > 0.01);
       player.position.set(state.player.x, 0, state.player.y);
       const cameraX = width < 520 ? Math.max(-240, Math.min(240, state.player.x * 0.55)) : 0;
       const cameraZ = Math.max(0, Math.min(350, state.player.y * 0.75));

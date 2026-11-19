@@ -368,6 +368,13 @@ export function positionPubCatCue(cue) {
   cue.rotation.z = 0.16;
 }
 
+export function attachPubCatCue(cue, arm) {
+  positionPubCatCue(cue);
+  const elbow = arm.userData.elbow;
+  cue.position.y -= elbow.position.y;
+  elbow.add(cue);
+}
+
 export function drawPubHeldCue(ctx, x, y) {
   ctx.fillStyle = '#dfc18d'; ctx.fillRect(x - 10, y - 15, 2, 40);
   ctx.fillStyle = '#76503a'; ctx.fillRect(x - 10.5, y + 12, 3, 10);

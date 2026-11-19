@@ -167,17 +167,19 @@ test('player shorts and tattoo move with the anatomically left leg', () => {
   assert.deepEqual(legs.map((leg) => leg.position.x), [-6, 6]);
   assert.ok(legs.every((leg) => leg.children.some((part) => part.userData.color === PLAYER_STYLE.shorts)));
   assert.ok(legs.every((leg) => leg.children.some((part) => part.userData.color === '#dfb38c')));
-  assert.ok(!legs[0].children.some((part) => part.userData.color === TATTOO_INK));
-  assert.ok(legs[1].children.some((part) => part.userData.color === TATTOO_INK && part.position.x > 3.5));
-  assert.ok(legs[1].children.some((part) => part.userData.color === TATTOO_INK && part.position.z < -4));
+  assert.ok(!legs[0].userData.knee.children.some((part) => part.userData.color === TATTOO_INK));
+  assert.ok(legs[1].userData.knee.children.some((part) => part.userData.color === TATTOO_INK && part.position.x > 3.5));
+  assert.ok(legs[1].userData.knee.children.some((part) => part.userData.color === TATTOO_INK && part.position.z < -4));
   for (const leg of legs) {
-    const shoe = leg.children.find((part) => part.userData.color === '#594336');
+    const shoe = leg.userData.foot.children.find((part) => part.userData.color === '#594336');
     const skin = leg.children.find((part) => part.userData.color === '#dfb38c');
     assert.ok(shoe.position.z - shoe.userData.depth / 2 < skin.position.z - skin.userData.depth / 2);
     assert.ok(shoe.position.z + shoe.userData.depth / 2 > skin.position.z + skin.userData.depth / 2);
   }
-  legs[1].rotation.x = 0.4;
-  assert.equal(parts.find((part) => part.userData.color === TATTOO_ACCENT).parent.rotation.x, 0.4);
+  const tattoo = parts.find((part) => part.userData.color === TATTOO_ACCENT);
+  assert.equal(tattoo.parent, legs[1].userData.knee);
+  legs[1].userData.knee.rotation.x = 0.4;
+  assert.equal(tattoo.parent.rotation.x, 0.4);
 });
 
 test('fallback limbs and the leg tattoo move with the walking stride', () => {
@@ -202,15 +204,44 @@ test('arms swing from the shoulder opposite their legs and can keep a hand still
   };
   const arms = createCharacterArms(parent, box, { offset: 15, shoulderY: 54, length: 28, width: 7, depth: 8,
     color: CAT_OUTFIT, skin: '#dfb38c', shortSleeves: true, tattoo: true });
-  assert.ok(arms[0].children.some((part) => part.userData.color === TATTOO_INK && part.position.z > 3));
-  assert.ok(arms[0].children.some((part) => part.userData.color === TATTOO_INK && part.position.z < -3));
-  assert.ok(!arms[1].children.some((part) => part.userData.color === TATTOO_INK));
-  swingCharacterArms(arms, 0.4);
-  assert.deepEqual(arms.map((arm) => arm.rotation.x), [-0.4, 0.4]);
-  swingCharacterArms(arms, 0.4, 1);
-  assert.deepEqual(arms.map((arm) => arm.rotation.x), [-0.4, 0]);
-  swingCharacterArms(arms, 0);
-  assert.deepEqual(arms.map((arm) => arm.rotation.x), [-0, 0]);
+  assert.ok(arms[0].userData.elbow.children.some((part) => part.userData.color === TATTOO_INK && part.position.z > 3));
+  assert.ok(arms[0].userData.elbow.children.some((part) => part.userData.color === TATTOO_INK && part.position.z < -3));
+  assert.ok(!arms[1].userData.elbow.children.some((part) => part.userData.color === TATTOO_INK));
+  swingCharacterArms(arms, Math.PI / 2, true);
+  assert.ok(Math.abs(arms[0].rotation.x + 0.2) < 1e-10 && Math.abs(arms[1].rotation.x - 0.2) < 1e-10);
+  assert.ok(arms[1].userData.elbow.rotation.x < 0);
+  swingCharacterArms(arms, Math.PI / 2, true, 1);
+  assert.ok(Math.abs(arms[0].rotation.x + 0.2) < 1e-10 && arms[1].rotation.x === 0);
+  assert.equal(arms[1].userData.elbow.rotation.x, 0);
+  swingCharacterArms(arms, 3 * Math.PI / 2, true);
+  assert.ok(arms[0].userData.elbow.rotation.x < 0);
+  swingCharacterArms(arms, Math.PI / 2, false);
+  assert.ok(arms.every((arm) => arm.rotation.x === 0));
+  assert.ok(arms.every((arm) => arm.userData.elbow.rotation.x === 0));
+});
+
+test('paired walkers keep either joined hand fixed while their other elbows move', () => {
+  const parent = new THREE.Group();
+  const box = (x, y, z, width, height, depth, color, owner) => {
+    const part = new THREE.Object3D();
+    part.position.set(x, y, z); owner.add(part); return part;
+  };
+  const arms = createCharacterArms(parent, box, { offset: 15, shoulderY: 54, length: 28, width: 7, depth: 8,
+    color: CAT_OUTFIT, skin: '#dfb38c' });
+  for (const held of [0, 1]) {
+    swingCharacterArms(arms, 0, false, held);
+    parent.updateMatrixWorld(true);
+    const fixedHand = arms[held].userData.hand.getWorldPosition(new THREE.Vector3());
+    let freeElbowBends = false;
+    for (const phase of [Math.PI / 2, 3 * Math.PI / 2]) {
+      swingCharacterArms(arms, phase, true, held);
+      parent.updateMatrixWorld(true);
+      assert.ok(arms[held].userData.hand.getWorldPosition(new THREE.Vector3()).distanceTo(fixedHand) < 1e-10);
+      assert.equal(arms[held].userData.elbow.rotation.x, 0);
+      freeElbowBends ||= arms[1 - held].userData.elbow.rotation.x < 0;
+    }
+    assert.ok(freeElbowBends);
+  }
 });
 
 test('rounded torsos and Japanese-inspired sleeve add character detail', () => {
@@ -254,9 +285,9 @@ test('faceted limbs remain attached to animated arms and preserve Cat’s tattoo
     color: CAT_OUTFIT, skin: '#dfb38c', shortSleeves: true, tattoo: true, limbGeometry: limb });
   assert.ok(arms.every((arm) => arm.children[0].geometry === limb));
   assert.deepEqual(arms[0].children[0].scale.toArray(), [7, 28 * 0.46, 8]);
-  assert.ok(arms[0].children.some((part) => part.userData.color === TATTOO_INK));
-  swingCharacterArms(arms, 0.4);
-  assert.equal(arms[0].rotation.x, -0.4);
+  assert.ok(arms[0].userData.elbow.children.some((part) => part.userData.color === TATTOO_INK));
+  swingCharacterArms(arms, Math.PI / 2, true);
+  assert.equal(arms[0].rotation.x, -0.2);
   const legs = createCharacterLegs(parent, box, 6, '#594336', CAT_STYLE.trousers, limb);
   assert.ok(legs.every((leg) => leg.children[0].geometry === limb && leg.children[0].userData.color === CAT_STYLE.trousers));
   cube.dispose(); limb.dispose(); material.dispose();
@@ -283,9 +314,10 @@ test('shoulders are compact and remain joined to each scene’s torso', () => {
       const arms = createCharacterArms(parent, box, { offset, shoulderY, length, width: armWidth, depth: 8,
         color: CAT_OUTFIT, skin: '#dfb38c', shortSleeves, limbGeometry: limb });
       const shoulder = arms[1].children[1];
-      assert.equal(shoulder.scale.x, armWidth * 0.82);
+      assert.equal(shoulder.scale.x, armWidth * 0.72);
       assert.equal(shoulder.scale.y, armWidth * 0.8);
-      assert.ok(arms[1].position.x < offset);
+      assert.ok(Math.abs(arms[1].position.x - (offset - armWidth * 0.65)) < 1e-10);
+      assert.ok(Math.abs(arms[0].position.x + arms[1].position.x) < 1e-10);
       parent.updateMatrixWorld(true);
       const y = shoulderY + shoulder.position.y + shoulder.scale.y * 0.22;
       const ray = new THREE.Raycaster(new THREE.Vector3(-100, y, 0), new THREE.Vector3(1, 0, 0));
@@ -294,6 +326,14 @@ test('shoulders are compact and remain joined to each scene’s torso', () => {
       const torsoEdge = Math.max(...torsoHits.map((hit) => hit.point.x));
       const shoulderEdge = Math.min(...shoulderHits.map((hit) => hit.point.x));
       assert.ok(torsoEdge >= shoulderEdge, `torso ${torsoWidth}x${torsoHeight}, short sleeves ${shortSleeves}: ${torsoEdge} < ${shoulderEdge}`);
+      const outerEdge = () => Math.max(...ray.intersectObjects([torso, shoulder, arms[1].children[0]]).map((hit) => hit.point.x));
+      const narrowerEdge = outerEdge();
+      arms[1].position.x += armWidth * 0.07;
+      shoulder.scale.x = armWidth * 0.76;
+      parent.updateMatrixWorld(true);
+      const previousEdge = outerEdge();
+      assert.ok(previousEdge - narrowerEdge >= armWidth * 0.06, 'shoulder silhouette is slightly narrower on each side');
+      assert.ok(previousEdge - narrowerEdge <= armWidth * 0.09, 'shoulder reduction remains subtle');
     }
   }
   cube.dispose(); limb.dispose(); torsoGeometry.dispose(); material.dispose();
@@ -355,7 +395,7 @@ test('face geometry has a shaped jaw and layered clothing follows the torso', ()
     return result;
   };
   assert.ok(halfWidthAt(-0.5) < halfWidthAt(0.22) * 0.6);
-  assert.ok(halfWidthAt(-0.38) < halfWidthAt(-0.12));
+  assert.ok(halfWidthAt(-0.38) < halfWidthAt(-0.1));
   assert.ok(positions.count > 200);
   const normals = face.getAttribute('normal');
   for (let i = 0; i < positions.count; i += 1) {
@@ -433,13 +473,17 @@ test('elbows and wrists connect tapered forearms to hands in both sleeve styles'
     const arms = createCharacterArms(parent, box, { offset: 16, shoulderY: 63, length: 28, width: 7, depth: 8,
       color: CAT_OUTFIT, skin: '#dfb38c', shortSleeves, limbGeometry: limb, skinGeometry: skin });
     for (const arm of arms) {
-      const [sleeve, , , , elbow, forearm, wrist, hand] = arm.children;
+      const [sleeve, , , , elbow] = arm.children;
+      const [forearm, wrist, hand] = arm.userData.elbow.children;
       parent.updateMatrixWorld(true);
       const bounds = (part) => new THREE.Box3().setFromObject(part);
       assert.ok(bounds(elbow).intersectsBox(bounds(sleeve)) && bounds(elbow).intersectsBox(bounds(forearm)));
       assert.ok(bounds(wrist).intersectsBox(bounds(forearm)) && bounds(wrist).intersectsBox(bounds(hand)));
       assert.ok(wrist.scale.x < forearm.scale.x && hand.scale.x < sleeve.scale.x);
       assert.ok(bounds(elbow).max.z > bounds(forearm).max.z, 'elbow extends beyond the forearm profile');
+      arm.userData.elbow.rotation.x = -0.27;
+      parent.updateMatrixWorld(true);
+      assert.ok(bounds(elbow).intersectsBox(bounds(forearm)));
     }
   }
   cube.dispose(); limb.dispose(); skin.dispose(); material.dispose();
@@ -459,12 +503,12 @@ test('belts follow the narrowed torso and tattooed skin stays faceted', () => {
   assert.ok(parent.children.some((part) => part.userData.color === CAT_STYLE.buckle));
   const arms = createCharacterArms(parent, box, { offset: 16, shoulderY: 54, length: 28, width: 7, depth: 8,
     color: CAT_OUTFIT, skin: '#dfb38c', shortSleeves: true, tattoo: true, limbGeometry: limb, skinGeometry: skin });
-  assert.ok(arms[0].children.some((part) => part.geometry === skin && part.userData.color === '#dfb38c'));
-  assert.ok(arms[0].children.some((part) => part.userData.color === TATTOO_INK && part.position.z > 2.5));
+  assert.ok(arms[0].userData.elbow.children.some((part) => part.geometry === skin && part.userData.color === '#dfb38c'));
+  assert.ok(arms[0].userData.elbow.children.some((part) => part.userData.color === TATTOO_INK && part.position.z > 2.5));
   const legs = createPlayerLegs(parent, box, { offset: 7, shoeColor: '#594336', shortsColor: PLAYER_STYLE.shorts,
     skin: '#dfb38c', limbGeometry: limb, skinGeometry: skin });
-  assert.ok(legs[1].children.some((part) => part.geometry === skin && part.userData.color === '#dfb38c'));
-  assert.ok(legs[1].children.some((part) => part.userData.color === TATTOO_INK));
+  assert.ok(legs[1].userData.knee.children.some((part) => part.geometry === skin && part.userData.color === '#dfb38c'));
+  assert.ok(legs[1].userData.knee.children.some((part) => part.userData.color === TATTOO_INK));
   cube.dispose(); limb.dispose(); skin.dispose(); material.dispose();
 });
 
@@ -480,7 +524,7 @@ test('tattoos follow the front, back and outside of tapered moving limbs', () =>
     color: CAT_OUTFIT, skin: '#dfb38c', shortSleeves: true, tattoo: true, limbGeometry: limb, skinGeometry: skin });
   const legs = createPlayerLegs(parent, box, { offset: 7, height: 31, shoeColor: '#594336',
     shortsColor: PLAYER_STYLE.shorts, skin: '#dfb38c', limbGeometry: limb, skinGeometry: skin });
-  for (const owner of [arms[0], legs[1]]) {
+  for (const owner of [arms[0].userData.elbow, legs[1].userData.knee]) {
     const exposed = owner.children.find((part) => part.geometry === skin);
     const ink = owner.children.filter((part) => part.userData.color === TATTOO_INK);
     assert.equal(ink.length, 15);

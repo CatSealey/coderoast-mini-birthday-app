@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { addJapaneseSleeve, shapeCharacterLimb } from '../character-body.js';
 
 function addHips(parent, box, offset, height, width, depth, color, limbGeometry) {
-  const hipWidth = offset * 2 + width * 0.75, hipHeight = width * 0.85, hipDepth = depth * 1.12;
+  const hipWidth = offset * 2 + width * 0.62, hipHeight = width * 0.85, hipDepth = depth * 1.12;
   const hips = box(0, height + hipHeight * 0.12, -depth * 0.05, hipWidth, hipHeight, hipDepth, color, parent);
   shapeCharacterLimb(hips, limbGeometry, hipWidth, hipHeight, hipDepth);
 }
@@ -24,6 +24,38 @@ function addShoe(box, leg, height, width, depth, color, limbGeometry, z) {
   return shoe;
 }
 
+function addLegJoints(leg, kneeY, height) {
+  const knee = new THREE.Group();
+  knee.position.y = kneeY;
+  leg.add(knee);
+  const foot = new THREE.Group();
+  foot.position.y = -height + 2 - kneeY;
+  knee.add(foot);
+  leg.userData.knee = knee;
+  leg.userData.foot = foot;
+  leg.userData.restHeight = height;
+  return { knee, foot };
+}
+
+export function swingCharacterLegs(legs, phase, moving) {
+  legs.forEach((leg, index) => {
+    const legPhase = phase + index * Math.PI;
+    const thigh = moving ? Math.sin(legPhase) * 0.32 : 0;
+    const lift = moving ? Math.max(0, -Math.cos(legPhase)) : 0;
+    const knee = lift * lift * 0.48;
+    const foot = leg.userData.foot;
+    leg.rotation.x = thigh;
+    leg.userData.knee.rotation.x = knee;
+    foot.rotation.x = -thigh - knee;
+    const height = leg.userData.restHeight;
+    // Compensate for the hip arc so the supporting sole stays on the ground.
+    const hipLift = (height - 2) * (1 - Math.cos(thigh));
+    const footLift = height - 2 + leg.userData.knee.position.y * Math.cos(thigh)
+      + foot.position.y * Math.cos(thigh + knee);
+    leg.position.y = height - Math.min(hipLift, Math.max(0, footLift));
+  });
+}
+
 export function createCharacterLegs(parent, box, offset, shoeColor, trouserColor = '#302d2a', limbGeometry,
   { height = 22, width = 9, depth = 10 } = {}) {
   addHips(parent, box, offset, height, width, depth, trouserColor, limbGeometry);
@@ -32,24 +64,26 @@ export function createCharacterLegs(parent, box, offset, shoeColor, trouserColor
     leg.position.set(x, height, 0);
     parent.add(leg);
     const upperHeight = height * 0.55;
-    const trouser = box(0, -upperHeight / 2, 0, width, upperHeight, depth, trouserColor, leg);
-    shapeCharacterLimb(trouser, limbGeometry, width, upperHeight, depth);
-    addShoe(box, leg, height, width, depth, shoeColor, limbGeometry, 2);
+    const upperWidth = width * 0.92;
+    const trouser = box(0, -upperHeight / 2, 0, upperWidth, upperHeight, depth, trouserColor, leg);
+    shapeCharacterLimb(trouser, limbGeometry, upperWidth, upperHeight, depth);
+    const { knee: kneeJoint, foot } = addLegJoints(leg, -upperHeight, height);
+    addShoe(box, foot, 2, width, depth, shoeColor, limbGeometry, 2);
     const bootHeight = height * 0.24;
     const lowerHeight = height - upperHeight - bootHeight - 1;
-    const lower = box(0, -upperHeight - lowerHeight / 2, 0, width * 0.8, lowerHeight, depth * 0.86, trouserColor, leg);
+    const lower = box(0, -lowerHeight / 2, 0, width * 0.8, lowerHeight, depth * 0.86, trouserColor, kneeJoint);
     shapeCharacterLimb(lower, limbGeometry, width * 0.8, lowerHeight, depth * 0.86);
     const knee = box(0, -upperHeight, depth * 0.17, width * 0.77, height * 0.15, depth * 0.85, trouserColor, leg);
     shapeCharacterLimb(knee, limbGeometry, width * 0.77, height * 0.15, depth * 0.85);
     const trouserSeam = `#${new THREE.Color(trouserColor).offsetHSL(0, 0, 0.08).getHexString()}`;
     box(0, -height * 0.55, depth * 0.39, width * 0.38, 0.5, 0.3, trouserSeam, leg);
-    const boot = box(0, -height + bootHeight / 2 + 2, 0, width * 0.78, bootHeight, depth * 0.78, shoeColor, leg);
+    const boot = box(0, -height + upperHeight + bootHeight / 2 + 2, 0, width * 0.78, bootHeight, depth * 0.78, shoeColor, kneeJoint);
     shapeCharacterLimb(boot, limbGeometry, width * 0.78, bootHeight, depth * 0.78);
-    const cuff = box(0, -height + bootHeight + 1.4, 0, width * 0.8, 1, depth * 0.8, '#3c3832', leg);
+    const cuff = box(0, -height + upperHeight + bootHeight + 1.4, 0, width * 0.8, 1, depth * 0.8, '#3c3832', kneeJoint);
     shapeCharacterLimb(cuff, limbGeometry, width * 0.8, 1, depth * 0.8);
-    const sole = box(0, -height + 0.25, 2, width + 0.5, 0.5, depth + 3, '#302925', leg);
+    const sole = box(0, -2 + 0.25, 2, width + 0.5, 0.5, depth + 3, '#302925', foot);
     shapeCharacterLimb(sole, limbGeometry, width + 0.5, 0.5, depth + 3);
-    for (const z of [1, 3]) box(0, -height + 3.7, z, width * 0.4, 0.4, 0.6, '#b7a795', leg);
+    for (const z of [1, 3]) box(0, -2 + 3.7, z, width * 0.4, 0.4, 0.6, '#b7a795', foot);
     return leg;
   });
 }
@@ -61,28 +95,30 @@ export function createPlayerLegs(parent, box, { offset, height = 22, width = 9, 
     leg.position.set(x, height, 0);
     parent.add(leg);
     const shortsHeight = height * 0.36;
-    const shorts = box(0, -shortsHeight / 2, 0, width, shortsHeight, depth, shortsColor, leg);
-    shapeCharacterLimb(shorts, limbGeometry, width, shortsHeight, depth);
-    const hem = box(0, -shortsHeight + 0.6, 0, width + 0.3, 1, depth + 0.3, '#34373a', leg);
-    shapeCharacterLimb(hem, limbGeometry, width + 0.3, 1, depth + 0.3);
+    const upperWidth = width * 0.92;
+    const shorts = box(0, -shortsHeight / 2, 0, upperWidth, shortsHeight, depth, shortsColor, leg);
+    shapeCharacterLimb(shorts, limbGeometry, upperWidth, shortsHeight, depth);
+    const hem = box(0, -shortsHeight + 0.6, 0, upperWidth + 0.3, 1, depth + 0.3, '#34373a', leg);
+    shapeCharacterLimb(hem, limbGeometry, upperWidth + 0.3, 1, depth + 0.3);
     const kneeY = -shortsHeight - height * 0.08;
     const knee = box(0, kneeY, depth * 0.16, width * 0.82, height * 0.2, depth * 0.8, skin, leg);
     shapeCharacterLimb(knee, limbGeometry, width * 0.82, height * 0.2, depth * 0.8);
+    const { knee: kneeJoint, foot } = addLegJoints(leg, kneeY, height);
     const calfTop = kneeY - height * 0.04, calfBottom = -height + 4.5;
     const calfHeight = calfTop - calfBottom, calfY = (calfTop + calfBottom) / 2;
     const calfWidth = width * 0.78, calfDepth = depth * 0.8;
-    const calf = box(0, calfY, 0, calfWidth, calfHeight, calfDepth, skin, leg);
+    const calf = box(0, calfY - kneeY, 0, calfWidth, calfHeight, calfDepth, skin, kneeJoint);
     shapeCharacterLimb(calf, skinGeometry, calfWidth, calfHeight, calfDepth);
-    const ankle = box(0, -height + 4.2, 0, width * 0.44, 4, depth * 0.44, skin, leg);
+    const ankle = box(0, -height + 4.2 - kneeY, 0, width * 0.44, 4, depth * 0.44, skin, kneeJoint);
     shapeCharacterLimb(ankle, limbGeometry, width * 0.44, 4, depth * 0.44);
-    if (x > 0) addJapaneseSleeve((...args) => box(...args, leg), {
-      x: 0, y: calfY, z: 0, width: calfWidth, height: calfHeight, depth: calfDepth, outerSide: 1,
+    if (x > 0) addJapaneseSleeve((...args) => box(...args, kneeJoint), {
+      x: 0, y: calfY - kneeY, z: 0, width: calfWidth, height: calfHeight, depth: calfDepth, outerSide: 1,
       tapered: Boolean(skinGeometry)
     });
-    addShoe(box, leg, height, width, depth, shoeColor, limbGeometry, 1);
-    const sole = box(0, -height + 0.25, 1, width + 0.5, 0.5, depth + 3, '#302925', leg);
+    addShoe(box, foot, 2, width, depth, shoeColor, limbGeometry, 1);
+    const sole = box(0, -2 + 0.25, 1, width + 0.5, 0.5, depth + 3, '#302925', foot);
     shapeCharacterLimb(sole, limbGeometry, width + 0.5, 0.5, depth + 3);
-    for (const z of [0, 2]) box(0, -height + 3.7, z, width * 0.4, 0.4, 0.6, '#c2b5a2', leg);
+    for (const z of [0, 2]) box(0, -2 + 3.7, z, width * 0.4, 0.4, 0.6, '#c2b5a2', foot);
     return leg;
   });
 }

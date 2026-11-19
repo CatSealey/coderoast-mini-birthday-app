@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { HALL_CENTER, HALL_EXIT_MAT, HALL_WIDTH, isOnHallExitMat, nearTrophyExit, placeKeepsake, presentAvailable, TROPHY_EXIT } from './trophy-logic.js';
 import { createTrophyModel } from './trophy-models.js';
 import { createCollision, findWorldPath } from '../world/world-collision.js';
-import { createCharacterLegs, createPlayerLegs } from './character-legs.js';
+import { createCharacterLegs, createPlayerLegs, swingCharacterLegs } from './character-legs.js';
 import { BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, birthdayArrivalPath, birthdayArrivalPose, birthdayDogFacing, birthdayFamilyPaths, birthdayGuestObstacles, createBirthdayEnding, scheduleBirthdayArrivals } from './birthday-ending.js';
 import { createBirthdayDogModel, drawBirthdayDog } from './birthday-dog.js';
 import { addHallBookcase, addHallPedestal, addHallPlanter, addHallPresent, addHallSconce, addHallTable, createHallBannerGeometry, createHallExitMatGeometry, createHallPedestalGeometry, drawHallDisplay, drawHallFurniture, drawHallPresent, HALL_BANNER_HEIGHT, HALL_BOOKCASE_WIDTH, HALL_BOOKCASE_X, HALL_BOOKCASE_Z, HALL_PEDESTAL_DEPTH, HALL_PEDESTAL_WIDTH, HALL_PILLAR_X, HALL_RUG, HALL_SCONCE_X, HALL_PLANTER_X, HALL_TABLE_X, HALL_TROPHY_ACCENTS, paintHallBanner, paintHallExitMat, paintHallFloor, paintHallRug, paintHallStone } from './castle-interior-art.js';
@@ -599,16 +599,18 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
       familyElapsed += dt;
       family.forEach((guest) => {
         if (!guest.visible) return;
-        const stride = endingPhase === 'arriving' && guest.moving ? Math.sin(guest.walk) * 0.4 : 0;
-        guest.legs.forEach((leg, legIndex) => {
-          leg.rotation.x = stride * (guest.member.kind === 'dog' && legIndex >= 2 ? -1 : 1) * (legIndex % 2 ? -1 : 1);
-        });
+        const moving = endingPhase === 'arriving' && guest.moving;
+        const stride = moving ? Math.sin(guest.walk) * 0.4 : 0;
+        if (guest.member.kind === 'dog') {
+          guest.legs.forEach((leg, legIndex) => {
+            leg.rotation.x = stride * (legIndex >= 2 ? -1 : 1) * (legIndex % 2 ? -1 : 1);
+          });
+        } else swingCharacterLegs(guest.legs, guest.walk, moving);
         if (guest.tail) guest.tail.rotation.y = Math.sin(familyElapsed * 7) * 0.35;
-        if (guest.arms) swingCharacterArms(guest.arms, stride);
+        if (guest.arms) swingCharacterArms(guest.arms, guest.walk, moving);
       });
     }
-    loveLegs[0].rotation.x = endingPhase === 'arriving' && loveMoving ? Math.sin(loveWalk) * 0.4 : 0;
-    loveLegs[1].rotation.x = -loveLegs[0].rotation.x;
+    swingCharacterLegs(loveLegs, loveWalk, endingPhase === 'arriving' && loveMoving);
     let dx = 0, dz = 0;
     for (const direction of [...keys].map((key) => directions[key]).concat([...held].map((key) => padDirections[key]))) {
       dx += direction[0]; dz += direction[1];
@@ -632,9 +634,8 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
       walkPhase += dt * 10;
     }
     playerStride = distance || stagingWalk ? Math.sin(walkPhase) * 0.4 : 0;
-    legs[0].rotation.x = playerStride;
-    legs[1].rotation.x = -playerStride;
-    swingCharacterArms(arms, playerStride);
+    swingCharacterLegs(legs, walkPhase, Boolean(distance || stagingWalk));
+    swingCharacterArms(arms, walkPhase, Boolean(distance || stagingWalk));
     flames.forEach(({ mesh, height }, i) => { mesh.scale.y = height * (1 + Math.sin(time / 180 + i) * 0.16); });
     sparkles.forEach((sparkle) => { sparkle.position.y = 75 + sparkle.userData.phase % 3 * 10 + Math.sin(time / 500 + sparkle.userData.phase) * 6; });
     render(); frame = requestAnimationFrame(tick);

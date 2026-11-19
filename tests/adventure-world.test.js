@@ -283,14 +283,20 @@ test('pub player turns when walking and keeps facing after stopping', () => {
   }
 });
 
-test('fallback exit shows the pair side by side with a hand link', () => {
+test('fallback pub exit draws both arms to overlapping hands', () => {
   const previousDocument = globalThis.document, previousWindow = globalThis.window;
-  const labels = [], lines = [], characters = [];
+  const labels = [], lines = [], hands = [], characters = [];
+  let path = [];
   const ctx = {
-    setTransform() { }, fillRect() { }, beginPath() { }, arc() { },
+    setTransform() { },
+    fillRect(x, y, width, height) {
+      if (this.fillStyle === '#dfb38c' && width === 3 && height === 3) hands.push({ x, y });
+    },
+    beginPath() { path = []; }, arc() { },
     ellipse(x, y, radiusX) { if (radiusX === 8) characters.push({ x, y }); }, fill() { },
     fillText(text, x, y) { labels.push({ text, x, y }); },
-    moveTo(x, y) { lines.push({ x, y }); }, lineTo(x, y) { lines.push({ x, y }); }, stroke() { }
+    moveTo(x, y) { path.push({ x, y }); }, lineTo(x, y) { path.push({ x, y }); },
+    stroke() { lines.push({ color: this.strokeStyle, path: [...path] }); }
   };
   const canvas = { getContext: () => ctx, addEventListener() { }, removeEventListener() { } };
   globalThis.document = pubCanvasDocument(ctx);
@@ -304,9 +310,11 @@ test('fallback exit shows the pair side by side with a hand link', () => {
     assert.ok(cat.x < player.x);
     assert.equal(cat.y, player.y);
     assert.equal(labels.some((label) => label.text === 'Cat' || label.text === 'Player'), false);
-    assert.equal(lines.length, 2);
-    assert.ok(lines[0].x < lines[1].x);
-    assert.equal(lines[0].y, lines[1].y);
+    assert.equal(hands.length, 2);
+    assert.deepEqual(hands[0], hands[1]);
+    assert.equal(lines.filter((line) => [CAT_OUTFIT, PLAYER_OUTFIT].includes(line.color)).length, 2);
+    assert.ok(!lines.some(({ color, path }) => color === '#dfb38c'
+      && path[0]?.x === cat.x && path[1]?.x === player.x));
     scene.dispose();
   } finally {
     if (previousDocument === undefined) delete globalThis.document;
@@ -349,10 +357,12 @@ test('Thirteen fallback keeps the locker visible without its floating label', ()
 
 test('Thirteen fallback keeps Cat on the selected side while holding hands', () => {
   const previousDocument = globalThis.document, previousWindow = globalThis.window;
-  const characters = [], links = [];
+  const characters = [], links = [], hands = [];
   let path = [];
   const ctx = {
-    setTransform() {}, fillRect() {}, beginPath() { path = []; },
+    setTransform() {}, fillRect(x, y, width, height) {
+      if (this.fillStyle === '#dfb38c' && width === 3 && height === 3) hands.push({ x, y });
+    }, beginPath() { path = []; },
     moveTo(x, y) { path.push({ x, y }); }, lineTo(x, y) { path.push({ x, y }); },
     stroke() { if (this.strokeStyle === '#dfb38c') links.push(path); },
     arc() {}, ellipse(x, y, rx, ry) { if (rx === 8 && (ry === 10 || ry === 12)) characters.push({ x, y, ry }); },
@@ -371,11 +381,14 @@ test('Thirteen fallback keeps Cat on the selected side while holding hands', () 
     for (const [side, join] of [[1, COASTER_OTHER_JOIN_POINT], [-1, COASTER_JOIN_POINT]]) {
       characters.length = 0;
       links.length = 0;
+      hands.length = 0;
       scene.draw({ ...newAdventureState(2), phase: 'platform', pubTogether: true, coupleFacing: coasterExitFacing(side),
         coasterExitSide: side, player: { ...join, height: 0 } });
       const cat = characters.find(({ ry }) => ry === 10), player = characters.find(({ ry }) => ry === 12);
       assert.ok(side === 1 ? cat.x > player.x : cat.x < player.x);
-      assert.deepEqual(links.at(-1), [{ x: cat.x, y: cat.y + 5 }, { x: player.x, y: player.y + 5 }]);
+      assert.equal(hands.length, 2);
+      assert.deepEqual(hands[0], hands[1]);
+      assert.ok(!links.some((link) => link[0]?.x === cat.x && link[1]?.x === player.x));
     }
     scene.dispose();
   } finally {
