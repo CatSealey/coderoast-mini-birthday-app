@@ -104,7 +104,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     const sprite = new THREE.Sprite(mat); sprite.position.set(x, y, z); sprite.scale.set(130, 32, 1); scene.add(sprite);
     return sprite;
   }
-  function person(color, name, x, z, parent = scene, style = {}) {
+  function person(color, x, z, parent = scene, style = {}) {
     const group = new THREE.Group(); group.position.set(x, 0, z); parent.add(group);
     round(torsoGeometry, 0, 39 + CHARACTER_RISE, 0, 26, 38, 17, color, group);
     addCharacterClothingDetails((px, py, pz, w, h, d, shade) => box(px, py, pz, w, h, d, shade, group),
@@ -122,7 +122,6 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       offset: 16, shoulderY: 54 + CHARACTER_RISE, length: 28, width: 7, depth: 8, color, skin: '#dfb38c',
       shortSleeves: style.shortSleeves, tattoo: style.tattoo, limbGeometry: characterLimbGeometry, skinGeometry: characterSkinGeometry
     });
-    if (name) group.userData.label = label(name, x, 103 + CHARACTER_RISE, z);
     return group;
   }
   function carriage(withRiders = false) {
@@ -152,7 +151,7 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       round(cylinderGeometry, x, 9, z * 1.06, 6, 8, 6, PARK_PALETTE.brass, group).rotation.z = Math.PI / 2;
     }
     if (withRiders) for (const [x, color, style] of [[-17, PLAYER_OUTFIT, PLAYER_STYLE], [17, CAT_OUTFIT, CAT_STYLE]]) {
-      const rider = person(color, null, x, 0, group, style); rider.position.y = 18; rider.scale.set(0.7, 0.7, 0.7);
+      const rider = person(color, x, 0, group, style); rider.position.y = 18; rider.scale.set(0.7, 0.7, 0.7);
       rider.userData.legs.forEach((leg) => { leg.rotation.x = -Math.PI / 2; });
     }
     return group;
@@ -202,12 +201,11 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
     let mesh;
     if (kind === 'npc') {
       const bartender = object.id === 'bartender';
-      mesh = person(bartender ? BARTENDER_OUTFIT : CAT_OUTFIT, object.name, x, z, scene,
+      mesh = person(bartender ? BARTENDER_OUTFIT : CAT_OUTFIT, x, z, scene,
         bartender ? BARTENDER_STYLE : CAT_STYLE);
       if (bartender) {
         // A raised service floor keeps the bartender visible behind the counter.
         mesh.position.y = 50;
-        mesh.userData.label.position.y = 153 + CHARACTER_RISE;
       }
       if (object.id === 'amor') platformAmor = mesh;
       if (index === 1 && object.id === 'love') {
@@ -587,12 +585,10 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       }
     }
     OBJECTS[index].forEach(makeObject);
-    player = person(PLAYER_OUTFIT, null, 0, 0, scene, PLAYER_STYLE);
+    player = person(PLAYER_OUTFIT, 0, 0, scene, PLAYER_STYLE);
     if (index === 3) zipRide = createZipRide({
       box, round, cylinder: cylinderGeometry, sphere: sphereGeometry, player, scene, cableHeight: CANOPY_ZIPLINE.cableHeight, bodyRise: CHARACTER_RISE
     });
-    const nameLabel = label(characterName, 0, 105, 0);
-    player.userData.label = nameLabel;
   }
   function resize(w, h) {
     width = Math.max(1, w); height = Math.max(1, h);
@@ -657,15 +653,12 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         setZipRiderPose(player, zipRide, Boolean(state.zipline), anchor, direction);
         legacyZipCable.visible = Boolean(state.zipline && legacy);
       }
-      player.userData.label.visible = !riding && !state.pubTogether;
       if (platformAmor) {
         platformAmor.visible = !riding;
-        platformAmor.userData.label.visible = !riding && !state.pubTogether;
         const amorX = state.pubTogether ? partner.x : OBJECTS[2].find((item) => item.id === 'amor').x;
         const amorY = state.pubTogether ? partner.y : OBJECTS[2].find((item) => item.id === 'amor').y;
         platformAmor.position.set(amorX, 0, amorY);
         platformAmor.rotation.y = state.pubTogether ? facing : 0;
-        platformAmor.userData.label.position.set(amorX, 103 + CHARACTER_RISE, amorY);
         swingCharacterLegs(platformAmor.userData.legs, walkPhase, Boolean(state.pubTogether) && distance > 0.1);
         swingCharacterArms(platformAmor.userData.arms, walkPhase, Boolean(state.pubTogether) && distance > 0.1, state.pubTogether ? catHeldArm : -1);
         if (state.pubTogether) {
@@ -683,8 +676,6 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
         const loveY = together ? partner.y : OBJECTS[1].find((item) => item.id === 'love').y;
         pubLove.position.set(loveX, 0, loveY);
         pubLove.rotation.y = together ? facing : 0;
-        pubLove.userData.label.visible = !together;
-        pubLove.userData.label.position.set(loveX, 103 + CHARACTER_RISE, loveY);
         swingCharacterLegs(pubLove.userData.legs, walkPhase, together && distance > 0.1);
         supportCharacterFeet(pubLove.userData.legs, pubFootSurfaces);
         swingCharacterArms(pubLove.userData.arms, walkPhase, together && distance > 0.1, together ? catHeldArm : -1);
@@ -693,8 +684,6 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           poseCharacterHoldingHand(pubLove.userData.arms[catHeldArm], Math.abs(partnerOffset));
         }
       }
-      player.userData.label.position.set(state.player.x,
-        state.player.height + (index === 3 ? (state.zipline ? 155 : 185) : state.pubTogether ? 145 : 105) + CHARACTER_RISE, state.player.y);
       if (index === 1) camera.position.set(targetX + PUB_CAMERA_OFFSET.x, PUB_CAMERA_OFFSET.y, targetY + PUB_CAMERA_OFFSET.z);
       else {
         const focusHeight = index === 3 && state.zipline ? state.player.height + 50 : 0;
@@ -924,10 +913,6 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
           drawCharacterMarker(ctx, x, y, bartender ? BARTENDER_OUTFIT : CAT_OUTFIT,
             bartender ? BARTENDER_STYLE
               : { ...CAT_STYLE, stride: together ? swing : 0, heldArm: together ? catHeldArm : -1, heldHand: together ? heldHand : undefined, facing: together ? facing : 0 });
-          if (!together) {
-            ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
-            ctx.fillText(object.name, x, y - 17);
-          }
           return;
         }
         ctx.save(); ctx.translate(sx(0), sy(0)); ctx.scale(scale, scale);
@@ -936,8 +921,6 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       }
       if (object.id === 'amor') {
         drawCharacterMarker(ctx, sx(object.x), sy(object.y), CAT_OUTFIT, CAT_STYLE);
-        ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
-        ctx.fillText(object.name, sx(object.x), sy(object.y) - 17);
         return;
       }
       ctx.fillStyle = object.kind === 'npc' ? '#d29caf' : object.kind === 'collectible' ? '#f4d686' : '#a9895e';
@@ -961,10 +944,6 @@ export function createAdventureScene(canvas, index, onSelect, characterName) {
       }
       drawCharacterMarker(ctx, playerX, playerY, PLAYER_OUTFIT, { ...PLAYER_STYLE, stride: swing, heldArm: state.pubTogether ? playerHeldArm : -1, heldHand, facing, zipline });
       if (index === 3) drawZipHarness(ctx, playerX, playerY);
-      if ((index === 1 || index === 3) && characterName && !state.pubTogether) {
-        ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0bd';
-        ctx.fillText(characterName, playerX, playerY - (index === 3 ? 35 : state.pubTogether ? 31 : 17));
-      }
     }
     if (index === 2 && ['riding', 'dropping', 'returning'].includes(state.phase)) {
       ctx.save(); ctx.translate(sx(ridePoint.x), sy(ridePoint.y));

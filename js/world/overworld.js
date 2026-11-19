@@ -4,7 +4,6 @@ import { constrainToWorld, distanceBetween, isNearQuest, isQuestAvailable, moveT
 import { regionBlendAt } from './world-regions.js';
 import { createWorld3D } from './world-3d.js';
 import { WORLD_NPCS } from './world-npcs.js';
-import { birthdayProgress } from '../progression.js';
 import { speechBubblePosition } from './speech-bubble.js';
 import { createCollision, findCharacterApproach, findWorldPath, smoothWorldPath, worldObstacles } from './world-collision.js';
 import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, drawCharacterMarker } from '../character-appearance.js';
@@ -58,15 +57,6 @@ function drawPerson(ctx, color, moving, time, longHair = false, hair = CHARACTER
   ctx.fillRect(-8, -56, 10, 4);
   if (longHair) { ctx.fillRect(-10, -52, 3, 22); ctx.fillRect(7, -52, 3, 22); }
   ctx.fillStyle = '#49382f'; ctx.fillRect(-4, -50, 2, 2); ctx.fillRect(2, -50, 2, 2);
-}
-
-function label(ctx, text, y, color = '#f2e3b1') {
-  ctx.font = 'bold 12px sans-serif';
-  ctx.textAlign = 'center';
-  const width = ctx.measureText(text).width + 16;
-  ctx.fillStyle = 'rgba(12, 20, 22, .88)';
-  ctx.beginPath(); ctx.roundRect(-width / 2, y - 14, width, 19, 3); ctx.fill();
-  ctx.fillStyle = color; ctx.fillText(text, 0, y);
 }
 
 export function mountOverworld({ characterName, worldCanvas, mapCanvas, interactButton, messageElement, locationElement, targetElement, onGuide, onAcceptQuest, onEntrance, onCastle, onTrophyGuide, onAcceptTrophy, onSideQuest, onMessage, onQuestSelected, onRegionChange }) {
@@ -296,7 +286,6 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
         ctx.beginPath(); ctx.arc(0, -80, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         ctx.fillStyle = '#233329'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(state.completed[index] ? '✓' : '!', 0, -74);
-        if (selected) label(ctx, quest.guide, -101);
       }
     }));
     QUEST_LOCATIONS.forEach((quest) => actors.push({
@@ -318,7 +307,6 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
             ctx.fillStyle = '#49382d'; ctx.beginPath(); ctx.ellipse(45, -2, 34, 10, 0, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = '#6b665f'; ctx.fillRect(35, -18, 20, 15);
             ctx.fillStyle = '#d7aa83'; ctx.beginPath(); ctx.arc(45, -22, 7, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#d7c6a1'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('David White', 45, -34);
           }
           drawCharacterMarker(ctx, 0, -39, CAT_OUTFIT, {
             ...CAT_STYLE, scale: 1.5, stride: npc.prop === 'pace' ? Math.sin(state.frame / 120) * 0.4 : 0,
@@ -340,14 +328,12 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
           const { longHair, hair } = TOWNSFOLK_HAIRSTYLES[index % TOWNSFOLK_HAIRSTYLES.length];
           drawPerson(ctx, npc.color, false, state.frame, longHair, hair);
         }
-        label(ctx, npc.name, -78);
       }
     }));
     actors.push({
       ...state.player,
       draw(ctx) {
         drawPerson(ctx, PLAYER_OUTFIT, Boolean(state.target || state.keys.size || state.heldDirections.size), state.frame, true, CHARACTER_HAIR, PLAYER_STYLE.belt);
-        label(ctx, `${characterName.toUpperCase()} · ${birthdayProgress(state.completed, state.finaleCompleted).level}`, -70);
       }
     });
     art.draw(context, camera, zoom, canvasWidth, canvasHeight, actors);
@@ -655,7 +641,6 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       state.completed = [...completed];
       state.accepted = [...accepted];
       state.finaleCompleted = finaleCompleted;
-      world3d?.setPlayerLevel(birthdayProgress(state.completed, state.finaleCompleted).level);
       updateInteraction(); drawWorld(); drawMinimap();
     },
     selectQuest: chooseQuest,

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CASTLE_ROOF_SUPPLIES } from './world-data.js';
+import { CASTLE_LAYOUT, CASTLE_ROOF_SUPPLIES } from './world-data.js';
 
 export const CASTLE_PALETTE = Object.freeze({
   wall: '#c6c3b4',
@@ -15,6 +15,12 @@ export const CASTLE_PALETTE = Object.freeze({
   royalBlue: '#2854a2',
   heraldryGold: '#dfc48c'
 });
+
+export function addCastleFoundation(parent, stoneBox) {
+  // Keep the plinth behind the tower faces rather than sharing their depth.
+  return stoneBox(parent, CASTLE_LAYOUT.width - 2, 15, CASTLE_LAYOUT.depth - 2,
+    '#93968c', 0, 8, CASTLE_LAYOUT.centerOffset);
+}
 
 export const CASTLE_TOWER_WINDOWS = Object.freeze({
   upper: Object.freeze({ width: 22, spring: 24, height: 34, innerWidth: 14, innerSpring: 21, innerHeight: 29, bottomOffset: -100 }),

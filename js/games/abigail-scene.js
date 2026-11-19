@@ -71,21 +71,6 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     return item;
   }
 
-  function label(parent, text) {
-    const map = texture(512, 96, (ctx, w, h) => {
-      ctx.fillStyle = 'rgba(24,35,29,.9)';
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = '#fff0bc'; ctx.font = 'bold 36px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(text.toUpperCase(), w / 2, 60, w - 24);
-    });
-    const material = new THREE.SpriteMaterial({ map, transparent: true, depthTest: false });
-    materials.set(`label:${map.uuid}`, material);
-    const sprite = new THREE.Sprite(material);
-    sprite.scale.set(105, 20, 1);
-    sprite.position.y = 103 + CHARACTER_RISE;
-    parent.add(sprite);
-  }
-
   function shadow(parent, width, depth) {
     if (!shadowMap) {
       shadowMap = texture(64, 64, (ctx) => {
@@ -154,8 +139,7 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     roomGroup.add(group);
     if (item.radius && item.id !== 'mara') shadow(group, item.radius * 2.8, item.radius * 2.2);
     if (item.id === 'mara') {
-      const mara = person(group, 0, 0, '#75546c', true);
-      label(mara, 'Mara the Wardkeeper');
+      person(group, 0, 0, '#75546c', true);
     } else if (item.id === 'diary' || item.id === 'book') {
       box(group, 65, 8, 48, '#604437', 0, 32, 0);
       for (const x of [-25, 25]) for (const z of [-17, 17]) box(group, 6, 30, 6, '#46352b', x, 15, z);
@@ -429,7 +413,6 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     }
     HOUSE_OBJECTS.forEach(furniture);
     player = person(roomGroup, 0, 0, PLAYER_OUTFIT, true, PLAYER_STYLE.belt, PLAYER_STYLE);
-    label(player, characterName);
   }
 
   function resize(w, h) {

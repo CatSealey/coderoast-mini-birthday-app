@@ -28,7 +28,7 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
   const materials = new Map(), markers = new Map(), textures = [], animations = [], lights = [];
   const footSurfaces = [];
   const documents = new Map(), consoles = new Map();
-  let state, player, playerLabel, teleportCircle, teleportPosition, previousPosition, walkingPhase = 0, facing = 0, width = 1, height = 1, scale = 1, animationFrame = 0;
+  let state, player, teleportCircle, teleportPosition, previousPosition, walkingPhase = 0, facing = 0, width = 1, height = 1, scale = 1, animationFrame = 0;
   const teleportRadius = 21;
   const colors = Object.fromEntries(FRIGHT_THEMES.map((theme) => [theme.id, theme.color]));
   const palettes = FRIGHT_PALETTES;
@@ -628,7 +628,6 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
     scene.add(player);
     const torch = new THREE.PointLight('#ffd9a0', 4.5, 330, 1.3);
     torch.position.set(0, 60, 25); player.add(torch);
-    playerLabel = label(characterName, 0, 105, 0);
     teleportCircle = new THREE.Group();
     const outer = ring(0, 4, 0, 35, '#70edff');
     outer.material = material('#70edff', true);
@@ -697,7 +696,6 @@ export function createFrightScene(canvas, onSelect, characterName = 'Adventurer'
       supportCharacterFeet(player.userData.legs, footSurfaces);
       swingCharacterArms(player.userData.arms, walkingPhase, distance > 0.01);
       previousPosition = { ...state.player };
-      playerLabel.position.set(state.player.x, 108 + CHARACTER_RISE, state.player.y);
       teleportCircle.visible = showTeleport;
       if (teleportPosition) teleportCircle.position.set(teleportPosition.x, 0, teleportPosition.y);
       camera.position.set(state.player.x + 400, 900, state.player.y + 600);

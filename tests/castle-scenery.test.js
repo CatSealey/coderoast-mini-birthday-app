@@ -1,9 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { CASTLE_GATE_PLANKS, CASTLE_PALETTE, CASTLE_TOWER_WINDOWS, castleFlagPosition, castleSupplyStyle, createCastleArchGeometry, createCastleBannerGeometry, createCastleFlagGeometry, drawCastle, drawCastleFlag, drawCastleSupply } from '../js/world/castle-scenery.js';
+import { CASTLE_GATE_PLANKS, CASTLE_PALETTE, CASTLE_TOWER_WINDOWS, addCastleFoundation, castleFlagPosition, castleSupplyStyle, createCastleArchGeometry, createCastleBannerGeometry, createCastleFlagGeometry, drawCastle, drawCastleFlag, drawCastleSupply } from '../js/world/castle-scenery.js';
 import { CASTLE_EXTERIOR_SUPPLIES, CASTLE_FRONT_WINDOWS, CASTLE_KEEP_WIDTH, CASTLE_LAYOUT, CASTLE_ROOF_SUPPLIES, CASTLE_SIDE_BATTLEMENT_Z, CASTLE_TOWERS, CASTLE_WINDOW_LEVELS, CASTLE_WINDOW_WIDTH_SCALE } from '../js/world/world-data.js';
 import { configureWorldCamera } from '../js/world/world-3d.js';
+
+test('castle foundation sits behind the tower faces to prevent depth flicker', () => {
+  const foundation = addCastleFoundation({}, (parent, width, height, depth, color, x, y, z) =>
+    ({ width, height, depth, color, x, y, z }));
+  assert.equal(foundation.color, '#93968c');
+  assert.equal(foundation.y + foundation.height / 2, 15.5);
+  assert.equal(foundation.x, 0);
+  assert.equal(foundation.z, CASTLE_LAYOUT.centerOffset);
+  assert.ok(foundation.width > CASTLE_KEEP_WIDTH);
+  assert.ok(foundation.depth > 220);
+  for (const tower of CASTLE_TOWERS) {
+    const towerOutsideX = Math.abs(tower.x) + CASTLE_LAYOUT.towerSize / 2;
+    const towerOutsideZ = Math.abs(tower.z - CASTLE_LAYOUT.centerOffset) + CASTLE_LAYOUT.towerSize / 2;
+    assert.ok(towerOutsideX - foundation.width / 2 >= 1);
+    assert.ok(towerOutsideZ - foundation.depth / 2 >= 1);
+  }
+});
 
 test('castle arches and banners have predictable front-facing dimensions', () => {
   const arch = createCastleArchGeometry(70, 52, 83);

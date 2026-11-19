@@ -301,7 +301,7 @@ test('fallback maze objects have no labels and remain selectable', () => {
   globalThis.window = { devicePixelRatio: 1 };
   globalThis.cancelAnimationFrame = () => {};
   try {
-    const scene = createFrightScene(canvas, (selection) => selections.push(selection));
+    const scene = createFrightScene(canvas, (selection) => selections.push(selection), 'Player');
     scene.resize(650, 650);
     for (const kind of ['clue', 'tool', 'cache']) {
       const object = FRIGHT_OBJECTS.find((entry) => entry.kind === kind);

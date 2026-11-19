@@ -22,7 +22,7 @@ import { createPumpkinGeometry, pumpkinHasFace } from './pumpkin-scenery.js';
 import { createRoofTileGeometry, createTownTexture } from './town-textures.js';
 import { createGamesSignTexture } from './games-sign.js';
 import { createVenueSignTexture, ESCAPE_SIGN } from './venue-sign.js';
-import { CASTLE_GATE_PLANKS, CASTLE_PALETTE, CASTLE_TOWER_WINDOWS, castleFlagPosition, castleSupplyStyle, createCastleArchGeometry, createCastleBannerGeometry, createCastleFlagGeometry } from './castle-scenery.js';
+import { CASTLE_GATE_PLANKS, CASTLE_PALETTE, CASTLE_TOWER_WINDOWS, addCastleFoundation, castleFlagPosition, castleSupplyStyle, createCastleArchGeometry, createCastleBannerGeometry, createCastleFlagGeometry } from './castle-scenery.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
 import { createFrightMarqueeTexture, FRIGHT_MARQUEE } from './fright-marquee.js';
 import { createGravestoneGeometry, createGravestoneTexture, gravestoneLean, gravestoneStyle, GRAVESTONE_DEPTH, GRAVESTONE_HEIGHT, GRAVESTONE_WIDTH } from './gravestones.js';
@@ -326,7 +326,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   function castle(x, z) {
     const g = groupAt(x, z);
     const { wall, tower, trim, shadow, gate, gateIron, windowGlass, metal, roof: roofColor, roofTrim, royalBlue, heraldryGold } = CASTLE_PALETTE;
-    stoneBox(g, CASTLE_LAYOUT.width, 15, CASTLE_LAYOUT.depth, '#93968c', 0, 8, CASTLE_LAYOUT.centerOffset);
+    addCastleFoundation(g, stoneBox);
     stoneBox(g, CASTLE_KEEP_WIDTH, 160, 220, wall, 0, 88, CASTLE_LAYOUT.centerOffset);
     stoneBox(g, CASTLE_KEEP_WIDTH + 4, 9, 224, shadow, 0, 168, CASTLE_LAYOUT.centerOffset);
     for (let dx = -100; dx <= 100; dx += 20) {
@@ -479,18 +479,12 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     return g;
   }
   const player = character(PLAYER_OUTFIT, true, undefined, PLAYER_STYLE.belt, PLAYER_STYLE);
-  const playerLabel = textSprite(`${characterName.toUpperCase()} · 29`, 'rgba(24, 35, 29, .9)');
-  let playerLevel = 29;
-  playerLabel.position.y = 95 + CHARACTER_RISE; player.add(playerLabel);
   const guides = QUEST_LOCATIONS.map((quest, index) => {
     const { longHair, hair } = GUIDE_HAIRSTYLES[index % GUIDE_HAIRSTYLES.length];
     const guide = character('#876c51', longHair, hair, undefined, null, index);
     guide.position.set(quest.x, 0, quest.y);
     const marker = mesh(new THREE.OctahedronGeometry(12), '#e6bf63', guide, 0, 93, 0);
-    const label = textSprite(quest.guide.toUpperCase(), 'rgba(37, 39, 28, .9)', 384);
-    label.position.y = 122;
-    guide.add(label);
-    return { guide, marker, label };
+    return { guide, marker };
   });
   const townsfolk = WORLD_NPCS.map((npc, index) => {
     const { longHair, hair } = TOWNSFOLK_HAIRSTYLES[index % TOWNSFOLK_HAIRSTYLES.length];
@@ -526,12 +520,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       box(grave, 58, 2, 32, '#3c2d25', 0, 1, 0);
       box(grave, 23, 8, 12, '#5c6e70', -2, 5, 0);
       const head = mesh(headGeometry, '#d7aa83', grave, 16, 8, 0); head.scale.set(12, 12, 12);
-      const davidLabel = textSprite('DAVID WHITE', 'rgba(24, 40, 37, .9)', 256);
-      davidLabel.position.y = 42; grave.add(davidLabel);
     }
-    const label = textSprite(npc.name.toUpperCase(), 'rgba(24, 40, 37, .9)', 384);
-    label.position.y = 95 + CHARACTER_RISE;
-    person.add(label);
     return person;
   });
   const entrances = QUEST_LOCATIONS.map((quest) => {
@@ -1287,13 +1276,6 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   let currentZoom = 1;
   let previousPosition = null;
   return {
-    setPlayerLevel(level) {
-      if (level === playerLevel) return;
-      playerLevel = level;
-      const texture = playerLabel.material.map;
-      paintLabel(texture.image, `${characterName.toUpperCase()} · ${level}`, 'rgba(24, 35, 29, .9)');
-      texture.needsUpdate = true;
-    },
     resize(w, h, zoom) {
       width = w; height = h;
       currentZoom = zoom;
@@ -1309,10 +1291,9 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       swingCharacterLegs(player.userData.legs, time / 120, moving);
       supportCharacterFeet(player.userData.legs, worldFootSurfaces);
       swingCharacterArms(player.userData.arms, time / 120, moving);
-      guides.forEach(({ marker, label }, index) => {
+      guides.forEach(({ marker }, index) => {
         marker.material = material(completed[index] ? '#97c77c' : '#e6bf63');
         marker.rotation.y = time / 1000;
-        label.visible = index === selected;
       });
       townsfolk.forEach((person, index) => {
         const npc = WORLD_NPCS[index];

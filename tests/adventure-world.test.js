@@ -146,7 +146,7 @@ test('Thirteen joins Cat on the nearer reachable side and walks out without movi
   }
 });
 
-test('pub fallback displays character names without furniture labels', () => {
+test('pub fallback draws characters without overhead names or furniture labels', () => {
   const previousDocument = globalThis.document, previousWindow = globalThis.window;
   const labels = [];
   const colors = [];
@@ -166,7 +166,7 @@ test('pub fallback displays character names without furniture labels', () => {
     scene.resize(1000, 700);
     assert.ok(scene.objectPosition('love'), 'restored speech can be positioned before the first draw');
     scene.draw(newAdventureState(1));
-    assert.deepEqual(labels, ['Jamie the Bartender', 'Cat', 'Player']);
+    assert.deepEqual(labels, []);
     assert.ok(colors.includes(PLAYER_OUTFIT));
     assert.ok(colors.includes(CAT_OUTFIT));
     assert.ok(colors.includes(CHARACTER_HAIR));
@@ -443,7 +443,7 @@ test('Thirteen fallback keeps the locker visible without its floating label', ()
     scene.resize(1000, 700);
     scene.draw(newAdventureState(2));
     assert.ok(labels.includes('Thirteen carriage'));
-    assert.ok(labels.includes('Cat'));
+    assert.ok(!labels.includes('Cat'));
     assert.ok(!labels.includes('Bag locker'));
     scene.dispose();
   } finally {
@@ -1341,10 +1341,11 @@ test('GoApe timing targets move within bounds and use smaller randomized widths'
 
 test('GoApe zip-wire stops the walking animation and walking resumes afterwards', () => {
   const previousDocument = globalThis.document, previousWindow = globalThis.window;
-  const shoes = [];
+  const shoes = [], labels = [];
   const ctx = {
     setTransform() { }, fillRect(x, y) { if (this.fillStyle === '#594336') shoes.push({ x, y }); },
-    strokeRect() { }, beginPath() { }, moveTo() { }, lineTo() { }, stroke() { }, arc() { }, ellipse() { }, fill() { }, fillText() { }
+    strokeRect() { }, beginPath() { }, moveTo() { }, lineTo() { }, stroke() { }, arc() { }, ellipse() { }, fill() { },
+    fillText(text) { labels.push(text); }
   };
   const canvas = { getContext: () => ctx, addEventListener() { }, removeEventListener() { } };
   globalThis.document = { createElement: () => ({ getContext: () => null }) };
@@ -1370,6 +1371,7 @@ test('GoApe zip-wire stops the walking animation and walking resumes afterwards'
     const resumed = { ...state, player: { ...canopyZipPosition(1), x: canopyZipPosition(1).x + 5 } };
     const resumedFeet = drawFeet(resumed);
     assert.notEqual(resumedFeet[0], resumedFeet[1]);
+    assert.ok(!labels.includes('Player'), 'the player has no overhead name while walking or riding');
     scene.dispose();
   } finally {
     if (previousDocument === undefined) delete globalThis.document;
