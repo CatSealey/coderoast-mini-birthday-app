@@ -3,6 +3,11 @@
 A responsive, RuneScape-inspired birthday game with a walkable world, quests
 based on shared memories and a few surprises. Play on a PC or a phone.
 
+## Summary
+
+Date : 2026-11-20 10:06:32
+Total : 238 files, 37660 lines of code
+
 ## Quickstart
 
 You need Node.js 20.19+ or 22.12+ and npm. From the project folder:
