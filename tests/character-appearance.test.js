@@ -12,7 +12,8 @@ test('Abigail walking stride follows distance instead of frame rate and rests wh
   const shoes = [];
   const context = {
     setTransform() {}, fillRect(x, y) { if (this.fillStyle === '#594336') shoes.push({ x, y }); },
-    beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, fillText() {}, ellipse() {}, arc() {}, fill() {}
+    beginPath() {}, closePath() {}, moveTo() {}, lineTo() {}, stroke() {}, fillText() {}, ellipse() {}, arc() {}, fill() {},
+    save() {}, restore() {}, translate() {}, scale() {}
   };
   const canvas = { getContext: () => context, addEventListener() {}, removeEventListener() {} };
   globalThis.document = { createElement: () => ({ getContext: () => null }) };

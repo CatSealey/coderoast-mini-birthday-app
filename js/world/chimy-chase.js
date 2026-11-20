@@ -19,6 +19,24 @@ export function createChompyStates() {
   }));
 }
 
+export function planChompyRevival(creatures, defeated, statues, player, baseCollision) {
+  const defeatedIds = new Set(defeated);
+  const placed = creatures.filter((chomp) => !defeatedIds.has(chomp.id));
+  const playerClearance = createCollision([{ x: player.x, y: player.y, radius: CHOMPY_CONTACT_RADIUS }], CHOMPY_RADIUS);
+  const revived = new Map();
+  for (const chomp of createChompyStates()) {
+    if (!defeatedIds.has(chomp.id)) continue;
+    const navigation = combineCollisions(
+      encounterCollision(baseCollision, placed, statues, CHOMPY_RADIUS), playerClearance
+    );
+    const position = safeRespawn(chomp.home, navigation, 'ChimyChompChomp');
+    chomp.x = position.x; chomp.y = position.y;
+    revived.set(chomp.id, chomp);
+    placed.push(chomp);
+  }
+  return creatures.map((chomp) => revived.get(chomp.id) || chomp);
+}
+
 export function combineCollisions(first, second) {
   function blocked(point) { return first.blocked(point) || second.blocked(point); }
   function clearSegment(start, end) {
@@ -92,7 +110,7 @@ export function chompyContact(playerStart, playerEnd, chompStart, chompEnd) {
   return Math.hypot(start.x + dx * t, start.y + dy * t) <= CHOMPY_CONTACT_RADIUS + 1e-6;
 }
 
-export function safeRespawn(spawn, collision) {
+export function safeRespawn(spawn, collision, name = 'castle') {
   if (!collision.blocked(spawn)) return { ...spawn };
   for (let radius = 40; radius <= 600; radius += 40) {
     for (let i = 0; i < 32; i += 1) {
@@ -101,5 +119,5 @@ export function safeRespawn(spawn, collision) {
       if (!collision.blocked(candidate)) return candidate;
     }
   }
-  throw new Error('No safe castle respawn point is available.');
+  throw new Error(`No safe ${name} respawn point is available.`);
 }

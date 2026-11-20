@@ -54,7 +54,8 @@ in the [deployment guide](DEPLOYMENT.md#privacy-and-access).
 | [`js/games/`](../js/games/) | Quest-specific logic, scenes, world controllers and the castle finale. |
 | [`js/quest-progress.js`](../js/quest-progress.js), [`js/progression.js`](../js/progression.js) | Quest acceptance/completion and derived XP/level. |
 | [`js/quest-journal.js`](../js/quest-journal.js), [`js/quest-items.js`](../js/quest-items.js) | Journal milestones and inventory derived from saves. |
-| [`js/side-quests.js`](../js/side-quests.js) | Cat side-quest data and saved completion normalization. |
+| [`js/side-quests.js`](../js/side-quests.js) | Cat side-quest data, David's grave and mound footprints, and saved completion normalization. |
+| [`js/side-quest-art.js`](../js/side-quest-art.js) | Shared Abigail doll and David White grave artwork for the overworld and Abigail's room. |
 | [`js/audio.js`](../js/audio.js), [`public/music/`](../public/music/) | Area tracks, music controls, sound effects and birthday melody. |
 | [`css/styles.css`](../css/styles.css), [`css/parts/`](../css/parts/) | Ordered stylesheet entry point and component styles. |
 | [`assets/`](../assets/) | Illustrated keepsakes and other static artwork. |
@@ -123,6 +124,8 @@ independent authoritative save.
 - `world/chimy-chase.js` handles the creatures' pursuit, escape distance and
   solid footprints. Their temporary positions reset after a death; defeated
   IDs and statues remain in the save. Both world renderers use those positions.
+- The settings reset revives defeated creatures at safe positions without
+  removing statues or quest progress. It saves before updating the world.
 - Saving can fail if browser storage is unavailable or full. The app reports
   save failures; do not assume progress was saved after an error.
 - Browser data clearing and private browsing can remove saves. Test destructive
@@ -149,6 +152,8 @@ and on the action bar.
   Collision and route finding are in `world-collision.js`; the 3D world,
   illustrated fallback and minimap use separate rendering code. Check
   interaction ranges and navigable paths when moving scenery or characters.
+- Thirteen's hedge positions are generated against base scenery before their
+  scaled, rotated foliage footprints are added to overworld collision.
 - `js/world/world-surroundings.js` provides decorative terrain and trees
   outside the playable boundary for both world renderers. They do not change
   movement, collisions, quest locations or the minimap.

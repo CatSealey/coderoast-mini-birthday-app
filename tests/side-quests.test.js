@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { PACE_DISTANCE, SIDE_QUESTS, restoreSideQuestProgress, sideQuestPosition } from '../js/side-quests.js';
+import { DAVID_GRAVE, PACE_DISTANCE, SIDE_QUESTS, restoreSideQuestProgress, sideQuestPosition } from '../js/side-quests.js';
 import { createCollision, findCharacterApproach, worldCornWalls, worldObstacles, worldTrees } from '../js/world/world-collision.js';
 import { INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SPAWN } from '../js/world/world-data.js';
 import { WORLD_NPCS } from '../js/world/world-npcs.js';
@@ -55,7 +55,17 @@ test('each scene has a solid, reachable Cat and the pacing area remains solid', 
     }
   }
   const grave = SIDE_QUESTS[3];
-  assert.ok(collision.blocked({ x: grave.x + 48, y: grave.y }), 'David and the grave are solid');
+  const x = grave.x + DAVID_GRAVE.offsetX;
+  assert.ok(collision.blocked({ x, y: grave.y }), 'David and the grave are solid');
+  assert.ok(collision.blocked({ x: x + DAVID_GRAVE.mound.offsetX, y: grave.y + DAVID_GRAVE.mound.offsetY }), 'the dirt mound is solid');
+  assert.equal(collision.clearSegment(
+    { x: x - DAVID_GRAVE.width, y: grave.y },
+    { x: x + DAVID_GRAVE.width, y: grave.y }
+  ), false);
+  assert.equal(collision.clearSegment(
+    { x: x - DAVID_GRAVE.width, y: grave.y + DAVID_GRAVE.mound.offsetY },
+    { x: x + DAVID_GRAVE.width, y: grave.y + DAVID_GRAVE.mound.offsetY }
+  ), false);
 });
 
 test('trees and corn leave the side quest scenes visible', () => {

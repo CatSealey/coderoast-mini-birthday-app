@@ -6,11 +6,13 @@ import { CANOPY_OFFSET, CANOPY_PLATFORMS, harvestPumpkins, placeQuestDecorations
 import { PARK_RELOCATED_STALL, PARK_RIDES, PARK_WHEEL } from './park-scenery.js';
 import { createMazeWalls } from './maze-scenery.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
-import { PACE_DISTANCE, SIDE_QUESTS } from '../side-quests.js';
+import { DAVID_GRAVE, PACE_DISTANCE, SIDE_QUESTS } from '../side-quests.js';
 import { ESCAPE_DECORATIVE_TREE, spaceDeadTrees } from './tree-spacing.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
 import { FRIGHT_MARQUEE } from './fright-marquee.js';
 import { WORLD_LAMPS } from './world-lamps.js';
+import { DIRECTION_SIGN } from './direction-sign.js';
+import { parkBushes, parkBushObstacles } from './park-bushes.js';
 
 const random = (index, salt) => {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -89,7 +91,7 @@ export function worldCornWalls() {
     && mazeWallFitsHarvest(wall));
 }
 
-export function worldObstacles(trees = worldTrees()) {
+export function worldBaseObstacles(trees = worldTrees()) {
   const [escape, , park, forest, harvest] = QUEST_LOCATIONS;
   const rect = (x, y, width, depth) => ({ x, y, width, depth });
   const circle = (x, y, radius) => ({ x, y, radius });
@@ -113,6 +115,7 @@ export function worldObstacles(trees = worldTrees()) {
     ...TOWN_TABLES.map(({ x, y, radius }) => circle(x, y, radius)),
     ...TOWN_BENCHES.map(({ x, y, width, depth }) => rect(x, y, width, depth)),
     ...WORLD_LAMPS.map(({ x, y, radius }) => circle(x, y, radius)),
+    circle(DIRECTION_SIGN.x, DIRECTION_SIGN.y, DIRECTION_SIGN.radius),
     ...[[park.x + 205, park.y + 45], [park.x - 380, park.y + 260], [PARK_RELOCATED_STALL.x, PARK_RELOCATED_STALL.y]]
       .map(([x, y]) => rect(x, y, 82, 45)),
     ...[park.entrance, forest.entrance].flatMap(({ x, y }) =>
@@ -122,7 +125,9 @@ export function worldObstacles(trees = worldTrees()) {
       ...(tree.variant === 0 ? [circle(tree.x + 48, tree.z + 18, 13)] : [])])
   ];
   WORLD_NPCS.filter((npc) => npc.prop === 'grave').forEach((npc) => {
-    obstacles.push(rect(npc.x + 48, npc.y, 58, 32));
+    obstacles.push(rect(npc.x + DAVID_GRAVE.offsetX, npc.y, DAVID_GRAVE.width, DAVID_GRAVE.depth));
+    const mound = DAVID_GRAVE.mound;
+    obstacles.push(rect(npc.x + DAVID_GRAVE.offsetX + mound.offsetX, npc.y + mound.offsetY, mound.width, mound.depth));
   });
   const tower = PARK_RIDES.find((ride) => ride.type === 'dropTower');
   if (!tower) throw new Error('The theme park is missing its drop tower.');
@@ -132,6 +137,11 @@ export function worldObstacles(trees = worldTrees()) {
   placeQuestDecorations(escape, 'escape', 22, 560, 12).forEach(({ x, y, scale }) => obstacles.push(circle(x, y, 14 * scale)));
   harvestPumpkins().forEach(({ x, y, scale }) => obstacles.push(circle(x, y, 15 * scale)));
   return obstacles;
+}
+
+export function worldObstacles(trees = worldTrees()) {
+  const obstacles = worldBaseObstacles(trees);
+  return [...obstacles, ...parkBushObstacles(parkBushes(obstacles))];
 }
 
 export function createCollision(obstacles, radius = 12) {

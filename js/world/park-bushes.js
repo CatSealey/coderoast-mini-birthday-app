@@ -1,7 +1,7 @@
 import { BufferGeometry, CatmullRomCurve3, Color, Float32BufferAttribute, Vector3 } from 'three';
 import { QUEST_LOCATIONS } from './world-data.js';
 import { regionBlendAt } from './world-regions.js';
-import { createCollision, worldObstacles } from './world-collision.js';
+import { createCollision, worldBaseObstacles } from './world-collision.js';
 import { roadDistance, scatteredParkBanners } from './world-art.js';
 import { COASTER_TRACKS, scatterScenery } from './world-scenery-data.js';
 import { PARK_BANNERS, PARK_MAIN_COASTER, PARK_RIDES, PARK_WHEEL } from './park-scenery.js';
@@ -136,9 +136,9 @@ function coasterPoints() {
   });
 }
 
-export function parkBushes() {
+export function parkBushes(baseObstacles = worldBaseObstacles()) {
   const park = QUEST_LOCATIONS[2];
-  const collision = createCollision(worldObstacles(), 45);
+  const collision = createCollision(baseObstacles, 45);
   const track = coasterPoints();
   const decorations = [
     ...PARK_BANNERS, ...scatteredParkBanners(),
@@ -164,6 +164,17 @@ export function parkBushes() {
     }
   }
   return bushes;
+}
+
+export function parkBushObstacles(bushes) {
+  return bushes.flatMap((bush) => PARK_BUSH_SHAPES[bush.shape].map((lobe) => {
+    const cos = Math.cos(bush.rotation), sin = Math.sin(bush.rotation);
+    return {
+      x: bush.x + (lobe.x * cos + lobe.z * sin) * bush.scale,
+      y: bush.y + (-lobe.x * sin + lobe.z * cos) * bush.scale,
+      radius: lobe.width * 44 * bush.scale
+    };
+  }));
 }
 
 export function drawParkBush(ctx, variant, shape = 0, flowering = false) {

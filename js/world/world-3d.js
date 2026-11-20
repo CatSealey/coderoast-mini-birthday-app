@@ -10,7 +10,7 @@ import { CAT_OUTFIT, CAT_STYLE, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, T
 import { CHARACTER_RISE, addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, shapeCharacterLimb, swingCharacterArms } from '../character-body.js';
 import { createCharacterLegs, createFootSupportSurface, createPlayerLegs, supportCharacterFeet, swingCharacterLegs } from '../games/character-legs.js';
 import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
-import { sideQuestPosition } from '../side-quests.js';
+import { DAVID_GRAVE, sideQuestPosition } from '../side-quests.js';
 import { SURROUNDINGS_BOUNDS, surroundingTrees, treeType } from './world-surroundings.js';
 import { createDeadTreeGeometry, createTreeBarkTexture } from './tree-geometry.js';
 import { createFoliageTexture, createLeafyBranches, createLeafyCanopy } from './leafy-tree.js';
@@ -32,6 +32,8 @@ import { createCanopyDeckTexture } from './canopy-platform.js';
 import { PARK_FLAG_COLORS, PARK_PALETTE } from './park-style.js';
 import { createParkBushLeavesGeometry, PARK_BUSH_SHAPES, parkBushes } from './park-bushes.js';
 import { createChimychompArt } from './chimychomp-art.js';
+import { createSideQuestArt } from '../side-quest-art.js';
+import { DIRECTION_BOARDS, DIRECTION_SIGN } from './direction-sign.js';
 
 function random(index, salt = 0) {
   const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
@@ -59,6 +61,13 @@ export function groundPointAt(camera, width, height, point) {
   return { x: hit.x, y: hit.z };
 }
 
+export function castleGateHit(gate, camera, width, height, point) {
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(new THREE.Vector2(point.x / width * 2 - 1, 1 - point.y / height * 2), camera);
+  gate.updateWorldMatrix(true, false);
+  return raycaster.intersectObject(gate).length > 0;
+}
+
 export function createWorld3D(canvas, ground, characterName, surroundings) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -66,6 +75,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#a9bec0');
   const encounterArt = createChimychompArt(scene);
+  const sideQuestArt = createSideQuestArt();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 6000);
   const ambient = new THREE.HemisphereLight('#e5e9d3', '#3d4937', 1.65);
   scene.add(ambient);
@@ -77,7 +87,6 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   const geometries = new Set();
   const textures = new Set();
   const boxGeometries = new Map();
-  const headGeometry = new THREE.SphereGeometry(0.5, 16, 12);
   const characterHeadGeometry = createCharacterHeadGeometry();
   const characterFaceGeometry = createCharacterFaceGeometry();
   const characterLimbGeometry = createCharacterLimbGeometry();
@@ -326,6 +335,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     }
   }
   let castleStep;
+  let castleGate;
   function castle(x, z) {
     const g = groupAt(x, z);
     const { wall, tower, trim, shadow, gate, gateIron, windowGlass, metal, roof: roofColor, roofTrim, royalBlue, heraldryGold } = CASTLE_PALETTE;
@@ -413,7 +423,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       flag.material = flagMaterial;
       addFlagHeraldry(g, flagPosition.x + 2.5, height + 40, flagPosition.z + 2);
     }
-    mesh(createCastleArchGeometry(70, 52, 83), trim, g, 0, 8, 65.5);
+    castleGate = mesh(createCastleArchGeometry(70, 52, 83), trim, g, 0, 8, 65.5);
     mesh(createCastleArchGeometry(52, 49, 73), gate, g, 0, 8, 66);
     for (const plank of CASTLE_GATE_PLANKS) {
       box(g, 9.2, plank.top - 9, 1, plank.color, plank.x, (plank.top + 9) / 2, 66.8);
@@ -500,13 +510,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     if (npc.prop === 'doll') {
       person.rotation.y = Math.PI / 2;
       const doll = groupAt(npc.x + 42, npc.y);
-      box(doll, 15, 20, 10, '#77524e', 0, 12, 0);
-      const head = mesh(headGeometry, '#d7bc9d', doll, 0, 28, 0); head.scale.set(12, 12, 12);
-      box(doll, 14, 4, 11, '#49332d', 0, 34, 0);
-      for (const side of [-1, 1]) {
-        box(doll, 4, 14, 5, '#d7bc9d', side * 9, 15, 0);
-        box(doll, 2, 2, 2, '#4d302c', side * 3, 29, 6);
-      }
+      doll.add(sideQuestArt.createDoll());
     } else if (npc.prop === 'cup') {
       const cup = mesh(new THREE.CylinderGeometry(6, 4, 16, 10), '#d6a957', person, 14, 34, 8);
       cup.rotation.z = -0.15;
@@ -520,10 +524,8 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       const shovel = box(person, 3, 43, 3, '#a88154', -14, 21, 8);
       shovel.rotation.z = -0.2;
       box(person, 12, 8, 3, '#a2a9a0', -18, 2, 8);
-      const grave = groupAt(npc.x + 48, npc.y);
-      box(grave, 58, 2, 32, '#3c2d25', 0, 1, 0);
-      box(grave, 23, 8, 12, '#5c6e70', -2, 5, 0);
-      const head = mesh(headGeometry, '#d7aa83', grave, 16, 8, 0); head.scale.set(12, 12, 12);
+      const grave = groupAt(npc.x + DAVID_GRAVE.offsetX, npc.y);
+      grave.add(sideQuestArt.createDavidGrave());
     }
     return person;
   });
@@ -539,6 +541,21 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
   const worldSupplyGroup = groupAt(0, 0);
   WORLD_SUPPLIES.forEach((item) => supply(worldSupplyGroup, { ...item, z: item.y }, 0));
   house(WORLD_SPAWN.x - 205, WORLD_SPAWN.y - 95, false, 0.8);
+  const directionSign = groupAt(DIRECTION_SIGN.x, DIRECTION_SIGN.y);
+  texturedBox(directionSign, 6, DIRECTION_SIGN.height, 6, '#735039', 0, DIRECTION_SIGN.height / 2, 0);
+  box(directionSign, 10, 3, 10, '#63462f', 0, 1.5, 0);
+  DIRECTION_BOARDS.forEach(({ dx, dy, height, length, color }) => {
+    const arm = new THREE.Group();
+    arm.position.y = height;
+    arm.rotation.y = -Math.atan2(dy, dx);
+    directionSign.add(arm);
+    const shape = new THREE.Shape();
+    shape.moveTo(-2, -4.5); shape.lineTo(length - 6, -4.5); shape.lineTo(length, 0);
+    shape.lineTo(length - 6, 4.5); shape.lineTo(-2, 4.5); shape.closePath();
+    mesh(new THREE.ExtrudeGeometry(shape, { depth: 2, bevelEnabled: false }), color, arm, 0, 0, -1);
+    box(arm, length - 10, 0.45, 0.3, '#c19c72', (length - 6) / 2, 1.8, 1.15);
+    box(arm, 1.5, 1.5, 0.4, '#463528', 1, 0, 1.2);
+  });
   const [escape, , park, forest, harvest] = QUEST_LOCATIONS;
   const escapeBuilding = house(escape.x - 70, escape.y - 185, true, 1.15);
   const escapeTexture = createVenueSignTexture(ESCAPE_SIGN.name, ESCAPE_SIGN.motif);
@@ -1286,8 +1303,8 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(w, h, false);
     },
-    draw(position, selected, completed, moving, time, encounters = { defeated: [], statues: [] }, explosion = null, creatures) {
-      encounterArt.update(encounters, explosion, time, creatures);
+    draw(position, selected, completed, moving, time, encounters = { defeated: [], statues: [] }, explosion = null, creatures, reducedMotion = false) {
+      encounterArt.update(encounters, explosion, time, creatures, reducedMotion);
       player.visible = !explosion;
       player.position.set(position.x, 0, position.y);
       if (previousPosition && (position.x !== previousPosition.x || position.y !== previousPosition.y)) {
@@ -1337,6 +1354,9 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     screenToWorld(point) {
       return groundPointAt(camera, width, height, point);
     },
+    castleGateAt(point) {
+      return castleGateHit(castleGate, camera, width, height, point);
+    },
     statueAt(point) {
       return encounterArt.statueAt(point, camera, width, height);
     },
@@ -1376,6 +1396,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     },
     dispose() {
       encounterArt.dispose();
+      sideQuestArt.dispose();
       scene.traverse((object) => {
         if (object.isSprite) object.material.dispose();
         if (object.isMesh && object.material.isMeshBasicMaterial) object.material.dispose();

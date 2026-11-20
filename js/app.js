@@ -179,6 +179,10 @@ export function startGame(characterName) {
   const settingsMain = document.querySelector('#settingsMain');
   const restartConfirmation = document.querySelector('#restartConfirmation');
   const restartError = document.querySelector('#restartError');
+  const chimyResetConfirmation = document.querySelector('#chimyResetConfirmation');
+  const chimyResetError = document.querySelector('#chimyResetError');
+  const chimyResetStatus = document.querySelector('#chimyResetStatus');
+  const chimyResetButton = document.querySelector('#resetChimychompsBtn');
   const gameRoot = document.querySelector('#questGameRoot');
   const abigailRoot = document.querySelector('#abigailWorldRoot');
   const obscuredWorldControls = [
@@ -775,7 +779,14 @@ export function startGame(characterName) {
   function showSettings() {
     settingsMain.hidden = false;
     restartConfirmation.hidden = true;
+    chimyResetConfirmation.hidden = true;
     restartError.hidden = true;
+    chimyResetError.hidden = true;
+    const exploding = world.isExploding();
+    chimyResetButton.disabled = exploding;
+    chimyResetStatus.hidden = !exploding;
+    chimyResetStatus.textContent = exploding
+      ? 'Close Settings and wait until you have returned to the castle before resetting ChimyChompChomps.' : '';
     settingsDialog.setAttribute('aria-labelledby', 'settingsTitle');
     settingsDialog.removeAttribute('aria-describedby');
     if (worldQuestIndex === null && !inTrophyRoom) world.setPaused(true);
@@ -795,6 +806,44 @@ export function startGame(characterName) {
     if (show) settingsDialog.setAttribute('aria-describedby', 'restartDescription');
     else settingsDialog.removeAttribute('aria-describedby');
     settingsDialog.querySelector(show ? '[data-action="cancel-restart"]' : '[data-action="request-restart"]').focus();
+  }
+
+  function showChimyResetConfirmation(show) {
+    settingsMain.hidden = show;
+    chimyResetConfirmation.hidden = !show;
+    chimyResetError.hidden = true;
+    settingsDialog.setAttribute('aria-labelledby', show ? 'chimyResetTitle' : 'settingsTitle');
+    if (show) settingsDialog.setAttribute('aria-describedby', 'chimyResetDescription');
+    else settingsDialog.removeAttribute('aria-describedby');
+    settingsDialog.querySelector(show ? '[data-action="cancel-chimy-reset"]' : '[data-action="request-chimy-reset"]').focus();
+  }
+
+  function resetChimychomps() {
+    if (world.isExploding()) {
+      chimyResetError.textContent = 'Wait until you have returned to the castle before resetting ChimyChompChomps.';
+      chimyResetError.hidden = false;
+      return;
+    }
+    const next = { ...encounters, defeated: [] };
+    let creatures;
+    try {
+      creatures = world.planChimychompReset();
+    } catch (error) {
+      console.error('Could not reset ChimyChompChomps.', error);
+      chimyResetError.textContent = 'The ChimyChompChomps could not be reset safely. Your progress is unchanged.';
+      chimyResetError.hidden = false;
+      return;
+    }
+    if (!saveProgress({ completed, accepted, gameSaves, trophyDisplays, trophyQuest, encounters: next })) {
+      chimyResetError.textContent = 'The ChimyChompChomps could not be reset because your browser could not save progress. Please try again.';
+      chimyResetError.hidden = false;
+      return;
+    }
+    encounters = next;
+    world.applyChimychompReset(next, creatures);
+    showChimyResetConfirmation(false);
+    chimyResetStatus.textContent = 'ChimyChompChomps have been reset. Your keepsakes are unchanged.';
+    chimyResetStatus.hidden = false;
   }
 
   function restartGame() {
@@ -935,6 +984,12 @@ export function startGame(characterName) {
       showSettings();
     } else if (button.dataset.action === 'close-settings') {
       closeSettings();
+    } else if (button.dataset.action === 'request-chimy-reset') {
+      showChimyResetConfirmation(true);
+    } else if (button.dataset.action === 'cancel-chimy-reset') {
+      showChimyResetConfirmation(false);
+    } else if (button.dataset.action === 'confirm-chimy-reset') {
+      resetChimychomps();
     } else if (button.dataset.action === 'request-restart') {
       showRestartConfirmation(true);
     } else if (button.dataset.action === 'cancel-restart') {
@@ -966,6 +1021,7 @@ export function startGame(characterName) {
   settingsDialog.addEventListener('cancel', (event) => {
     event.preventDefault();
     if (!restartConfirmation.hidden) showRestartConfirmation(false);
+    else if (!chimyResetConfirmation.hidden) showChimyResetConfirmation(false);
     else closeSettings();
   });
 

@@ -66,8 +66,11 @@ test('minimap preserves unpaved town terrain while retaining the rest of the wor
     const route = events.slice(restore + 1).filter((event) => event.index === 2);
     assert.deepEqual(route.find((event) => event.method === 'rect').args, [left, top, right - left, bottom - top]);
     assert.ok(route.findIndex((event) => event.method === 'clip') < route.findIndex((event) => event.method === 'stroke'));
-    assert.deepEqual(route.filter((event) => event.method === 'lineTo').at(-1).args,
-      [QUEST_LOCATIONS[1].x / WORLD_SIZE.width * art.minimap.width, QUEST_LOCATIONS[1].y / WORLD_SIZE.height * art.minimap.height]);
+    const endpoints = route.filter((event) => event.method === 'lineTo').map((event) => event.args);
+    for (const quest of QUEST_LOCATIONS) {
+      assert.ok(endpoints.some(([x, y]) =>
+        x === quest.x / WORLD_SIZE.width * art.minimap.width && y === quest.y / WORLD_SIZE.height * art.minimap.height));
+    }
     assert.equal(route.at(-1).method, 'stroke');
 
     globalThis.window = { devicePixelRatio: 1 };

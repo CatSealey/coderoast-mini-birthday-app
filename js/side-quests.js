@@ -18,6 +18,10 @@ export const SIDE_QUESTS = Object.freeze(entries.map((entry, index) => Object.fr
 })));
 
 export const PACE_DISTANCE = 20;
+export const DAVID_GRAVE = Object.freeze({
+  offsetX: 68, width: 92, depth: 34,
+  mound: Object.freeze({ offsetX: 0, offsetY: -35, width: 60, depth: 30 })
+});
 
 export function sideQuestPosition(quest, time) {
   return { x: quest.x + (quest.prop === 'pace' ? Math.sin(time / 650) * PACE_DISTANCE : 0), y: quest.y };

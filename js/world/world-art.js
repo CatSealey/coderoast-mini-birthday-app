@@ -11,7 +11,7 @@ import { rockVariant } from './rock-style.js';
 import { COBBLESTONE_SPACING, drawCobblestone } from './cobblestones.js';
 import { drawGamesSign } from './games-sign.js';
 import { drawVenueSign, ESCAPE_SIGN } from './venue-sign.js';
-import { drawCastle, drawCastleFlag, drawCastleSupply } from './castle-scenery.js';
+import { CASTLE_ILLUSTRATION_SCALE, drawCastle, drawCastleFlag, drawCastleSupply } from './castle-scenery.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
 import { drawRoofTiles } from './town-textures.js';
 import { drawFrightMarqueeSign, FRIGHT_MARQUEE } from './fright-marquee.js';
@@ -20,6 +20,7 @@ import { WORLD_LAMPS } from './world-lamps.js';
 import { drawCanopyPlatformFace } from './canopy-platform.js';
 import { PARK_FLAG_COLORS, PARK_PALETTE } from './park-style.js';
 import { drawParkBush, parkBushes } from './park-bushes.js';
+import { DIRECTION_SIGN, drawDirectionSign } from './direction-sign.js';
 
 const TILT = 0.68;
 const CACHE_SCALE = 0.5;
@@ -159,11 +160,13 @@ function makeGround() {
   mapContext.rect(left, top, right - left, bottom - top);
   mapContext.clip();
   mapContext.beginPath();
-  WORLD_ROUTES[1].forEach(([x, y], index) => {
-    const mx = x * WORLD_SCALE / WORLD_SIZE.width * minimap.width;
-    const my = y * WORLD_SCALE / WORLD_SIZE.height * minimap.height;
-    if (index === 0) mapContext.moveTo(mx, my);
-    else mapContext.lineTo(mx, my);
+  WORLD_ROUTES.forEach((route) => {
+    route.forEach(([x, y], index) => {
+      const mx = x * WORLD_SCALE / WORLD_SIZE.width * minimap.width;
+      const my = y * WORLD_SCALE / WORLD_SIZE.height * minimap.height;
+      if (index === 0) mapContext.moveTo(mx, my);
+      else mapContext.lineTo(mx, my);
+    });
   });
   mapContext.strokeStyle = '#aaa58e';
   mapContext.lineWidth = 6;
@@ -180,13 +183,13 @@ function addProps() {
     props.push({ type, x, y, size, variant });
   }
   const [escape, , park, forest, harvest] = QUEST_LOCATIONS;
-  add('castle', CASTLE_LAYOUT.x, CASTLE_LAYOUT.y, 1.45);
+  add('castle', CASTLE_LAYOUT.x, CASTLE_LAYOUT.y, CASTLE_ILLUSTRATION_SCALE);
   for (const item of CASTLE_EXTERIOR_SUPPLIES) {
     add(item.kind, CASTLE_LAYOUT.x + item.x, CASTLE_LAYOUT.y + item.z, item.size, item.variant);
   }
   for (const item of WORLD_SUPPLIES) add(item.kind, item.x, item.y, item.size, item.variant);
   add('house', WORLD_SPAWN.x - 205, WORLD_SPAWN.y - 95, 0.85);
-  add('sign', WORLD_SPAWN.x - 120, WORLD_SPAWN.y + 20);
+  add('directionSign', DIRECTION_SIGN.x, DIRECTION_SIGN.y);
 
   add('haunted', escape.x - 70, escape.y - 185, 1.25);
   add('deadTree', ESCAPE_DECORATIVE_TREE.x, ESCAPE_DECORATIVE_TREE.z, ESCAPE_DECORATIVE_TREE.size);
@@ -532,6 +535,7 @@ function drawProp(ctx, prop) {
   if (prop.type === 'tree' || prop.type === 'pine') tree(ctx, prop.type === 'pine', prop.variant);
   else if (prop.type === 'bush') drawParkBush(ctx, prop.variant, prop.shape, prop.flowering);
   else if (prop.type === 'house') building(ctx, prop.variant);
+  else if (prop.type === 'directionSign') drawDirectionSign(ctx);
   else if (prop.type === 'castle') drawCastle(ctx);
   else if (prop.type === 'church') {
     building(ctx, 0, CHURCH_STONE);
@@ -777,26 +781,22 @@ function drawProp(ctx, prop) {
     ctx.moveTo(-14, -7); ctx.lineTo(-11, -5); ctx.moveTo(12, -5); ctx.lineTo(15, -4); ctx.stroke();
     ctx.fillStyle = 'rgba(228, 230, 209, .35)';
     ROCK_GRAIN.forEach(([x, y]) => ctx.fillRect(x, y, 1.5, 1));
-  } else if (prop.type === 'lamp' || prop.type === 'sign') {
+  } else if (prop.type === 'lamp') {
     ctx.fillStyle = paletteColor(['#55442e', '#62503a', '#725940', '#4b493c'], prop.x, prop.y, 71);
     ctx.fillRect(-3, -44, 6, 44);
-    ctx.fillStyle = prop.type === 'lamp'
-      ? paletteColor(['#e5c16e', '#efd18a', '#d7bd81', '#e4aa68', '#cbb779'], prop.x, prop.y, 72)
-      : paletteColor(['#b59a68', '#c5a873', '#a88a5f', '#c0a27a', '#9e8965'], prop.x, prop.y, 73);
+    ctx.fillStyle = paletteColor(['#e5c16e', '#efd18a', '#d7bd81', '#e4aa68', '#cbb779'], prop.x, prop.y, 72);
     ctx.fillRect(-9, -53, 18, 13);
     ctx.strokeStyle = paletteColor(['#463e2b', '#554633', '#61503a'], prop.x, prop.y, 74);
     ctx.strokeRect(-9, -53, 18, 13);
-    if (prop.type === 'lamp') {
-      ctx.fillStyle = '#554b3b';
-      ctx.fillRect(-7, -3, 14, 3);
-      ctx.fillRect(-6, -5, 12, 2);
-      ctx.beginPath(); ctx.moveTo(-11, -53); ctx.lineTo(0, -61); ctx.lineTo(11, -53); ctx.closePath(); ctx.fill();
-      ellipse(ctx, 0, -61, 2, 2, '#c2a678');
-      ctx.strokeStyle = '#62513c'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, -52); ctx.lineTo(0, -41); ctx.moveTo(-8, -46); ctx.lineTo(8, -46); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255, 246, 202, .75)';
-      ctx.beginPath(); ctx.moveTo(-6, -51); ctx.lineTo(-6, -48); ctx.stroke();
-    }
+    ctx.fillStyle = '#554b3b';
+    ctx.fillRect(-7, -3, 14, 3);
+    ctx.fillRect(-6, -5, 12, 2);
+    ctx.beginPath(); ctx.moveTo(-11, -53); ctx.lineTo(0, -61); ctx.lineTo(11, -53); ctx.closePath(); ctx.fill();
+    ellipse(ctx, 0, -61, 2, 2, '#c2a678');
+    ctx.strokeStyle = '#62513c'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, -52); ctx.lineTo(0, -41); ctx.moveTo(-8, -46); ctx.lineTo(8, -46); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255, 246, 202, .75)';
+    ctx.beginPath(); ctx.moveTo(-6, -51); ctx.lineTo(-6, -48); ctx.stroke();
   } else if (prop.type === 'stall') {
     ctx.fillStyle = paletteColor(['#59452f', '#66503a', '#72553b', '#56463a'], prop.x, prop.y, 81);
     ctx.fillRect(-24, -31, 4, 31); ctx.fillRect(20, -31, 4, 31);

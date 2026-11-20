@@ -1,4 +1,4 @@
-import { CASTLE_ENTRANCE, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
+import { CASTLE_ENTRANCE, CASTLE_LAYOUT, INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SIZE, WORLD_SPAWN } from './world-data.js';
 import { cameraFor, createWorldArt, projectWorld, unprojectWorld } from './world-art.js';
 import { constrainToWorld, distanceBetween, isNearQuest, isQuestAvailable, moveToward, nearestNpcIndex } from './world-logic.js';
 import { regionBlendAt } from './world-regions.js';
@@ -8,12 +8,15 @@ import { speechBubblePosition } from './speech-bubble.js';
 import { createCollision, findCharacterApproach, findWorldPath, smoothWorldPath, worldObstacles } from './world-collision.js';
 import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, CHARACTER_HEAD_SCALE, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, drawCharacterMarker } from '../character-appearance.js';
 import { TATTOO_ACCENT, TATTOO_INK } from '../character-body.js';
-import { sideQuestPosition } from '../side-quests.js';
+import { DAVID_GRAVE, sideQuestPosition } from '../side-quests.js';
+import { drawAbigailDoll, drawDavidGrave } from '../side-quest-art.js';
 import { ENTRANCE_MARKER_RADIUS, entranceMarkerHit } from './entrance-marker.js';
 import { STATUE_INTERACTION_RANGE } from './chimychomps.js';
 import { drawAngelStatue, drawChimychomp } from './chimychomp-art.js';
+import { CHOMPY_EXPLOSION_DURATION, drawChimychompExplosion } from './chimychomp-explosion.js';
 import { deathMarkerContains, drawDeathMarker } from './death-marker.js';
-import { CHOMPY_CONTACT_RADIUS, CHOMPY_DETECTION_RADIUS, CHOMPY_RADIUS, PLAYER_WALK_SPEED, chompyContact, createChompyStates, encounterCollision, safeRespawn, stepChompy } from './chimy-chase.js';
+import { illustratedCastleGateHit } from './castle-scenery.js';
+import { CHOMPY_CONTACT_RADIUS, CHOMPY_DETECTION_RADIUS, CHOMPY_RADIUS, PLAYER_WALK_SPEED, chompyContact, createChompyStates, encounterCollision, planChompyRevival, safeRespawn, stepChompy } from './chimy-chase.js';
 
 const PLAYER_RADIUS = 12;
 const DIRECTIONS = {
@@ -73,6 +76,7 @@ function drawPerson(ctx, color, moving, time, longHair = false, hair = CHARACTER
 }
 
 export function mountOverworld({ characterName, worldCanvas, mapCanvas, interactButton, messageElement, locationElement, targetElement, encounters = { defeated: [], statues: [] }, onChomp, onRecoverStatue, onGuide, onAcceptQuest, onEntrance, onCastle, onTrophyGuide, onAcceptTrophy, onSideQuest, onMessage, onQuestSelected, onRegionChange }) {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const mapContext = mapCanvas.getContext('2d');
   if (!mapContext) throw new Error('The browser could not initialize the game world map.');
   const art = createWorldArt();
@@ -91,7 +95,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   const acceptOfferButton = document.querySelector('#acceptQuestOffer');
   const declineOfferButton = document.querySelector('#declineQuestOffer');
   const state = {
-    player: { ...WORLD_SPAWN }, target: null, questIndex: null, destinationKind: 'guide', pendingEntrance: null,
+    player: { ...WORLD_SPAWN }, target: null, questIndex: null, destinationKind: 'guide', pendingEntrance: null, pendingCastle: false,
     completed: Array(QUEST_LOCATIONS.length).fill(false), accepted: Array(QUEST_LOCATIONS.length).fill(false), finaleCompleted: false, paused: false,
     npcIndex: null, npcDialogue: Array(WORLD_NPCS.length).fill(0), speaker: null,
     frame: 0, lastFrame: 0, keys: new Set(), heldDirections: new Set(), disposed: false, path: [],
@@ -131,7 +135,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   }
 
   function setDestination(destination) {
-    state.pendingStatue = null;
+    state.pendingStatue = null; state.pendingCastle = false;
     const target = constrainToWorld(destination, PLAYER_RADIUS);
     const navigation = playerCollision();
     const path = findWorldPath(state.player, target, navigation);
@@ -146,7 +150,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   }
 
   function setCharacterDestination(character) {
-    state.pendingStatue = null;
+    state.pendingStatue = null; state.pendingCastle = false;
     const navigation = playerCollision();
     const path = findCharacterApproach(state.player, character, navigation);
     if (!path) {
@@ -207,7 +211,8 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
   function acceptOffer() {
     if (!state.speaker || speechChoices.hidden) return;
     if (state.speaker.kind === 'npc' && WORLD_NPCS[state.speaker.index].trophyGuide) {
-      clearSpeech(); onAcceptTrophy(); return;
+      state.npcIndex = null;
+      clearSpeech(); onAcceptTrophy(); updateInteraction(); return;
     }
     if (state.speaker.kind !== 'guide') return;
     const index = state.speaker.index;
@@ -307,7 +312,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     if (state.disposed || !canvasWidth || !canvasHeight) return;
     if (world3d) {
       world3d.draw(state.player, state.questIndex, state.completed,
-        Boolean(state.target || state.keys.size || state.heldDirections.size), state.frame, state.encounters, state.explosion, state.chompies);
+        Boolean(state.target || state.keys.size || state.heldDirections.size), state.frame, state.encounters, state.explosion, state.chompies, reducedMotion.matches);
       updateSpeechBubble();
       return;
     }
@@ -343,13 +348,9 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       draw(ctx) {
         if (npc.sideQuest !== undefined) {
           if (npc.prop === 'doll') {
-            ctx.fillStyle = '#795453'; ctx.fillRect(29, -29, 15, 20);
-            ctx.fillStyle = '#d7bc9d'; ctx.beginPath(); ctx.arc(36, -34, 7, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#4d302c'; ctx.fillRect(28, -42, 16, 5);
+            ctx.save(); ctx.translate(42, 0); drawAbigailDoll(ctx); ctx.restore();
           } else if (npc.prop === 'grave') {
-            ctx.fillStyle = '#49382d'; ctx.beginPath(); ctx.ellipse(45, -2, 34, 10, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#6b665f'; ctx.fillRect(35, -18, 20, 15);
-            ctx.fillStyle = '#d7aa83'; ctx.beginPath(); ctx.arc(45, -22, 7, 0, Math.PI * 2); ctx.fill();
+            ctx.save(); ctx.translate(DAVID_GRAVE.offsetX, -2); drawDavidGrave(ctx); ctx.restore();
           }
           drawCharacterMarker(ctx, 0, -39, CAT_OUTFIT, {
             ...CAT_STYLE, scale: 1.5, stride: npc.prop === 'pace' ? Math.sin(state.frame / 120) * 0.4 : 0,
@@ -380,9 +381,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     if (state.explosion) actors.push({
       ...state.explosion,
       draw(ctx) {
-        const progress = Math.min(1, (state.frame - state.explosion.started) / 800);
-        ctx.fillStyle = '#f18b39'; ctx.beginPath(); ctx.arc(0, -18, 12 + progress * 35, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#ffdf83'; ctx.beginPath(); ctx.arc(0, -18, 7 + progress * 20, 0, Math.PI * 2); ctx.fill();
+        drawChimychompExplosion(ctx, state.explosion.started, state.frame, reducedMotion.matches);
       }
     });
     if (!state.explosion) actors.push({
@@ -451,7 +450,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     }
     state.questIndex = index;
     state.destinationKind = destinationKind;
-    state.pendingEntrance = null;
+    state.pendingEntrance = null; state.pendingCastle = false;
     clearSpeech();
     state.npcIndex = null;
     const quest = QUEST_LOCATIONS[index];
@@ -468,7 +467,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
 
   function collectStatue(index) {
     const next = onRecoverStatue?.(index);
-    state.pendingStatue = null; state.target = null; state.path = [];
+    state.pendingStatue = null; state.pendingCastle = false; state.target = null; state.path = [];
     if (next) {
       state.encounters = next;
       say('Your keepsakes have been recovered from the angel statue.');
@@ -477,6 +476,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
 
   function interact() {
     if (state.paused || state.explosion) return;
+    state.pendingCastle = false;
     const statueIndex = state.encounters.statues.findIndex((statue) => distanceBetween(state.player, statue) <= STATUE_INTERACTION_RANGE);
     if (statueIndex !== -1) return void collectStatue(statueIndex);
     const nearby = nearbyQuest();
@@ -563,7 +563,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     if (entranceIndex !== -1) {
       const quest = QUEST_LOCATIONS[entranceIndex];
       state.questIndex = entranceIndex; state.destinationKind = 'entrance'; state.npcIndex = null;
-      state.target = null; state.pendingEntrance = null; clearSpeech();
+      state.target = null; state.pendingEntrance = null; state.pendingCastle = false; clearSpeech();
       onQuestSelected?.(entranceIndex);
       if (!state.accepted[entranceIndex]) {
         say(`Speak to ${quest.guide} to accept the quest first.`);
@@ -584,9 +584,24 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       return Math.hypot(screen.x - position.x, screen.y - (position.y - 36 * zoom)) <= 25 * zoom;
     });
     if (npcIndex !== -1) {
-      state.pendingEntrance = null;
+      state.pendingEntrance = null; state.pendingCastle = false;
       state.npcIndex = npcIndex;
       interact();
+      updateInteraction();
+      return;
+    }
+    const castleGate = world3d ? world3d.castleGateAt(screen)
+      : illustratedCastleGateHit(screen, projectWorld(CASTLE_LAYOUT, camera, zoom), zoom);
+    if (castleGate) {
+      state.npcIndex = null; state.questIndex = null; state.pendingEntrance = null; state.pendingStatue = null;
+      clearSpeech();
+      if (distanceBetween(state.player, CASTLE_ENTRANCE) < INTERACTION_RANGE) {
+        state.target = null; state.path = []; state.pendingCastle = false;
+        onCastle();
+      } else if (setDestination(CASTLE_ENTRANCE)) {
+        state.pendingCastle = true;
+        say('Walking to the castle trophy room.');
+      }
       updateInteraction();
       return;
     }
@@ -654,6 +669,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       state.target = null;
       state.pendingEntrance = null;
       state.pendingStatue = null;
+      state.pendingCastle = false;
       state.npcIndex = null;
     } else if (event.key === 'e' || event.key === 'E' || event.key === ' ') {
       event.preventDefault(); interact();
@@ -674,6 +690,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     state.target = null;
     state.pendingEntrance = null;
     state.pendingStatue = null;
+    state.pendingCastle = false;
     state.npcIndex = null;
   }
 
@@ -691,7 +708,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     if (state.disposed) return;
     const delta = state.lastFrame ? Math.min((timestamp - state.lastFrame) / 1000, 0.05) : 0;
     state.lastFrame = timestamp; state.frame = timestamp;
-    if (!state.paused && state.explosion && timestamp - state.explosion.started >= 800) {
+    if (!state.paused && state.explosion && timestamp - state.explosion.started >= CHOMPY_EXPLOSION_DURATION) {
       state.explosion = null;
       resetChompies();
       state.player = safeRespawn(WORLD_SPAWN, playerCollision());
@@ -736,7 +753,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
         if (next) {
           state.encounters = next;
           state.explosion = { x: chomp.x, y: chomp.y, started: timestamp };
-          state.target = null; state.path = []; state.pendingEntrance = null; state.pendingStatue = null; state.npcIndex = null;
+          state.target = null; state.path = []; state.pendingEntrance = null; state.pendingStatue = null; state.pendingCastle = false; state.npcIndex = null;
           clearMovement(); clearSpeech();
           say('A ChimyChompChomp exploded! Returning to the castle...');
         } else {
@@ -750,7 +767,12 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
         const index = state.pendingEntrance;
         state.pendingEntrance = null; state.target = null;
         onEntrance(index);
+      } else if (state.pendingCastle && distanceBetween(state.player, CASTLE_ENTRANCE) < INTERACTION_RANGE) {
+        state.pendingCastle = false; state.target = null; state.path = [];
+        onCastle();
       } else if (state.target && !state.path.length) {
+        if (state.pendingCastle) say('The castle entrance is blocked. Choose another route and try again.');
+        state.pendingCastle = false;
         state.target = null; state.pendingEntrance = null; state.pendingStatue = null;
       } else if (state.target && !dx && !dy && previous.x === state.player.x && previous.y === state.player.y) {
         state.blockedTime += delta;
@@ -760,7 +782,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
           const path = findWorldPath(state.player, state.target, navigation);
           if (path) state.path = smoothWorldPath(state.player, path, navigation, playerRouteClearance());
           else {
-            state.target = null; state.path = []; state.pendingEntrance = null; state.pendingStatue = null;
+            state.target = null; state.path = []; state.pendingEntrance = null; state.pendingStatue = null; state.pendingCastle = false;
             say('There is no clear route to that destination. Choose another spot.');
           }
         }
@@ -797,11 +819,21 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       updateInteraction(); drawWorld(); drawMinimap();
     },
     setEncounters(next) { state.encounters = next; state.pendingStatue = null; drawWorld(); drawMinimap(); },
+    isExploding() { return Boolean(state.explosion); },
+    planChimychompReset() {
+      return planChompyRevival(state.chompies, state.encounters.defeated,
+        state.encounters.statues, state.player, chompCollision);
+    },
+    applyChimychompReset(next, creatures) {
+      state.encounters = next;
+      state.chompies = creatures;
+      updateInteraction(); drawWorld(); drawMinimap();
+    },
     selectQuest: chooseQuest,
     selectSideQuest(index) {
       const npcIndex = WORLD_NPCS.findIndex((npc) => npc.sideQuest === index);
       if (npcIndex < 0) throw new RangeError('Unknown side quest.');
-      state.questIndex = null; state.pendingEntrance = null; state.npcIndex = npcIndex;
+      state.questIndex = null; state.pendingEntrance = null; state.pendingCastle = false; state.npcIndex = npcIndex;
       state.target = null; state.path = []; clearSpeech();
       interact(); updateInteraction(); drawWorld(); drawMinimap();
     },
@@ -821,7 +853,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
     },
     clearQuestSelection(index = null) {
       if (index !== null && state.questIndex !== index) return;
-      state.questIndex = null; state.target = null; state.pendingEntrance = null; state.npcIndex = null;
+      state.questIndex = null; state.target = null; state.pendingEntrance = null; state.pendingCastle = false; state.npcIndex = null;
       clearSpeech(); updateInteraction(); drawWorld(); drawMinimap();
     },
     reset() {
@@ -829,7 +861,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       state.player = { ...WORLD_SPAWN };
       state.target = null; state.path = []; state.questIndex = null;
       state.destinationKind = 'guide'; state.pendingEntrance = null; state.npcIndex = null;
-      state.pendingStatue = null; state.explosion = null; state.ignoredChomp = null;
+      state.pendingStatue = null; state.pendingCastle = false; state.explosion = null; state.ignoredChomp = null;
       resetChompies();
       state.player = safeRespawn(WORLD_SPAWN, playerCollision());
       state.blockedTime = 0;

@@ -18,6 +18,10 @@ not create a separate save on the same browser and device.
   them. Click or tap a gold entrance ring to approach a quest entrance. Some
   quests provide their own controls on screen.
 
+To enter the castle trophy room, first speak to Elowen the Curator outside the
+castle and accept The Hall of Memories. Then click or tap the castle gate to
+walk in, or approach it and press **E** or the interaction button.
+
 ## Find quests
 
 The map marks quest guides. Speak to a guide and accept their offer to add the
@@ -25,6 +29,9 @@ quest to the journal. Follow its destination to the entrance and interact to
 begin. Select a quest in the journal to see its steps; use **Walk to quest**
 within the entry if you want help navigating. The journal scrolls when the
 list is long.
+
+The wooden signpost by the castle marks the paths' junction. The GoApe path
+leaves from here rather than from Thirteen; use the map to identify destinations.
 
 The side-quest list offers optional encounters with Cat. Select an entry to
 find her, then speak to her to begin.
@@ -37,8 +44,10 @@ carried keepsakes remain at a hooded stone death-angel statue where you fell,
 marked by a red skull-and-crossbones shield on the map. Click
 or tap the statue (or approach it and press **E**) to recover them. Keepsakes
 already displayed in the castle are safe, and quest completion and XP remain
-intact. Each creature only explodes once per adventure; statues remain until
+intact. Each creature only explodes once unless reset; statues remain until
 their keepsakes are recovered, even if you encounter another creature.
+Use **Settings → Reset ChimyChompChomps** to bring defeated creatures back.
+Your quests and any unrecovered keepsakes remain unchanged.
 
 Characters have faceted, fantasy-inspired designs. The player and Cat keep
 their distinctive outfits, hairstyles and tattoos throughout their adventures.

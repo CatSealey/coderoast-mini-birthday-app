@@ -1,15 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CatmullRomCurve3, Vector3 } from 'three';
-import { createParkBushLeavesGeometry, drawParkBush, PARK_BUSH_SHAPES, parkBushes } from '../js/world/park-bushes.js';
+import { createParkBushLeavesGeometry, drawParkBush, PARK_BUSH_SHAPES, parkBushes, parkBushObstacles } from '../js/world/park-bushes.js';
 import { PARK_BANNERS, PARK_MAIN_COASTER, PARK_RIDES, PARK_WHEEL } from '../js/world/park-scenery.js';
 import { COASTER_TRACKS } from '../js/world/world-scenery-data.js';
-import { createCollision, worldObstacles } from '../js/world/world-collision.js';
+import { WORLD_SIZE } from '../js/world/world-data.js';
+import { createCollision, worldBaseObstacles, worldObstacles } from '../js/world/world-collision.js';
 import { roadDistance, scatteredParkBanners } from '../js/world/world-art.js';
 import { regionBlendAt } from '../js/world/world-regions.js';
 
 test('park bushes are varied, deterministic and clear of routes and scenery', () => {
-  const bushes = parkBushes(), collision = createCollision(worldObstacles(), 45);
+  const bushes = parkBushes(), collision = createCollision(worldBaseObstacles(), 45);
   assert.deepEqual(bushes, parkBushes());
   assert.equal(bushes.length, 45);
   assert.deepEqual(new Set(bushes.map((bush) => bush.variant)), new Set([0, 1, 2]));
@@ -26,6 +27,37 @@ test('park bushes are varied, deterministic and clear of routes and scenery', ()
     assert.ok(Math.hypot(bush.x - PARK_WHEEL.x, bush.y - PARK_WHEEL.y) > 145);
     assert.ok(banners.every((banner) => Math.hypot(bush.x - banner.x, bush.y - banner.y) > 80));
     assert.ok(bushes.slice(0, index).every((other) => Math.hypot(bush.x - other.x, bush.y - other.y) >= 75));
+  }
+});
+
+test('every park hedge has solid collision following its scaled and rotated lobes', () => {
+  const bushes = parkBushes(), obstacles = worldObstacles();
+  for (const bush of bushes) {
+    const footprints = parkBushObstacles([bush]);
+    assert.equal(footprints.length, PARK_BUSH_SHAPES[bush.shape].length);
+    for (const [index, footprint] of footprints.entries()) {
+      const lobe = PARK_BUSH_SHAPES[bush.shape][index];
+      assert.equal(footprint.x, bush.x + (lobe.x * Math.cos(bush.rotation) + lobe.z * Math.sin(bush.rotation)) * bush.scale);
+      assert.equal(footprint.y, bush.y + (-lobe.x * Math.sin(bush.rotation) + lobe.z * Math.cos(bush.rotation)) * bush.scale);
+      assert.equal(footprint.radius, lobe.width * 44 * bush.scale);
+      assert.ok(obstacles.some((item) => item.x === footprint.x && item.y === footprint.y && item.radius === footprint.radius));
+      const lobeCollision = createCollision([footprint], 12);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const distance = footprint.radius + 22;
+        const start = { x: footprint.x + dx * distance, y: footprint.y + dy * distance };
+        if (start.x < 12 || start.y < 12 || start.x > WORLD_SIZE.width - 12 || start.y > WORLD_SIZE.height - 12) continue;
+        assert.equal(lobeCollision.blocked(start), false);
+        assert.equal(lobeCollision.clearSegment(start, footprint), false);
+        assert.notDeepEqual(lobeCollision.move(start, -dx * distance, -dy * distance),
+          { x: footprint.x, y: footprint.y });
+      }
+    }
+    const collision = createCollision(footprints, 12);
+    assert.equal(collision.blocked(bush), true);
+    const start = { x: bush.x - 100, y: bush.y };
+    assert.equal(collision.blocked(start), false);
+    assert.equal(collision.clearSegment(start, bush), false);
+    assert.notDeepEqual(collision.move(start, 100, 0), { x: bush.x, y: bush.y });
   }
 });
 

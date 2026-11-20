@@ -3,6 +3,7 @@ import { HOUSE_BOUNDS, HOUSE_OBJECTS, HOUSE_WALLS } from './abigail-house.js';
 import { PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker, facingForMovement } from '../character-appearance.js';
 import { CHARACTER_RISE, addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, swingCharacterArms } from '../character-body.js';
 import { createCharacterLegs, createFootSupportSurface, createPlayerLegs, supportCharacterFeet, swingCharacterLegs } from './character-legs.js';
+import { createSideQuestArt, drawAbigailDoll } from '../side-quest-art.js';
 
 export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer') {
   const probe = document.createElement('canvas').getContext('webgl2');
@@ -25,6 +26,7 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
   const geometries = new Map();
   const materials = new Map();
   const textures = new Set();
+  const sideQuestArt = createSideQuestArt();
   let previousPosition = null;
   let walkingPhase = 0;
   let facing = 0;
@@ -151,11 +153,10 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
       box(group, 3, 5, 3, '#f3c86f', 23, 51, -13);
     } else if (item.id === 'doll') {
       box(group, 52, 33, 39, '#5d493c', 0, 17, 0);
-      box(group, 16, 20, 10, '#795455', 0, 45, 0);
-      box(group, 13, 13, 12, '#d0ae9d', 0, 61, 0);
-      box(group, 17, 5, 14, '#42332d', 0, 70, 0);
-      box(group, 3, 3, 2, '#443032', -4, 62, 7);
-      box(group, 3, 3, 2, '#443032', 4, 62, 7);
+      box(group, 56, 4, 43, '#80614d', 0, 35, 0);
+      const doll = sideQuestArt.createDoll();
+      doll.position.y = 37;
+      group.add(doll);
     } else if (item.kind) {
       if (item.kind === 'desk' || item.kind === 'writingDesk') {
         box(group, 66, 8, 48, '#604437', 0, 34, 0);
@@ -516,7 +517,11 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     context.font = `${Math.max(14, 50 * scale)}px sans-serif`;
     context.textAlign = 'center'; context.textBaseline = 'middle';
     HOUSE_OBJECTS.filter((item) => item.id !== 'chamberDoor' || !state.chamberUnlocked).forEach((item) => {
-      const p = fallbackPoint(item.x, item.y); context.fillText(item.icon, p.x, p.y);
+      const p = fallbackPoint(item.x, item.y);
+      if (item.id === 'doll') {
+        context.save(); context.translate(p.x, p.y + 20 * scale); context.scale(scale, scale);
+        drawAbigailDoll(context); context.restore();
+      } else context.fillText(item.icon, p.x, p.y);
     });
     const p = fallbackPoint(state.player.x, state.player.y);
     drawCharacterMarker(context, p.x, p.y, PLAYER_OUTFIT, { ...PLAYER_STYLE, scale: Math.max(0.7, scale), stride, facing });
@@ -560,6 +565,7 @@ export function createAbigailScene(canvas, onSelect, characterName = 'Adventurer
     dispose() {
       canvas.removeEventListener('click', handleClick);
       clearRoom();
+      sideQuestArt.dispose();
       geometries.forEach((geometry) => geometry.dispose());
       materials.forEach((material) => material.dispose());
       textures.forEach((map) => map.dispose());

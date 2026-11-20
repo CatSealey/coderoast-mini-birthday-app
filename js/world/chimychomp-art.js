@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CHIMYCHOMPS } from './chimychomps.js';
 import { CHOMPY_SCALE } from './chimy-chase.js';
 import { createDeathAngelArt, DEATH_ANGEL_HEIGHT } from './death-angel.js';
+import { createChimychompExplosion } from './chimychomp-explosion.js';
 export { drawDeathAngel as drawAngelStatue } from './death-angel.js';
 
 const SPECTRAL_COLORS = Object.freeze({
@@ -131,16 +132,10 @@ export function createChimychompArt(scene) {
     return group;
   });
   const statues = [];
-  const burst = new THREE.Group();
-  for (let i = 0; i < 10; i += 1) {
-    const spark = meshPart(burst, sphere, i % 2 ? '#ffd168' : '#ed6935', 0, 0, 0, 1, 1, 1);
-    spark.userData.angle = i * Math.PI * 2 / 10;
-  }
-  burst.visible = false;
-  scene.add(burst);
+  const burst = createChimychompExplosion(scene);
 
   return {
-    update(encounters, explosion, time, positions = CHIMYCHOMPS) {
+    update(encounters, explosion, time, positions = CHIMYCHOMPS, reducedMotion = false) {
       creatures.forEach((group, index) => {
         group.visible = !encounters.defeated.includes(CHIMYCHOMPS[index].id);
         const chomp = positions[index];
@@ -158,17 +153,7 @@ export function createChimychompArt(scene) {
         group.visible = Boolean(statue);
         if (statue) group.position.set(statue.x, 0, statue.y);
       });
-      burst.visible = Boolean(explosion);
-      if (explosion) {
-        burst.position.set(explosion.x, 14, explosion.y);
-        const progress = Math.min(1, (time - explosion.started) / 800);
-        burst.children.forEach((spark, index) => {
-          const angle = spark.userData.angle;
-          const distance = 10 + progress * 55;
-          spark.position.set(Math.cos(angle) * distance, Math.sin(progress * Math.PI) * (18 + index * 2), Math.sin(angle) * distance);
-          spark.scale.setScalar(Math.max(0.1, 9 * (1 - progress)));
-        });
-      }
+      burst.update(explosion, time, reducedMotion);
     },
     statueAt(point, camera, width, height) {
       return statues.findIndex((group) => {
@@ -185,6 +170,7 @@ export function createChimychompArt(scene) {
     dispose() {
       sphere.dispose(); cone.dispose(); tendrils.forEach((geometry) => geometry.dispose()); deathAngel.dispose();
       glowMaterial.dispose(); glowTexture.dispose();
+      burst.dispose();
       materials.forEach((item) => item.dispose());
     }
   };

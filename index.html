@@ -174,7 +174,7 @@
         <p id="saveNotice" role="status" hidden>Your browser could not save progress. Your latest changes may be lost if you leave or reload.</p>
         <div id="worldViewport" class="world-viewport">
           <canvas id="worldCanvas" role="img"
-            aria-label="World view of your character exploring Gaylinor. Click a quest marker, a character, an angel statue, or the ground to travel."
+            aria-label="World view of your character exploring Gaylinor. Click the castle gate, a quest marker, a character, an angel statue, or the ground to travel."
             tabindex="0"></canvas>
           <div id="abigailWorldRoot" class="abigail-world-root" hidden></div>
           <div id="worldSpeechBubble" class="world-speech-bubble" aria-label="Conversation" aria-hidden="true" hidden>
@@ -196,8 +196,7 @@
           <button type="button" id="worldInteract" class="rs3-btn world-interact" data-action="interact-quest">Walk to
             quest</button>
         </div>
-        <p class="world-controls-hint" id="worldMessage" aria-live="polite">Use WASD or the arrow keys to walk. Click a
-          quest marker or character, then press E to interact.</p>
+        <p class="world-controls-hint" id="worldMessage" aria-live="polite">Use WASD or the arrow keys to walk. Click the castle gate to enter, or approach an entrance and press E.</p>
       </section>
 
       <aside class="client-sidebar client-sidebar--right">
@@ -276,10 +275,21 @@
       <div class="settings-options">
         <button id="settingsMusicBtn" type="button" class="rs3-btn game-control" data-action="toggle-audio" aria-pressed="false">Music: Off</button>
         <p id="musicStatus" role="alert" hidden></p>
+        <button id="resetChimychompsBtn" type="button" class="rs3-btn game-control" data-action="request-chimy-reset">Reset ChimyChompChomps</button>
+        <p id="chimyResetStatus" role="status" hidden></p>
         <button type="button" class="rs3-btn game-control" data-action="request-restart">Restart game</button>
       </div>
       <div class="quest-remove-dialog__actions">
         <button type="button" class="rs3-btn game-control" data-action="close-settings" autofocus>Close</button>
+      </div>
+    </section>
+    <section id="chimyResetConfirmation" hidden aria-labelledby="chimyResetTitle">
+      <h2 id="chimyResetTitle">Reset ChimyChompChomps?</h2>
+      <p id="chimyResetDescription">Defeated ChimyChompChomps will return. Your quest progress and any unrecovered keepsakes at angel statues will stay as they are.</p>
+      <p id="chimyResetError" role="alert" hidden></p>
+      <div class="quest-remove-dialog__actions">
+        <button type="button" class="rs3-btn game-control" data-action="cancel-chimy-reset">Cancel</button>
+        <button type="button" class="rs3-btn game-control" data-action="confirm-chimy-reset">Reset ChimyChompChomps</button>
       </div>
     </section>
     <section id="restartConfirmation" hidden aria-labelledby="restartTitle">

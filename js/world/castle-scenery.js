@@ -1,6 +1,16 @@
 import * as THREE from 'three';
 import { CASTLE_LAYOUT, CASTLE_ROOF_SUPPLIES } from './world-data.js';
 
+export const CASTLE_ILLUSTRATION_SCALE = 1.45;
+
+export function illustratedCastleGateHit(point, castlePosition, zoom) {
+  const scale = CASTLE_ILLUSTRATION_SCALE * zoom;
+  const x = (point.x - castlePosition.x) / scale;
+  const y = (point.y - castlePosition.y) / scale;
+  if (Math.abs(x) > 30 || y > 3 || y < -72) return false;
+  return y >= -45 || Math.abs(x) <= 30 * Math.sqrt(1 - ((y + 45) / 27) ** 2);
+}
+
 export const CASTLE_PALETTE = Object.freeze({
   wall: '#c6c3b4',
   tower: '#b8bcad',

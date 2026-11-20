@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CHIMYCHOMPS, carriedKeepsakes, explodeChomp, recoverStatue, restoreEncounters } from '../js/world/chimychomps.js';
-import { CHOMPY_CONTACT_RADIUS, CHOMPY_DETECTION_RADIUS, CHOMPY_ESCAPE_RADIUS, CHOMPY_RADIUS, CHOMPY_SCALE, CHOMPY_SPEED, PLAYER_WALK_SPEED, STATUE_RADIUS, chompyContact, createChompyStates, encounterCollision, safeRespawn, stepChompy } from '../js/world/chimy-chase.js';
+import { CHOMPY_CONTACT_RADIUS, CHOMPY_DETECTION_RADIUS, CHOMPY_ESCAPE_RADIUS, CHOMPY_RADIUS, CHOMPY_SCALE, CHOMPY_SPEED, PLAYER_WALK_SPEED, STATUE_RADIUS, chompyContact, createChompyStates, encounterCollision, planChompyRevival, safeRespawn, stepChompy } from '../js/world/chimy-chase.js';
 import { createCollision, findWorldPath, worldObstacles } from '../js/world/world-collision.js';
 import { WORLD_REGIONS, regionBlendAt } from '../js/world/world-regions.js';
 import { CASTLE_ENTRANCE, QUEST_LOCATIONS, WORLD_SPAWN } from '../js/world/world-data.js';
@@ -126,6 +126,28 @@ test('a death without carried keepsakes creates no empty statue', () => {
     [true, false], [true, false]);
   assert.deepEqual(state.statues, []);
   assert.deepEqual(state.defeated, [CHIMYCHOMPS[0].id]);
+});
+
+test('reviving defeated creatures keeps other creatures and statues intact and avoids immediate contact', () => {
+  const creatures = createChompyStates();
+  creatures[0].x += 200;
+  creatures[1].x += 30;
+  creatures[1].mode = 'chase';
+  const old = structuredClone(creatures);
+  const player = { x: creatures[0].home.x, y: creatures[0].home.y };
+  const statues = [{ ...creatures[2].home, keepsakes: [0] }];
+  const planned = planChompyRevival(creatures, [creatures[0].id, creatures[2].id], statues, player,
+    createCollision(worldObstacles(), CHOMPY_RADIUS));
+  assert.deepEqual(creatures, old, 'planning does not change the live world before saving');
+  assert.deepEqual(statues, [{ ...creatures[2].home, keepsakes: [0] }]);
+  assert.strictEqual(planned[1], creatures[1]);
+  assert.equal(planned[1].mode, 'chase');
+  assert.equal(planned[0].mode, 'idle');
+  assert.ok(Math.hypot(planned[0].x - player.x, planned[0].y - player.y) > CHOMPY_CONTACT_RADIUS);
+  assert.ok(Math.hypot(planned[2].x - statues[0].x, planned[2].y - statues[0].y) >= CHOMPY_RADIUS + STATUE_RADIUS);
+  assert.throws(() => planChompyRevival(creatures, [creatures[0].id], statues, player,
+    { blocked: () => true }), /No safe ChimyChompChomp respawn point/);
+  assert.deepEqual(creatures, old);
 });
 
 test('restore validates saved encounters, removes duplicates and prunes removed or displayed quests', () => {
