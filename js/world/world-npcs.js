@@ -10,7 +10,7 @@ export const WORLD_NPCS = Object.freeze([
   {
     name: 'Ellis the Gardener', x: WORLD_SPAWN.x - 105, y: WORLD_SPAWN.y + 105, color: '#789164',
     dialogue: [
-      'Welcome home, {player}! The roads lead to all sorts of birthday adventures.',
+      'Welcome home, {player}! The roads lead to all sorts of birthday adventures. But watch out for ChimyChompChomps!',
       'Take your time exploring. Lumbridge Castle will be here when you return.'
     ]
   },
