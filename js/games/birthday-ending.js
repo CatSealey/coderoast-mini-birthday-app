@@ -1,4 +1,5 @@
 import { createCollision, findWorldPath } from '../world/world-collision.js';
+import { vinnieObstacles } from './birthday-dog.js';
 import { HALL_CENTER, TROPHY_EXIT } from './trophy-logic.js';
 
 export const BIRTHDAY_ENTRANCE = Object.freeze({ x: TROPHY_EXIT.x, y: TROPHY_EXIT.z - 20 });
@@ -71,15 +72,14 @@ export function birthdayCakePosition(guest) {
 
 export function birthdayGuestObstacles(phase, lovePosition, family) {
   if (phase !== 'finished') {
-    return family.filter((guest) => guest.visible && guest.member.kind === 'dog').map((guest) => ({
-      x: guest.position.x, y: guest.position.y, radius: 16 * guest.member.size
-    }));
+    return family.filter((guest) => guest.visible && guest.member.kind === 'dog')
+      .flatMap((guest) => vinnieObstacles(guest.position, guest.facing, guest.member.size));
   }
   return [
     { x: lovePosition.x, y: lovePosition.y, radius: 16 },
-    ...family.filter((guest) => guest.visible).map((guest) => ({
-      x: guest.position.x, y: guest.position.y, radius: 16 * guest.member.size
-    })),
+    ...family.filter((guest) => guest.visible).flatMap((guest) => guest.member.kind === 'dog'
+      ? vinnieObstacles(guest.position, guest.facing, guest.member.size)
+      : [{ x: guest.position.x, y: guest.position.y, radius: 16 * guest.member.size }]),
     ...family.filter((guest) => guest.visible && guest.member.id === 'gran').map((guest) => ({
       ...birthdayCakePosition(guest), radius: BIRTHDAY_CAKE_RADIUS * guest.member.size
     }))

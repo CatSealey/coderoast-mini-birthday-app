@@ -76,7 +76,8 @@ is recovered, but remain available in the journal and clues panel.
 
 Accept Elowen's quest outside the castle and enter the hall. Place each earned
 keepsake at its named display. Vinnie is always in the hall: click him, or walk
-near him and press **E**, to pet him. When all five are displayed, click or
+near him and press **E**, to pet him. He is solid, including his head, so walk
+around him rather than through him. When all five are displayed, click or
 investigate the present to complete the hall and begin the celebration. Vinnie
 will join you at your side. Use **Continue** or
 **E** to advance the dialogue; the birthday ticket can be opened during the

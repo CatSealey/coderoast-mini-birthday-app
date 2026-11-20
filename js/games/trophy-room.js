@@ -4,7 +4,7 @@ import { createTrophyModel } from './trophy-models.js';
 import { createCollision, findWorldPath } from '../world/world-collision.js';
 import { createCharacterLegs, createFootSupportSurface, createPlayerLegs, supportCharacterFeet, swingCharacterLegs } from './character-legs.js';
 import { BIRTHDAY_CAKE_OFFSET, BIRTHDAY_CAKE_RADIUS, BIRTHDAY_ENTRANCE, BIRTHDAY_FAMILY, BIRTHDAY_PLAYER_POSITION, BIRTHDAY_TICKET_MARKUP, VINNIE_HOME, birthdayArrivalPath, birthdayArrivalPose, birthdayCakePosition, birthdayDogFacing, birthdayFamilyPaths, birthdayGuestObstacles, createBirthdayEnding, scheduleBirthdayArrivals } from './birthday-ending.js';
-import { VINNIE_PET_RANGE, createBirthdayDogModel, drawBirthdayDog, findVinnieApproach } from './birthday-dog.js';
+import { VINNIE_PET_RANGE, createBirthdayDogModel, drawBirthdayDog, findVinnieApproach, vinniePetFacing } from './birthday-dog.js';
 import { addHallBookcase, addHallPedestal, addHallPlanter, addHallPresent, addHallSconce, addHallTable, createHallBannerGeometry, createHallExitMatGeometry, createHallPedestalGeometry, drawHallDisplay, drawHallFurniture, drawHallPresent, HALL_BANNER_HEIGHT, HALL_BOOKCASE_WIDTH, HALL_BOOKCASE_X, HALL_BOOKCASE_Z, HALL_PEDESTAL_DEPTH, HALL_PEDESTAL_WIDTH, HALL_PILLAR_X, HALL_RUG, HALL_SCONCE_X, HALL_PLANTER_X, HALL_TABLE_X, HALL_TROPHY_ACCENTS, paintHallBanner, paintHallExitMat, paintHallFloor, paintHallRug, paintHallStone } from './castle-interior-art.js';
 import { CAT_OUTFIT, CAT_STYLE, PLAYER_OUTFIT, PLAYER_STYLE, addCharacterHeadDetails, drawCharacterMarker } from '../character-appearance.js';
 import { CHARACTER_RISE, addCharacterBelt, addCharacterClothingDetails, addJapaneseSleeve, characterArmOffset, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, shapeCharacterLimb, swingCharacterArms } from '../character-body.js';
@@ -464,7 +464,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
   function petVinnie() {
     target = null; path = []; pendingExit = false; pendingPet = false; pendingPresent = false; clearInput();
     facing = Math.atan2(vinnie.position.x - player.x, vinnie.position.y - player.z);
-    vinnie.facing = birthdayDogFacing(vinnie.position, { x: player.x, y: player.z });
+    vinnie.facing = vinniePetFacing(vinnie.position, vinnie.facing, { x: player.x, y: player.z }, vinnie.member.size);
     petTime = 2.4;
     say('You pet Vinnie. His tail wags happily!');
   }

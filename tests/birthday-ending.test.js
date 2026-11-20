@@ -4,6 +4,7 @@ import { BIRTHDAY_CAKE_OFFSET, BIRTHDAY_CAKE_RADIUS, BIRTHDAY_DIALOGUE, BIRTHDAY
 import { createCollision, findWorldPath } from '../js/world/world-collision.js';
 import { HALL_BOOKCASE_WIDTH, HALL_BOOKCASE_X, HALL_BOOKCASE_Z, HALL_PEDESTAL_DEPTH, HALL_PEDESTAL_WIDTH, HALL_PLANTER_X, HALL_TABLE_X } from '../js/games/castle-interior-art.js';
 import { HALL_CENTER, HALL_WIDTH } from '../js/games/trophy-logic.js';
+import { vinnieObstacles } from '../js/games/birthday-dog.js';
 
 test('Vinnie blocks walking before the celebration and all visible guests block it afterwards', () => {
   const love = { x: 400, y: 440 };
@@ -11,10 +12,10 @@ test('Vinnie blocks walking before the celebration and all visible guests block 
     member, visible: index !== 0, position: { x: 200 + index * 50, y: 300 }
   }));
   for (const phase of ['idle', 'positioning', 'arriving', 'dialogue']) {
-    assert.deepEqual(birthdayGuestObstacles(phase, love, family), [{ x: 550, y: 300, radius: 16 }]);
+    assert.deepEqual(birthdayGuestObstacles(phase, love, family), vinnieObstacles({ x: 550, y: 300 }));
   }
   const obstacles = birthdayGuestObstacles('finished', love, family);
-  assert.equal(obstacles.length, 8);
+  assert.equal(obstacles.length, 9);
   assert.equal(obstacles[4].radius, 16 * BIRTHDAY_FAMILY[4].size);
   const collision = createCollision(obstacles, 10);
   for (const guest of obstacles) {
