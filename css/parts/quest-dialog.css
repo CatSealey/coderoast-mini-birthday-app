@@ -87,6 +87,16 @@
   color: #ffbf9b;
 }
 
+.quest-remove-dialog .settings-feedback {
+  margin: 10px 0 0;
+  color: #ffbf9b;
+}
+
+.quest-remove-dialog .settings-feedback,
+.quest-remove-dialog #chimyResetNote {
+  font-size: 0.65rem;
+}
+
 .quest-window {
   min-height: 460px;
   padding: 10px;

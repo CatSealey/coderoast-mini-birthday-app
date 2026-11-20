@@ -280,7 +280,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
     addCharacterHeadDetails((x, y, z, w, h, d, shade) => box(x, y, z, w, h, d, shade, model),
       (x, y, z, w, h, d, shade) => round(characterHeadGeometry, x, y, z, w, h, d, shade, model),
       { headY: 66 + CHARACTER_RISE, width: 18, height: 18, depth: 18, skin: '#dfb38c', hair: member.hair,
-        longHair: ['gran', 'mum', 'sister'].includes(member.id),
+        hairLength: member.hairLength,
         face: (x, y, z, w, h, d, shade) => round(characterFaceGeometry, x, y, z, w, h, d, shade, model) });
     let guestArms = null;
     if (member.id === 'gran') {
@@ -434,7 +434,7 @@ export function mountTrophyRoom(root, { characterName, memories, images, complet
           return;
         }
         drawCharacterMarker(ctx, guest.position.x, guest.position.y, guest.member.outfit,
-          { scale: guest.member.size, hair: guest.member.hair, hairLength: ['gran', 'mum', 'sister'].includes(guest.member.id) ? 'long' : 'short',
+          { scale: guest.member.size, hair: guest.member.hair, hairLength: guest.member.hairLength,
             stride: guest.member.id === 'gran' ? 0 : guest.legs[0].rotation.x, facing: guest.facing });
         if (guest.member.id === 'gran') {
           const cake = birthdayCakePosition(guest);

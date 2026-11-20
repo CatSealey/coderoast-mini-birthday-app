@@ -8,7 +8,7 @@ import { speechBubblePosition } from './speech-bubble.js';
 import { createCollision, findCharacterApproach, findWorldPath, smoothWorldPath, worldObstacles } from './world-collision.js';
 import { CAT_OUTFIT, CAT_STYLE, CHARACTER_HAIR, CHARACTER_HEAD_SCALE, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, TOWNSFOLK_HAIRSTYLES, drawCharacterMarker } from '../character-appearance.js';
 import { TATTOO_ACCENT, TATTOO_INK } from '../character-body.js';
-import { DAVID_GRAVE, sideQuestPosition } from '../side-quests.js';
+import { ABIGAIL_DOLL, DAVID_GRAVE, sideQuestPosition } from '../side-quests.js';
 import { drawAbigailDoll, drawDavidGrave } from '../side-quest-art.js';
 import { ENTRANCE_MARKER_RADIUS, entranceMarkerHit } from './entrance-marker.js';
 import { STATUE_INTERACTION_RANGE } from './chimychomps.js';
@@ -348,7 +348,7 @@ export function mountOverworld({ characterName, worldCanvas, mapCanvas, interact
       draw(ctx) {
         if (npc.sideQuest !== undefined) {
           if (npc.prop === 'doll') {
-            ctx.save(); ctx.translate(42, 0); drawAbigailDoll(ctx); ctx.restore();
+            ctx.save(); ctx.translate(ABIGAIL_DOLL.offsetX, 0); drawAbigailDoll(ctx); ctx.restore();
           } else if (npc.prop === 'grave') {
             ctx.save(); ctx.translate(DAVID_GRAVE.offsetX, -2); drawDavidGrave(ctx); ctx.restore();
           }

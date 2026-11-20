@@ -6,6 +6,20 @@ import { HALL_BOOKCASE_WIDTH, HALL_BOOKCASE_X, HALL_BOOKCASE_Z, HALL_PEDESTAL_DE
 import { HALL_CENTER, HALL_WIDTH } from '../js/games/trophy-logic.js';
 import { vinnieObstacles } from '../js/games/birthday-dog.js';
 
+test('Mum is the purple-clothed guest with short black hair', () => {
+  const mum = BIRTHDAY_FAMILY.find((member) => member.id === 'mum');
+  const sister = BIRTHDAY_FAMILY.find((member) => member.id === 'sister');
+  const gran = BIRTHDAY_FAMILY.find((member) => member.id === 'gran');
+  assert.deepEqual({ outfit: mum.outfit, hair: mum.hair, hairLength: mum.hairLength },
+    { outfit: '#8a79a9', hair: '#171719', hairLength: 'short' });
+  assert.deepEqual({ outfit: sister.outfit, hair: sister.hair, hairLength: sister.hairLength },
+    { outfit: '#b27372', hair: '#604438', hairLength: 'long' });
+  assert.equal(gran.hairLength, 'long');
+  assert.equal(gran.outfit, '#8b7194');
+  assert.ok(BIRTHDAY_FAMILY.filter((member) => member.kind !== 'dog').every((member) =>
+    member.hairLength === 'short' || member.hairLength === 'long'));
+});
+
 test('Vinnie blocks walking before the celebration and all visible guests block it afterwards', () => {
   const love = { x: 400, y: 440 };
   const family = BIRTHDAY_FAMILY.map((member, index) => ({
@@ -130,7 +144,7 @@ test('Cat approaches diagonally from the left, with a nearby alternative if that
 
 test('every side of the present has a safe route to the same spacious celebration', () => {
   assert.deepEqual(BIRTHDAY_FAMILY.map((member) => member.id),
-    ['gran', 'grandad', 'mum', 'sister', 'nephew-1', 'nephew-2', 'cousin', 'dog']);
+    ['gran', 'grandad', 'sister', 'mum', 'nephew-1', 'nephew-2', 'cousin', 'dog']);
   const olderChild = BIRTHDAY_FAMILY.find((member) => member.id === 'nephew-1');
   const youngerChild = BIRTHDAY_FAMILY.find((member) => member.id === 'nephew-2');
   assert.ok(youngerChild.size < olderChild.size && youngerChild.size >= olderChild.size * 0.85,
@@ -200,7 +214,7 @@ test('every side of the present has a safe route to the same spacious celebratio
       assert.deepEqual(birthdayArrivalPose(replaySchedule.family.find((entry) => entry.memberId === 'dog'), 0).position,
         dogTrajectory.points.at(-1));
       assert.deepEqual(guests.map((guest) => guest.member.id),
-        ['gran', 'cousin', 'grandad', 'nephew-1', 'dog', 'mum', 'sister', 'nephew-2']);
+        ['gran', 'cousin', 'grandad', 'nephew-1', 'dog', 'sister', 'mum', 'nephew-2']);
       assert.deepEqual(schedule.family.map((entry) => entry.memberId), guests.map((guest) => guest.member.id));
       const distances = guests.map(({ destination }) =>
         Math.hypot(destination.x - BIRTHDAY_ENTRANCE.x, destination.y - BIRTHDAY_ENTRANCE.y));
@@ -232,7 +246,7 @@ test('every side of the present has a safe route to the same spacious celebratio
       assert.equal(restoredCollision.blocked(target), false, 'the cake does not overlap the player after the celebration');
       const replayPath = findWorldPath(returnSpawn, target, restoredCollision);
       assert.deepEqual(replayPath?.at(-1), target, 'the present remains reachable through the restored family');
-      assert.equal(guests.find((guest) => guest.member.id === 'mum').destination.x, target.x - 62.5);
+      assert.equal(guests.find((guest) => guest.member.id === 'sister').destination.x, target.x - 62.5);
       assert.ok(Math.abs(guests.find((guest) => guest.member.id === 'nephew-1').destination.x - (target.x - 108.2531754730548)) < 1e-6);
       assert.equal(guests.find((guest) => guest.member.id === 'cousin').destination.x, target.x - 125);
       assert.equal(schedule.settlements.length, 0, 'nobody needs to move again after reaching their spot');

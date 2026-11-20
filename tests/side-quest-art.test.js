@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createSideQuestArt, DAVID_FIGURE_SCALE, drawAbigailDoll, drawDavidGrave } from '../js/side-quest-art.js';
-import { DAVID_GRAVE } from '../js/side-quests.js';
+import { ABIGAIL_DOLL, DAVID_GRAVE } from '../js/side-quests.js';
 import { createAbigailScene } from '../js/games/abigail-scene.js';
 import { interactHouse, newHouseState } from '../js/games/abigail-house.js';
 
@@ -16,6 +16,15 @@ test('Abigail’s doll has a detailed face, braids and dress in a reusable model
   assert.ok(bounds.min.y >= 0);
   assert.ok(bounds.max.y < 44);
   assert.ok(bounds.max.x - bounds.min.x < 30);
+  doll.updateMatrixWorld(true);
+  doll.traverse((part) => {
+    if (!part.isMesh) return;
+    const positions = part.geometry.getAttribute('position');
+    for (let i = 0; i < positions.count; i += 1) {
+      const point = part.localToWorld(new THREE.Vector3().fromBufferAttribute(positions, i));
+      assert.ok(Math.hypot(point.x, point.z) <= ABIGAIL_DOLL.radius, 'doll fits its collision footprint');
+    }
+  });
   const second = art.createDoll();
   assert.equal(doll.getObjectByName('face').geometry, second.getObjectByName('face').geometry);
   assert.equal(doll.getObjectByName('face').material, second.getObjectByName('face').material);

@@ -276,16 +276,17 @@
         <button id="settingsMusicBtn" type="button" class="rs3-btn game-control" data-action="toggle-audio" aria-pressed="false">Music: Off</button>
         <p id="musicStatus" role="alert" hidden></p>
         <button id="resetChimychompsBtn" type="button" class="rs3-btn game-control" data-action="request-chimy-reset">Reset ChimyChompChomps</button>
-        <p id="chimyResetStatus" role="status" hidden></p>
         <button type="button" class="rs3-btn game-control" data-action="request-restart">Restart game</button>
       </div>
       <div class="quest-remove-dialog__actions">
         <button type="button" class="rs3-btn game-control" data-action="close-settings" autofocus>Close</button>
       </div>
+      <p id="chimyResetStatus" class="settings-feedback" role="status" hidden></p>
     </section>
     <section id="chimyResetConfirmation" hidden aria-labelledby="chimyResetTitle">
       <h2 id="chimyResetTitle">Reset ChimyChompChomps?</h2>
-      <p id="chimyResetDescription">Defeated ChimyChompChomps will return. Your quest progress and any unrecovered keepsakes at angel statues will stay as they are.</p>
+      <p id="chimyResetDescription">Defeated ChimyChompChomps will return. </p>
+      <p id="chimyResetNote">(Your quest progress and any unrecovered keepsakes at angel statues will stay as they are.)</p>
       <p id="chimyResetError" role="alert" hidden></p>
       <div class="quest-remove-dialog__actions">
         <button type="button" class="rs3-btn game-control" data-action="cancel-chimy-reset">Cancel</button>

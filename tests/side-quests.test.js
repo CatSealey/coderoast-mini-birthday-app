@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { DAVID_GRAVE, PACE_DISTANCE, SIDE_QUESTS, restoreSideQuestProgress, sideQuestPosition } from '../js/side-quests.js';
-import { createCollision, findCharacterApproach, worldCornWalls, worldObstacles, worldTrees } from '../js/world/world-collision.js';
+import { ABIGAIL_DOLL, DAVID_GRAVE, PACE_DISTANCE, SIDE_QUESTS, restoreSideQuestProgress, sideQuestPosition } from '../js/side-quests.js';
+import { createCollision, findCharacterApproach, findWorldPath, worldCornWalls, worldObstacles, worldTrees } from '../js/world/world-collision.js';
 import { INTERACTION_RANGE, QUEST_LOCATIONS, WORLD_SPAWN } from '../js/world/world-data.js';
 import { WORLD_NPCS } from '../js/world/world-npcs.js';
 
@@ -78,4 +78,34 @@ test('trees and corn leave the side quest scenes visible', () => {
     Math.abs(wall.x - tickets.x) >= (wall.vertical ? 7 : 67.5) + 85
     || wall.y - (wall.vertical ? 67.5 : 7) >= tickets.y + 180
     || wall.y + (wall.vertical ? 67.5 : 7) <= tickets.y - 80));
+});
+
+test('Abigail’s side quest doll is solid without preventing access to Cat', () => {
+  const cat = WORLD_NPCS.find((npc) => npc.prop === 'doll');
+  const doll = { x: cat.x + ABIGAIL_DOLL.offsetX, y: cat.y };
+  const obstacles = worldObstacles();
+  assert.ok(obstacles.some((item) => item.x === doll.x && item.y === doll.y && item.radius === ABIGAIL_DOLL.radius));
+  const collision = createCollision(obstacles, 12);
+  assert.ok(collision.blocked(doll));
+  for (const [dx, dy] of [[0, 1], [1, 0], [1, 1], [-1, 1]]) {
+    const scale = 100 / Math.hypot(dx, dy);
+    const start = { x: doll.x + dx * scale, y: doll.y + dy * scale };
+    const end = { x: doll.x - dx * scale, y: doll.y - dy * scale };
+    assert.equal(collision.clearSegment(start, end), false, 'movement cannot cross the doll');
+    assert.notDeepEqual(collision.move(start, end.x - start.x, end.y - start.y), end);
+    const path = findWorldPath(start, doll, collision);
+    if (path?.length) {
+      assert.ok(!collision.blocked(path.at(-1)), 'click-to-walk stops outside the doll');
+      assert.notDeepEqual(path.at(-1), doll);
+    }
+  }
+  for (const angle of [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2]) {
+    const start = { x: cat.x + 130 * Math.cos(angle), y: cat.y + 130 * Math.sin(angle) };
+    assert.ok(!collision.blocked(start));
+    const route = findCharacterApproach(start, cat, collision);
+    assert.ok(route, 'Cat remains reachable');
+    const endpoint = route.at(-1) ?? start;
+    assert.ok(!collision.blocked(endpoint));
+    assert.ok(Math.hypot(endpoint.x - cat.x, endpoint.y - cat.y) <= INTERACTION_RANGE);
+  }
 });

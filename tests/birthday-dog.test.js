@@ -25,6 +25,17 @@ test('the birthday staff has a grey body, white chest, four moving legs and a ta
     assert.equal(legs.length, 4);
     assert.ok(legs.every((leg) => leg.parent === model && leg.userData.foot.parent === leg));
     assert.equal(tail.parent, model);
+    const tailTip = tail.getObjectByName('vinnie-tail-tip');
+    assert.ok(tailTip);
+    assert.equal(tailTip.parent, tail);
+    assert.equal(tailTip.material, material(STAFF_COLORS.chest));
+    assert.ok(tailTip.position.z < -16 && tailTip.scale.z < 3, 'only the end of the tail is white');
+    model.updateMatrixWorld(true);
+    const tipBeforeWag = tailTip.getWorldPosition(new THREE.Vector3());
+    tail.rotation.y = 0.5;
+    model.updateMatrixWorld(true);
+    assert.ok(tailTip.getWorldPosition(new THREE.Vector3()).distanceTo(tipBeforeWag) > 1);
+    tail.rotation.y = 0;
     assert.equal(head.parent, model);
     assert.ok(head.children.some((part) => part.material === material(STAFF_COLORS.eye)));
     assert.ok(head.children.some((part) => part.material === material(STAFF_COLORS.eyeLight)));
@@ -58,21 +69,30 @@ test('the birthday staff has a grey body, white chest, four moving legs and a ta
   }
 });
 
-test('the illustrated dog turns with its route and retains its white chest', () => {
-  const calls = [], colors = [];
+test('the illustrated dog turns with its route and has a wagging white tail tip', () => {
+  const calls = [], colors = [], ellipses = [];
   const ctx = {
-    save() {}, restore() {}, scale() {}, beginPath() {}, ellipse() {}, moveTo() {}, lineTo() {}, stroke() {},
+    save() {}, restore() {}, scale() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {},
+    ellipse(...args) { ellipses.push({ color: this.fillStyle, args }); },
     translate: (...args) => calls.push(['translate', ...args]),
     rotate: (...args) => calls.push(['rotate', ...args]),
     fill() { colors.push(this.fillStyle); },
     fillRect() { colors.push(this.fillStyle); }
   };
-  drawBirthdayDog(ctx, 90, 120, Math.PI / 2, 0.3);
+  drawBirthdayDog(ctx, 90, 120, Math.PI / 2, 0.3, 1, 0.4);
   assert.deepEqual(calls, [['translate', 90, 120], ['rotate', -Math.PI / 2]]);
   assert.ok(colors.includes(STAFF_COLORS.coat));
   assert.ok(colors.includes(STAFF_COLORS.chest));
   assert.ok(colors.includes(STAFF_COLORS.nose));
   assert.ok(colors.includes(STAFF_COLORS.collar));
+  assert.ok(ellipses.some(({ color, args }) => color === STAFF_COLORS.chest
+    && args[0] === 4 && args[1] === -24 && args[2] === 1.5 && args[3] === 1.5));
+  for (const wag of [-1, 0, 1]) {
+    ellipses.length = 0;
+    drawBirthdayDog(ctx, 90, 120, 0, 0, 1, wag);
+    assert.ok(ellipses.some(({ color, args }) => color === STAFF_COLORS.chest
+      && args[0] === wag * 10 && args[1] === -24 && args[2] === 1.5 && args[3] === 1.5));
+  }
 });
 
 test('Vinnie can be approached without walking through him or nearby furniture', () => {

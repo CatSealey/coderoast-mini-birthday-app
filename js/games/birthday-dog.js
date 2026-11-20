@@ -126,6 +126,9 @@ export function createBirthdayDogModel(box, round, orb) {
   tailShape.rotation.x = 0.4;
   const tailTip = round(orb, 0, 6, -14, 3, 3, 7, coat, tail);
   tailTip.rotation.x = 0.4;
+  const whiteTip = round(orb, 0, 7.05, -16.5, 2.1, 2.1, 2.2, chest, tail);
+  whiteTip.rotation.x = 0.4;
+  whiteTip.name = 'vinnie-tail-tip';
   return { model, legs, tail, head };
 }
 
@@ -137,6 +140,8 @@ export function drawBirthdayDog(ctx, x, y, facing, stride, scale = 1, wag = 0) {
   ctx.beginPath(); ctx.ellipse(1, 2, 15, 19, 0, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = coat; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(wag * 10, -24); ctx.stroke();
+  ctx.fillStyle = chest;
+  ctx.beginPath(); ctx.ellipse(wag * 10, -24, 1.5, 1.5, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = dark;
   for (const z of [-10, 10]) for (const side of [-1, 1]) {
     ctx.fillRect(side * 9 - 3, z + side * stride * 2, 6, 7);

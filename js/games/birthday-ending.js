@@ -52,13 +52,13 @@ export function birthdayArrivalPath(player, collision) {
 }
 
 export const BIRTHDAY_FAMILY = Object.freeze([
-  Object.freeze({ id: 'gran', outfit: '#8b7194', hair: '#c4beb2', size: 0.92 }),
-  Object.freeze({ id: 'grandad', outfit: '#6f7c82', hair: '#b3ada3', size: 0.97 }),
-  Object.freeze({ id: 'mum', outfit: '#b27372', hair: '#604438', size: 1 }),
-  Object.freeze({ id: 'sister', outfit: '#8a79a9', hair: '#5d4034', size: 0.96 }),
-  Object.freeze({ id: 'nephew-1', outfit: '#6885a1', hair: '#654a38', size: 0.68 }),
-  Object.freeze({ id: 'nephew-2', outfit: '#a18956', hair: '#513c32', size: 0.62 }),
-  Object.freeze({ id: 'cousin', outfit: '#657a64', hair: '#47372e', size: 1 }),
+  Object.freeze({ id: 'gran', outfit: '#8b7194', hair: '#c4beb2', hairLength: 'long', size: 0.92 }),
+  Object.freeze({ id: 'grandad', outfit: '#6f7c82', hair: '#b3ada3', hairLength: 'short', size: 0.97 }),
+  Object.freeze({ id: 'sister', outfit: '#b27372', hair: '#604438', hairLength: 'long', size: 1 }),
+  Object.freeze({ id: 'mum', outfit: '#8a79a9', hair: '#171719', hairLength: 'short', size: 0.96 }),
+  Object.freeze({ id: 'nephew-1', outfit: '#6885a1', hair: '#654a38', hairLength: 'short', size: 0.68 }),
+  Object.freeze({ id: 'nephew-2', outfit: '#a18956', hair: '#513c32', hairLength: 'short', size: 0.62 }),
+  Object.freeze({ id: 'cousin', outfit: '#657a64', hair: '#47372e', hairLength: 'short', size: 1 }),
   Object.freeze({ id: 'dog', kind: 'dog', size: 1 })
 ]);
 

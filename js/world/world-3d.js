@@ -10,7 +10,7 @@ import { CAT_OUTFIT, CAT_STYLE, GUIDE_HAIRSTYLES, PLAYER_OUTFIT, PLAYER_STYLE, T
 import { CHARACTER_RISE, addCharacterBelt, addCharacterClothingDetails, createCharacterArms, createCharacterFaceGeometry, createCharacterHeadGeometry, createCharacterLimbGeometry, createCharacterSkinGeometry, createCharacterTorsoGeometry, shapeCharacterLimb, swingCharacterArms } from '../character-body.js';
 import { createCharacterLegs, createFootSupportSurface, createPlayerLegs, supportCharacterFeet, swingCharacterLegs } from '../games/character-legs.js';
 import { CHURCH_STONE, CHURCH_WOOD, isTownPlaza, STOREFRONT_AWNINGS, TOWN_BENCHES, TOWN_CHURCH, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
-import { DAVID_GRAVE, sideQuestPosition } from '../side-quests.js';
+import { ABIGAIL_DOLL, DAVID_GRAVE, sideQuestPosition } from '../side-quests.js';
 import { SURROUNDINGS_BOUNDS, surroundingTrees, treeType } from './world-surroundings.js';
 import { createDeadTreeGeometry, createTreeBarkTexture } from './tree-geometry.js';
 import { createFoliageTexture, createLeafyBranches, createLeafyCanopy } from './leafy-tree.js';
@@ -509,7 +509,7 @@ export function createWorld3D(canvas, ground, characterName, surroundings) {
     person.position.set(npc.x, 0, npc.y);
     if (npc.prop === 'doll') {
       person.rotation.y = Math.PI / 2;
-      const doll = groupAt(npc.x + 42, npc.y);
+      const doll = groupAt(npc.x + ABIGAIL_DOLL.offsetX, npc.y);
       doll.add(sideQuestArt.createDoll());
     } else if (npc.prop === 'cup') {
       const cup = mesh(new THREE.CylinderGeometry(6, 4, 16, 10), '#d6a957', person, 14, 34, 8);

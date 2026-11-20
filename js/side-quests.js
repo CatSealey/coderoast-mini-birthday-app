@@ -18,6 +18,7 @@ export const SIDE_QUESTS = Object.freeze(entries.map((entry, index) => Object.fr
 })));
 
 export const PACE_DISTANCE = 20;
+export const ABIGAIL_DOLL = Object.freeze({ offsetX: 42, radius: 14 });
 export const DAVID_GRAVE = Object.freeze({
   offsetX: 68, width: 92, depth: 34,
   mound: Object.freeze({ offsetX: 0, offsetY: -35, width: 60, depth: 30 })

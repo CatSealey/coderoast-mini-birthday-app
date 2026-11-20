@@ -6,7 +6,7 @@ import { CANOPY_OFFSET, CANOPY_PLATFORMS, harvestPumpkins, placeQuestDecorations
 import { PARK_RELOCATED_STALL, PARK_RIDES, PARK_WHEEL } from './park-scenery.js';
 import { createMazeWalls } from './maze-scenery.js';
 import { isTownPlaza, TOWN_BENCHES, TOWN_CHURCH, TOWN_TABLES, TOWN_VENUES } from './town-scenery.js';
-import { DAVID_GRAVE, PACE_DISTANCE, SIDE_QUESTS } from '../side-quests.js';
+import { ABIGAIL_DOLL, DAVID_GRAVE, PACE_DISTANCE, SIDE_QUESTS } from '../side-quests.js';
 import { ESCAPE_DECORATIVE_TREE, spaceDeadTrees } from './tree-spacing.js';
 import { WORLD_SUPPLIES } from './world-supplies.js';
 import { FRIGHT_MARQUEE } from './fright-marquee.js';
@@ -105,6 +105,8 @@ export function worldBaseObstacles(trees = worldTrees()) {
     ...[...QUEST_LOCATIONS, ...WORLD_NPCS].map((npc) => npc.prop === 'pace'
       ? rect(npc.x, npc.y, (WORLD_CHARACTER_RADIUS + PACE_DISTANCE) * 2, WORLD_CHARACTER_RADIUS * 2)
       : circle(npc.x, npc.y, WORLD_CHARACTER_RADIUS)),
+    ...WORLD_NPCS.filter((npc) => npc.prop === 'doll')
+      .map((npc) => circle(npc.x + ABIGAIL_DOLL.offsetX, npc.y, ABIGAIL_DOLL.radius)),
     rect(CASTLE_LAYOUT.x, CASTLE_LAYOUT.y + CASTLE_LAYOUT.centerOffset, CASTLE_LAYOUT.width, CASTLE_LAYOUT.depth),
     ...CASTLE_EXTERIOR_SUPPLIES.map((item) => supplyObstacle(item, CASTLE_LAYOUT.x + item.x, CASTLE_LAYOUT.y + item.z)),
     ...WORLD_SUPPLIES.map((item) => supplyObstacle(item, item.x, item.y)),
