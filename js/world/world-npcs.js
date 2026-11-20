@@ -22,7 +22,7 @@ export const WORLD_NPCS = Object.freeze([
     ]
   },
   {
-    name: 'Edith the Caretaker', x: QUEST_LOCATIONS[0].x - 250, y: QUEST_LOCATIONS[0].y - 10, color: '#766b7f',
+    name: 'Edith the Caretaker', x: QUEST_LOCATIONS[0].x - 140, y: QUEST_LOCATIONS[0].y + 65, color: '#766b7f',
     dialogue: [
       'I keep hearing creaks from the old escape room. I hope they are just the floorboards.',
       'Mara knows the warding runes. Perhaps she can help you get inside.'

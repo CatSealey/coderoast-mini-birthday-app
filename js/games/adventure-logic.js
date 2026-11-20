@@ -7,6 +7,7 @@ export const PUB_JOIN_POINT = Object.freeze({ x: 780, y: 412 });
 export const PUB_EXIT = Object.freeze({ x: 900, y: 640 });
 export const PUB_PARTNER_OFFSET = -50;
 const COUPLE_FACING = Math.atan2(500, 950);
+const COUPLE_WALK_SPEED = 140;
 export const PUB_GOODBYE = "Cat: We sucked at pool but I had so much fun! Let's go home.";
 export const COASTER_GOODBYE = 'Cat: You look so happy with yourself 😅, I actually died!';
 export const COUPLE_GOODBYE_SECONDS = 2.5;
@@ -154,7 +155,7 @@ export function walkPubCouple(state, destination, seconds) {
   const dx = destination.x - state.player.x, dy = destination.y - state.player.y;
   const length = Math.hypot(dx, dy);
   if (!length || !followsCoupleHeading(state.player, destination)) return state;
-  const distance = Math.min(length, 55 * seconds);
+  const distance = Math.min(length, COUPLE_WALK_SPEED * seconds);
   const next = { x: state.player.x + dx / length * distance, y: state.player.y + dy / length * distance };
   if (!coupleCollision.clearSegment(state.player, next)) return state;
   return { ...state, player: { ...state.player, ...next } };
@@ -177,7 +178,7 @@ export function walkCoasterCouple(state, destination, seconds) {
   const dx = destination.x - state.player.x, dy = destination.y - state.player.y;
   const length = Math.hypot(dx, dy);
   if (!length || (otherSide ? Math.abs(dx) >= 1e-6 || dy < 0 : !followsCoupleHeading(state.player, destination))) return state;
-  const distance = Math.min(length, 105 * seconds);
+  const distance = Math.min(length, COUPLE_WALK_SPEED * seconds);
   const next = { x: state.player.x + dx / length * distance, y: state.player.y + dy / length * distance };
   if (!collision.clearSegment(state.player, next)) return state;
   return { ...state, player: { ...state.player, ...next } };

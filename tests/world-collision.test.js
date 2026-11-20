@@ -13,6 +13,7 @@ import { castleSupplyStyle } from '../js/world/castle-scenery.js';
 import { FRIGHT_MARQUEE } from '../js/world/fright-marquee.js';
 import { WORLD_LAMPS } from '../js/world/world-lamps.js';
 import { PARK_BANNERS, PARK_MAIN_COASTER, PARK_RELOCATED_STALL, PARK_RIDES, PARK_WHEEL } from '../js/world/park-scenery.js';
+import { ESCAPE_DECORATIVE_TREE } from '../js/world/tree-spacing.js';
 import { CatmullRomCurve3, Vector3 } from 'three';
 
 function coasterSupportPositions(ride, trackType, rotation = 0) {
@@ -51,6 +52,25 @@ test('castle, buildings and tree trunks are solid without blocking nearby entran
       assert.equal(collision.clearSegment(position, waypoint), true);
       position = waypoint;
     }
+  }
+});
+
+test('Edith stands clear of foreground trees and can be approached near the escape room', () => {
+  const edith = WORLD_NPCS.find((npc) => npc.name === 'Edith the Caretaker');
+  assert.ok(edith);
+  const trees = [...worldTrees(), ESCAPE_DECORATIVE_TREE];
+  for (const tree of trees.filter((item) => item.z > edith.y && item.z < edith.y + 250)) {
+    assert.ok(Math.abs(tree.x - edith.x) > 70 * tree.size + 20, 'a foreground tree obscures Edith');
+  }
+  const obstacles = worldObstacles(trees.slice(0, -1));
+  const footprint = obstacles.find((item) => item.x === edith.x && item.y === edith.y && item.radius === 16);
+  assert.ok(footprint);
+  assert.ok(!createCollision(obstacles.filter((item) => item !== footprint), 35).blocked(edith));
+  const collision = createCollision(obstacles);
+  for (const start of [{ x: 1500, y: 1450 }, { x: 1300, y: 1550 }]) {
+    const path = findCharacterApproach(start, edith, collision);
+    assert.ok(path?.length);
+    assert.ok(Math.hypot(path.at(-1).x - edith.x, path.at(-1).y - edith.y) <= INTERACTION_RANGE);
   }
 });
 

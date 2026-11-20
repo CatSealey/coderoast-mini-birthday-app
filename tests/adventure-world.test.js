@@ -88,6 +88,30 @@ test('walking partners stay shoulder to shoulder through turns', () => {
   }
 });
 
+test('the couple walks briskly to each exit without overshooting', () => {
+  for (const [index, start, exit, side, walk, finish] of [
+    [1, PUB_JOIN_POINT, PUB_EXIT, undefined, walkPubCouple, finishPubExit],
+    [2, COASTER_JOIN_POINT, COASTER_EXIT, -1, walkCoasterCouple, finishCoasterExit],
+    [2, COASTER_OTHER_JOIN_POINT, COASTER_OTHER_EXIT, 1, walkCoasterCouple, finishCoasterExit]
+  ]) {
+    let state = { ...newAdventureState(index), player: { ...start, height: 0 },
+      ...(index === 1 ? { pubEnding: 'ready' } : { phase: 'platform', rideEnding: 'ready', coasterExitSide: side }) };
+    const first = walk(state, exit, 0.05);
+    assert.ok(Math.abs(Math.hypot(first.player.x - start.x, first.player.y - start.y) - 7) < 1e-8);
+    let elapsed = 0.05;
+    state = first;
+    while (Math.hypot(state.player.x - exit.x, state.player.y - exit.y) > 0.01 && elapsed < 2) {
+      const next = walk(state, exit, 0.05);
+      assert.notStrictEqual(next, state);
+      state = next;
+      elapsed += 0.05;
+    }
+    assert.ok(elapsed < 2, `exit ${index} side ${side} took too long`);
+    assert.ok(Math.hypot(state.player.x - exit.x, state.player.y - exit.y) < 1e-8);
+    assert.equal(finish(state).complete, true);
+  }
+});
+
 test('both exits take one straight route from Cat without repositioning her', () => {
   assert.equal(COUPLE_GOODBYE_SECONDS, 3);
   for (const [index, start, exit, path, catId] of [

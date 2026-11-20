@@ -219,9 +219,10 @@ export function startGame(characterName) {
 
     memories.forEach((memory, index) => {
       const available = completed[index] && !dropped.has(index);
+      const displayed = available && trophyDisplays[index];
       const slot = document.createElement('button');
       slot.type = 'button';
-      slot.className = `inventory-slot ${available ? 'inventory-slot--collected' : 'inventory-slot--locked'}`;
+      slot.className = `inventory-slot ${available ? 'inventory-slot--collected' : 'inventory-slot--locked'}${displayed ? ' inventory-slot--displayed' : ''}`;
       if (available) {
         const image = document.createElement('img');
         image.src = keepsakeImages[index];
@@ -230,7 +231,7 @@ export function startGame(characterName) {
       } else slot.textContent = String(index + 1);
       slot.disabled = !available;
       slot.setAttribute('aria-label', available
-        ? `Open keepsake ${index + 1}: ${memory.title}`
+        ? `Open keepsake ${index + 1}: ${memory.title}${displayed ? ', displayed on a castle pedestal' : ''}`
         : dropped.has(index) ? `Keepsake ${index + 1} awaits recovery at an angel statue`
           : `Keepsake ${index + 1} not yet collected`);
       if (available) slot.dataset.memory = String(index);
@@ -597,7 +598,7 @@ export function startGame(characterName) {
       completed: completed.map((done, index) => done && (trophyDisplays[index] || carriedKeepsakes(completed, trophyDisplays, encounters)[index])),
       droppedKeepsakes: encounters.statues.flatMap((statue) => statue.keepsakes),
       displays: trophyDisplays, guestsPresent: birthdayGuestsPresent,
-      onDisplays: (displays) => { trophyDisplays = displays; saveProgress(); renderTrophySteps(); },
+      onDisplays: (displays) => { trophyDisplays = displays; saveProgress(); renderInventory(); renderTrophySteps(); },
       onPresent: () => {
         if (!presentAvailable(trophyDisplays, completed)) return false;
         if (!trophyQuest.completed) {
